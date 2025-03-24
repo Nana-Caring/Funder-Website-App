@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import {
   Search,
@@ -9,8 +9,12 @@ import {
   AccountBalance,
   Send,
   Group,
+  Share,
+  Close,
+  ArrowBack
 } from '@mui/icons-material';
-import { Avatar } from '@mui/material';
+import PaymentModal from '../PaymentModal/PaymentModal';
+import { Avatar, Modal, IconButton } from '@mui/material';
 
 /* 
   Outer container that holds sidebar on the left
@@ -18,14 +22,13 @@ import { Avatar } from '@mui/material';
 */
 const Container = styled.div`
   display: flex;
-  height: 100vh;
-  width: 80vw;
-  background-color: #f8f8f8;
-  overflow: hidden;
+  width: 83vw;
+  background-color: white;
   position: relative;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 `;
-
-
 
 
 
@@ -39,16 +42,12 @@ const DashboardContainer = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-  width:100%;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: 76px; /* Add padding to account for fixed header */
 `;
 
-
-/* 
-  The top header (white bar) with the greeting
-  and icons on the right.
-*/
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
@@ -57,8 +56,14 @@ const Header = styled.div`
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
   width: 100%;
   margin: 0;
+  margin-bottom: 12px;
   box-sizing: border-box;
-
+  position: fixed;
+  top: 0;
+  left: 20.3vw; /* Align with the dashboard container (100vw - 78vw) */
+  background: white;
+  width: 77vw; /* Match the dashboard container width */
+  z-index: 1000;
   h2 {
     font-size: 20px;
     color: #333;
@@ -70,10 +75,22 @@ const Header = styled.div`
     gap: 15px;
     align-items: center;
 
-    svg {
-      cursor: pointer;
-      color: #666;
-      font-size: 20px;
+    .icon-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+
+      svg {
+        cursor: pointer;
+        color: #666;
+        font-size: 20px;
+      }
+
+      span {
+        font-size: 12px;
+        color: #666;
+      }
     }
   }
 `;
@@ -88,34 +105,45 @@ const MainContent = styled.div`
   display: flex;
   gap: 10px;
   padding: 8px;
-  height: calc(100vh - 60px);
-  overflow: hidden;
-  width:100%;
+  width: 100%;
   
   > div {
-    flex: 1;
-    min-width: 300px;
-    height: 100%;
+    &:first-child {
+      flex: 2;
+      min-width: 300px;
+    }
+    &:last-child {
+      flex: 1;
+      min-width: 250px;
+    }
   }
 `;
 
 const BalanceCard = styled.div`
   background: white;
-  padding: 12px;
+  padding: 8px;
   border-radius: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 
   .balance-row {
     display: flex;
     justify-content: space-between;
+    align-items: center;
   }
 
   .balance-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+
     h3 {
-      font-size: 12px;
+      font-size: 14px;
       color: #666;
-      margin: 0 0 2px 0;
+      margin: 0;
+      font-weight: 500;
     }
     p {
       font-size: 18px;
@@ -126,41 +154,40 @@ const BalanceCard = styled.div`
   }
 `;
 
+import cardBg from '../../assets/card.jpg';
+
 const NanaCard = styled.div`
-  background: #000;
+  background: url(${cardBg});
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   color: white;
-  padding: 10px;
-  border-radius: 12px;
-  aspect-ratio: 2;
+  padding: 20px;
+  border-radius: 15px;
+  aspect-ratio: 1.8;
   position: relative;
   overflow: hidden;
-  margin-bottom: 8px;
-
-  .card-number {
-    font-size: 14px;
-    letter-spacing: 2px;
-    margin-top: 25px;
-  }
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+  height: 189px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 63%;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 
   .card-name {
-    font-size: 12px;
-    margin-top: 4px;
-  }
-
-  .visa-logo {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: bold;
+    margin-left:9px;
+    margin-top: 8px;
+    font-family: 'Podkova', serif;
+    color: #CAC8C8;
   }
 
-  .nana-logo {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    font-size: 14px;
-  }
+ 
+
 `;
 
 const QuickActions = styled.div`
@@ -179,7 +206,7 @@ const QuickActions = styled.div`
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 
     &:first-child {
-      flex: 0.8; /* Reduce width of Quick Transfer component */
+      flex: 0.8;
     }
 
     h3 {
@@ -190,20 +217,35 @@ const QuickActions = styled.div`
 
     .users {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       margin: 8px 0;
+      gap: 24px; /* Increased from 12px to 24px */
       
-      .avatar {
-        margin-right: 8px;
-        border: 2px solid white;
-        width: 28px;
-        height: 28px;
+      .user-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+
+        .avatar {
+          margin-bottom: 4px;
+          border: 2px solid white;
+          width: 28px;
+          height: 28px;
+        }
+
+        .user-name {
+          font-size: 10px;
+          color: #666;
+          margin-top: 2px;
+        }
       }
 
       .arrow-icon {
         width: 20px;
         height: 20px;
         margin-left: 4px;
+        align-self: center;
       }
     }
 
@@ -229,34 +271,38 @@ const QuickActions = styled.div`
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 12px;
-        background: #f8f8f8;
+        padding: 8px;
+        background: #e0e0e0;
         border-radius: 8px;
         margin-bottom: 8px;
+        transition: background-color 0.2s ease;
 
+        &:hover {
+          background: #d0d0d0;
+        }
         .request-details {
           display: flex;
           flex-direction: column;
           gap: 4px;
 
           span:first-child {
-            font-weight: 500;
-            color: #333;
+            font-weight: 600;
+            color: #111;
           }
 
           span:last-child {
             font-size: 12px;
-            color: #666;
+            color: #333;
           }
         }
 
         .request-amount {
-          font-weight: 500;
-          color: #333;
+          font-weight: 600;
+          color: #111;
         }
 
         .more-options {
-          color: #666;
+          color: #333;
           font-weight: bold;
           cursor: pointer;
         }
@@ -277,7 +323,7 @@ const QuickActions = styled.div`
       padding: 8px;
       border: none;
       border-radius: 8px;
-      background: #f72c9d;
+      background: #FD3E6E;
       color: white;
       font-size: 14px;
       cursor: pointer;
@@ -298,15 +344,17 @@ const QuickActions = styled.div`
 `;
 
 const RightPanel = styled.div`
- 
-  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
 `;
 
 const TrackingSection = styled.div`
   background: white;
   padding: 20px;
   border-radius: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 0px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 
   .icons-container {
@@ -315,8 +363,29 @@ const TrackingSection = styled.div`
     justify-content: center;
     margin-bottom: 15px;
     gap: 15px;
-  }
+    position: relative;
 
+    .dots {
+      position: absolute;
+      bottom: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #FD3E6E;
+
+        &.inactive {
+          background: transparent;
+          border: 1px solid #FD3E6E;
+        }
+      }
+    }
+  }
   .arrow-icon {
     color: #666;
   }
@@ -346,7 +415,6 @@ const TrackingSection = styled.div`
     }
   }
 `;
-
 
 const AccountProgress = styled.div`
   margin-bottom: 15px;
@@ -378,8 +446,97 @@ const AccountProgress = styled.div`
   }
 `;
 
+const SendMoneyModal = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 1);
+  padding: 24px;
+  border-radius: 12px;
+  width: 400px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+
+    h2 {
+      margin: 0;
+      font-size: 20px;
+      color: #333;
+    }
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+
+    &:has(input[type="number"]) {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+
+      label {
+        margin-bottom: 0;
+        min-width: 80px;
+      }
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #666;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    select, input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+  }
+
+  .warning-message {
+    color: #ff0000;
+    font-size: 12px;
+    margin: 16px 0;
+  }
+
+  .button-group {
+    display: flex;
+    justify-content: center;
+    margin-top: 24px;
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #000;
+      color: white;
+
+      &:hover {
+        opacity: 0.9;
+      }
+    }
+  }
+`;
+
 const TransactionHistory = styled.div`
   margin-top: 20px;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
   
   h3 {
     display: flex;
@@ -397,6 +554,14 @@ const TransactionHistory = styled.div`
     display: flex;
     align-items: center;
     margin-bottom: 15px;
+    padding: 8px;
+    background: #e0e0e0;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background: #d0d0d0;
+    }
 
     .avatar {
       margin-right: 12px;
@@ -417,13 +582,14 @@ const TransactionHistory = styled.div`
     }
 
     .amount {
-      color: #ff4081;
-      font-weight: 600;
-    }
+      color:rgb(5, 1, 3);
+      
   }
 `;
 
 const Dashboard = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   return (
     <Container>
      
@@ -432,11 +598,20 @@ const Dashboard = () => {
       <DashboardContainer>
         {/* HEADER */}
         <Header>
-          <h2>Welcome Back, Mr Prince</h2>
+          <h2><span style={{ fontWeight: 'normal' }}>Welcome Back, </span><span style={{ fontWeight: 'bold' }}>Mr Prince</span></h2>
           <div className="icons">
-            <Notifications />
-            <Settings />
-            <Person />
+            <div className="icon-container">
+              <Notifications />
+              <span>Notifications</span>
+            </div>
+            <div className="icon-container">
+              <Settings />
+              <span>Settings</span>
+            </div>
+            <div className="icon-container">
+              <Person />
+              <span>Profile</span>
+            </div>
           </div>
         </Header>
 
@@ -458,19 +633,27 @@ const Dashboard = () => {
             </BalanceCard>
 
             <NanaCard>
-              <div className="nana-logo">Nana Card</div>
-              <div className="card-number">1234 5678 9101 1121</div>
-              <div className="card-name">MR PRINCE</div>
-              <div className="visa-logo">Visa</div>
+            
+              <div className="card-name">MR PRINCE MASHUMU</div>
+              
             </NanaCard>
 
             <QuickActions>
               <div className="action-card">
                 <h3>Quick Transfer</h3>
                 <div className="users">
-                  <Avatar className="avatar" alt="Tim" src="/src/assets/avatars/avatar1.png" />
-                  <Avatar className="avatar" alt="Daughter" src="/src/assets/avatars/avatar2.png" />
-                  <Avatar className="avatar" alt="Chris" src="/src/assets/avatars/avatar3.png" />
+                  <div className="user-container">
+                    <Avatar className="avatar" alt="Tim" src="/src/assets/avatars/avatar1.png" />
+                    <span className="user-name">Son</span>
+                  </div>
+                  <div className="user-container">
+                    <Avatar className="avatar" alt="Daughter" src="/src/assets/avatars/avatar2.png" />
+                    <span className="user-name">Daughter</span>
+                  </div>
+                  <div className="user-container">
+                    <Avatar className="avatar" alt="Chris" src="/src/assets/avatars/avatar3.png" />
+                    <span className="user-name">Chris</span>
+                  </div>
                   <img src="/src/assets/icons/arrow.png" alt="arrow" className="arrow-icon" />
                 </div>
                 <select className="transfer-select">
@@ -478,7 +661,68 @@ const Dashboard = () => {
                   <option>Savings Account</option>
                   <option>Checking Account</option>
                 </select>
-                <button>Send Money</button>
+                <button onClick={() => setIsModalOpen(true)}>Send Money</button>
+                <Modal
+                  open={isModalOpen}
+                  onClose={() => setIsModalOpen(false)}
+                  aria-labelledby="send-money-modal"
+                >
+                  <SendMoneyModal>
+                    <div className="modal-header">
+                      <IconButton onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', left: '10px' }}>
+                        <ArrowBack />
+                      </IconButton>
+                      <h2 style={{ width: '100%', textAlign: 'center' }}>Pay</h2>
+                      <IconButton onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', right: '10px' }}>
+                        <Close />
+                      </IconButton>
+                    </div>
+                    <div className="form-group">
+                      <select>
+                        <option value="">Beneficiary name</option>
+                        <option>John Doe</option>
+                        <option>Jane Smith</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>From</label>
+                      <select>
+                        <option>Capitec Account</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>To</label>
+                      <select>
+                        <option>Baby Care Account</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Amount</label>
+                      <input type="number" placeholder="R 5000" />
+                    </div>
+                    <p className="warning-message">
+                      Please be advised that when you proceed now, you have made sure the details are accurate
+                    </p>
+                    <div className="button-group">
+                      <button 
+                        className="proceed" 
+                        onClick={() => {
+                          setIsModalOpen(false);
+                          setIsPaymentModalOpen(true);
+                        }}
+                      >
+                        Proceed
+                      </button>
+                    </div>
+                  </SendMoneyModal>
+                </Modal>
+                <Modal
+                  open={isPaymentModalOpen}
+                  onClose={() => setIsPaymentModalOpen(false)}
+                  aria-labelledby="payment-modal"
+                >
+                  <PaymentModal onClose={() => setIsPaymentModalOpen(false)} />
+                </Modal>
               </div>
               <div className="action-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -523,9 +767,14 @@ const Dashboard = () => {
           <RightPanel>
             <TrackingSection>
               <div className="icons-container">
-                <Avatar alt="Parent" src="/src/assets/avatars/avatar2.png"  />
-                <Avatar alt="Child" src="/src/assets/avatars/avatar3.png"  />
+                <Avatar alt="Parent" src="/src/assets/avatars/avatar2.png" />
+                <Avatar alt="Child" src="/src/assets/avatars/avatar3.png" />
                 <img src="/src/assets/icons/arrow.png" alt="arrow" className="arrow-icon" />
+                <div className="dots">
+                  <div className="dot"></div>
+                  <div className="dot inactive"></div>
+                  <div className="dot inactive"></div>
+                </div>
               </div>
               <h3>Track how your child use her money.</h3>
               <div className="total">00</div>

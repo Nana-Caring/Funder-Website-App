@@ -15,11 +15,11 @@ const SidebarContainer = styled.div`
   padding: 20px;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #eee;
+  border-right: 2px solid gray;
 `;
 
 const Logo = styled.div`
-  color: #ff4081;
+  color: #FD3E6E;
   font-size: 24px;
   font-weight: bold;
   margin-bottom: 40px;
@@ -35,8 +35,8 @@ const MenuItem = styled.div`
   padding: 12px;
   cursor: pointer;
   border-radius: 8px;
-  color: ${props => props.active ? '#ff4081' : '#666'};
-  background-color: ${props => props.active ? '#fff0f4' : 'transparent'};
+  color: ${props => props.active ? 'black' : '#666'};
+  background-color: ${props => props.active ? '#FD3E6E' : 'transparent'};
   margin-bottom: 8px;
   transition: all 0.3s ease;
 
@@ -56,8 +56,8 @@ const Sidebar = () => {
   return (
     <SidebarContainer>
       <Logo>
-        <img src={logo} alt="Nana" width="48" />
-        nana
+        <img src={logo} alt="Nana" width="118" height="101" />
+        
       </Logo>
 
       <MenuItem active>
