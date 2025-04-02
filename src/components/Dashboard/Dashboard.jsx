@@ -15,24 +15,18 @@ import {
 } from '@mui/icons-material';
 import PaymentModal from '../PaymentModal/PaymentModal';
 import { Avatar, Modal, IconButton } from '@mui/material';
-
 /* 
-  Outer container that holds sidebar on the left
-  and the main dashboard area on the right.
+  Outer container that holds the main dashboard area.
 */
 const Container = styled.div`
   display: flex;
-  width: 83vw;
+  width: 100%;
   background-color: white;
   position: relative;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
 `;
-
-
-
-
 
 /* 
   The main area (right side) after the sidebar.
@@ -45,54 +39,7 @@ const DashboardContainer = styled.div`
   width: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-top: 76px; /* Add padding to account for fixed header */
-`;
-
-const Header = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  width: 100%;
-  margin: 0;
-  margin-bottom: 12px;
-  box-sizing: border-box;
-  position: fixed;
-  top: 0;
-  left: 20.3vw; /* Align with the dashboard container (100vw - 78vw) */
-  background: white;
-  width: 77vw; /* Match the dashboard container width */
-  z-index: 1000;
-  h2 {
-    font-size: 20px;
-    color: #333;
-    margin: 0;
-  }
-
-  .icons {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-
-    .icon-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-
-      svg {
-        cursor: pointer;
-        color: #666;
-        font-size: 20px;
-      }
-
-      span {
-        font-size: 12px;
-        color: #666;
-      }
-    }
-  }
+  padding: 20px;
 `;
 
 /* 
@@ -104,12 +51,12 @@ const Header = styled.div`
 const MainContent = styled.div`
   display: flex;
   gap: 10px;
-  padding: 8px;
+  padding: 0;
   width: 100%;
   
   > div {
     &:first-child {
-      flex: 2;
+      flex: 1.5;
       min-width: 300px;
     }
     &:last-child {
@@ -121,10 +68,13 @@ const MainContent = styled.div`
 
 const BalanceCard = styled.div`
   background: white;
-  padding: 8px;
+  padding: 12px;
   border-radius: 12px;
   margin-bottom: 6px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 
   .balance-row {
     display: flex;
@@ -152,9 +102,35 @@ const BalanceCard = styled.div`
       font-weight: 600;
     }
   }
+
+  .card-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 8px 0;
+  }
 `;
 
 import cardBg from '../../assets/card.jpg';
+
+const NanaCardWrapper = styled.div`
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+`;
+
+const NanaCardShadow = styled.div`
+  position: absolute;
+  top: 30px;
+  left: 30px;
+  width: calc(100% + 10px);
+  height: 195px;
+  background-color: rgba(26, 13, 13, 0.53);
+  border-radius: 15px;
+  z-index: 0;
+  filter: blur(15px);
+`;
 
 const NanaCard = styled.div`
   background: url(${cardBg});
@@ -170,31 +146,26 @@ const NanaCard = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  margin-bottom: 20px;
-  height: 189px;
-  margin-left: auto;
-  margin-right: auto;
-  width: 63%;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  height: 165px;
+  width: 100%;
+  max-width: 340px;
+  z-index: 1;
 
   .card-name {
     font-size: 20px;
     font-weight: bold;
-    margin-left:9px;
+    margin-left: 9px;
     margin-top: 8px;
     font-family: 'Podkova', serif;
     color: #CAC8C8;
   }
-
- 
-
 `;
 
 const QuickActions = styled.div`
   background: white;
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+
   display: flex;
   gap: 16px;
 
@@ -203,7 +174,7 @@ const QuickActions = styled.div`
     background: white;
     padding: 10px;
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+   
 
     &:first-child {
       flex: 0.8;
@@ -260,6 +231,8 @@ const QuickActions = styled.div`
 
     .deposit-selects {
       margin: 4px 0;
+      
+
 
       .to-text {
         text-align: center;
@@ -277,13 +250,19 @@ const QuickActions = styled.div`
         margin-bottom: 8px;
         transition: background-color 0.2s ease;
 
+        &:last-child {
+          margin-bottom: 0;
+        }
+
         &:hover {
           background: #d0d0d0;
         }
         .request-details {
           display: flex;
-          flex-direction: column;
-          gap: 4px;
+          flex-direction: row;
+          align-items: center;
+          gap: 16px;
+          font-size: 14px;
 
           span:first-child {
             font-weight: 600;
@@ -345,23 +324,24 @@ const QuickActions = styled.div`
 
 const RightPanel = styled.div`
   display: flex;
+  margin-right:12px;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   padding: 0;
 `;
 
 const TrackingSection = styled.div`
   background: white;
-  padding: 20px;
+  padding: 10px;
   border-radius: 12px;
   margin-bottom: 0px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  
 
   .icons-container {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     gap: 15px;
     position: relative;
 
@@ -417,7 +397,7 @@ const TrackingSection = styled.div`
 `;
 
 const AccountProgress = styled.div`
-  margin-bottom: 15px;
+  margin-bottom: 6px;
 
   .label {
     display: flex;
@@ -428,7 +408,7 @@ const AccountProgress = styled.div`
   }
 
   .progress-bar {
-    height: 30px;
+    height: 21px;
     background: #f0f0f0;
     border-radius: 4px;
     overflow: hidden;
@@ -532,17 +512,17 @@ const SendMoneyModal = styled.div`
 `;
 
 const TransactionHistory = styled.div`
-  margin-top: 20px;
+  margin-top:0;
   background: white;
-  padding: 20px;
+  padding: 4px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+
   
   h3 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin: 0 0 20px 0;
+    margin: 0 0 8px 0;
 
     .search-icon {
       cursor: pointer;
@@ -553,8 +533,8 @@ const TransactionHistory = styled.div`
   .transaction {
     display: flex;
     align-items: center;
-    margin-bottom: 15px;
-    padding: 8px;
+    margin-bottom: 8px;
+    padding: 4px;
     background: #e0e0e0;
     border-radius: 8px;
     transition: background-color 0.2s ease;
@@ -565,10 +545,16 @@ const TransactionHistory = styled.div`
 
     .avatar {
       margin-right: 12px;
+      width: 32px;
+      height: 32px;
     }
 
     .details {
       flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      
       h4 {
         margin: 0;
         font-size: 14px;
@@ -582,8 +568,10 @@ const TransactionHistory = styled.div`
     }
 
     .amount {
-      color:rgb(5, 1, 3);
-      
+      color: rgb(5, 1, 3);
+      margin-left: auto;
+      font-weight: 500;
+    }
   }
 `;
 
@@ -596,47 +584,27 @@ const Dashboard = () => {
      
       {/* --- MAIN DASHBOARD AREA --- */}
       <DashboardContainer>
-        {/* HEADER */}
-        <Header>
-          <h2><span style={{ fontWeight: 'normal' }}>Welcome Back, </span><span style={{ fontWeight: 'bold' }}>Mr Prince</span></h2>
-          <div className="icons">
-            <div className="icon-container">
-              <Notifications />
-              <span>Notifications</span>
-            </div>
-            <div className="icon-container">
-              <Settings />
-              <span>Settings</span>
-            </div>
-            <div className="icon-container">
-              <Person />
-              <span>Profile</span>
-            </div>
-          </div>
-        </Header>
-
-        {/* MAIN CONTENT (2 columns) */}
         <MainContent>
           {/* LEFT COLUMN */}
           <div>
             <BalanceCard>
               <div className="balance-row">
                 <div className="balance-item">
-                  <h3>Current Balance</h3>
-                  <p>R10 000</p>
-                </div>
-                <div className="balance-item">
                   <h3>Money Out</h3>
                   <p>-R10 000</p>
                 </div>
+                
               </div>
             </BalanceCard>
 
-            <NanaCard>
-            
-              <div className="card-name">MR PRINCE MASHUMU</div>
-              
-            </NanaCard>
+            <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+              <NanaCardWrapper>
+                <NanaCardShadow />
+                <NanaCard>
+                  {/* existing card content */}
+                </NanaCard>
+              </NanaCardWrapper>
+            </div>
 
             <QuickActions>
               <div className="action-card">
@@ -737,28 +705,31 @@ const Dashboard = () => {
                     <div className="request-details">
                       <span>Charity Matlapo</span>
                       <span>Healthcare</span>
+                      <span  >R10 000</span>
+                      <span >...</span>
                     </div>
-                    <div className="request-amount">R10 000</div>
-                    <span className="more-options">...</span>
+                    
                   </div>
                   <div className="request-item">
                     <div className="request-details">
-                      <span>Charity Matlapo</span>
+                    <span>Charity Matlapo</span>
                       <span>Healthcare</span>
+                      <span  >R10 000</span>
+                      <span >...</span>
                     </div>
-                    <div className="request-amount">R10 000</div>
-                    <span className="more-options">...</span>
+                   
                   </div>
                   <div className="request-item">
                     <div className="request-details">
-                      <span>Charity Matlapo</span>
+                    <span>Charity Matlapo</span>
                       <span>Healthcare</span>
+                      <span  >R10 000</span>
+                      <span >...</span>
                     </div>
-                    <div className="request-amount">R10 000</div>
-                    <span className="more-options">...</span>
+                    
                   </div>
                 </div>
-                <button>See All</button>
+                {/* <button>See All</button> */}
               </div>
             </QuickActions>
           </div>
@@ -776,7 +747,7 @@ const Dashboard = () => {
                   <div className="dot inactive"></div>
                 </div>
               </div>
-              <h3>Track how your child use her money.</h3>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>Monthly expenses <img src="/src/assets/icons/expenses.png" alt="arrow" className="arrow-icon" style={{ width: '16px', height: '16px' }} /></h3>
               <div className="total">00</div>
               <AccountProgress>
                 <div className="label">
@@ -817,18 +788,29 @@ const Dashboard = () => {
               <div className="transaction">
                 <Avatar className="avatar" />
                 <div className="details">
-                  <h4>School fees</h4>
-                  <p>11-feb-25 11:00 AM</p>
+                  <span>School fees</span>
+                  <span>11-feb-25 11:00 AM</span>
+                  <span className="amount">-R10 000</span>
                 </div>
-                <div className="amount">-R10 000</div>
+               
               </div>
               <div className="transaction">
                 <Avatar className="avatar" />
                 <div className="details">
-                  <h4>School fees</h4>
-                  <p>11-feb-25 11:00 AM</p>
+                  <span>School fees</span>
+                  <span>11-feb-25 11:00 AM</span>
+                  <span className="amount">-R10 000</span>
                 </div>
-                <div className="amount">-R10 000</div>
+               
+              </div>
+              <div className="transaction">
+                <Avatar className="avatar" />
+                <div className="details">
+                  <span>School fees</span>
+                  <span>11-feb-25 11:00 AM</span>
+                  <span className="amount">-R10 000</span>
+                </div>
+                
               </div>
             </TransactionHistory>
           </RightPanel>

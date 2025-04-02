@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { Link, useLocation } from 'react-router-dom';
 import logo from '../../assets/logo.jpg';
 import homeIcon from '../../assets/icons/home-icon.png';
 import depositIcon from '../../assets/icons/deposit-icon.png';
@@ -7,6 +8,7 @@ import myAccountIcon from '../../assets/icons/my-account-icon.png';
 import sendMoneyIcon from '../../assets/icons/send-money-icon.png';
 import beneficiaryIcon from '../../assets/icons/beneficiary-icon.png';
 import statementsIcon from '../../assets/icons/statements-icon.png';
+import messagesIcon from '../../assets/icons/messages.png';
 
 const SidebarContainer = styled.div`
   width: 235px;
@@ -28,7 +30,8 @@ const Logo = styled.div`
   gap: 8px;
 `;
 
-const MenuItem = styled.div`
+const MenuItem = styled(Link)`
+  text-decoration: none;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -53,6 +56,7 @@ const MenuItem = styled.div`
 `;
 
 const Sidebar = () => {
+  const location = useLocation();
   return (
     <SidebarContainer>
       <Logo>
@@ -60,32 +64,32 @@ const Sidebar = () => {
         
       </Logo>
 
-      <MenuItem active>
+      <MenuItem to="/" active={location.pathname === "/" ? 1 : 0}>
         <img src={homeIcon} alt="Home" />
         Home
       </MenuItem>
 
-      <MenuItem>
-        <img src={depositIcon} alt="Deposit Money" />
-        Deposit Money
+      <MenuItem to="/messages" active={location.pathname === "/messages" ? 1 : 0}>
+        <img src={messagesIcon} alt="Messages" />
+        Messages 
       </MenuItem>
 
-      <MenuItem>
+      <MenuItem to="/my-accounts" active={location.pathname === "/my-accounts" ? 1 : 0}>
         <img src={myAccountIcon} alt="My Accounts" />
         My Accounts
       </MenuItem>
 
-      <MenuItem>
+      <MenuItem to="/send-money" active={location.pathname === "/send-money" ? 1 : 0}>
         <img src={sendMoneyIcon} alt="Send Money" />
         Send Money
       </MenuItem>
 
-      <MenuItem>
+      <MenuItem to="/beneficiary" active={location.pathname === "/beneficiary" ? 1 : 0}>
         <img src={beneficiaryIcon} alt="Beneficiary" />
         Beneficiary
       </MenuItem>
 
-      <MenuItem>
+      <MenuItem to="/statements" active={location.pathname === "/statements" ? 1 : 0}>
         <img src={statementsIcon} alt="Statements" />
         Statements
       </MenuItem>
