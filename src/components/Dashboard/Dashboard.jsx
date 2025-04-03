@@ -54,6 +54,7 @@ const MainContent = styled.div`
   padding: 0;
   width: 100%;
   
+  
   > div {
     &:first-child {
       flex: 1.5;
@@ -89,17 +90,13 @@ const BalanceCard = styled.div`
     gap: 10px;
     padding: 10px;
 
-    h3 {
-      font-size: 14px;
-      color: #666;
-      margin: 0;
-      font-weight: 500;
-    }
+    
     p {
-      font-size: 18px;
-      color: #333;
+      font-size: 16px;
       margin: 0;
-      font-weight: 600;
+      font-weight: 400;
+      font-family: Inter;
+      color: #666;
     }
   }
 
@@ -122,14 +119,14 @@ const NanaCardWrapper = styled.div`
 
 const NanaCardShadow = styled.div`
   position: absolute;
-  top: 30px;
-  left: 30px;
-  width: calc(100% + 10px);
-  height: 195px;
-  background-color: rgba(26, 13, 13, 0.53);
+  top: 35px;
+  left: 40px;
+  width: calc(100% + 30px);
+  height: 197px;
+  background-color: gray;
   border-radius: 15px;
   z-index: 0;
-  filter: blur(15px);
+  filter: blur(1px);
 `;
 
 const NanaCard = styled.div`
@@ -146,9 +143,9 @@ const NanaCard = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  height: 165px;
+  height: 170px;
   width: 100%;
-  max-width: 340px;
+  max-width: 380px;
   z-index: 1;
 
   .card-name {
@@ -168,6 +165,7 @@ const QuickActions = styled.div`
 
   display: flex;
   gap: 16px;
+  margin-top:25px;
 
   .action-card {
     flex: 1;
@@ -191,6 +189,7 @@ const QuickActions = styled.div`
       align-items: flex-start;
       margin: 8px 0;
       gap: 24px; /* Increased from 12px to 24px */
+      font-family: 'Poppins', sans-serif;
       
       .user-container {
         display: flex;
@@ -209,6 +208,7 @@ const QuickActions = styled.div`
           font-size: 10px;
           color: #666;
           margin-top: 2px;
+          font-family: 'Poppins', sans-serif;
         }
       }
 
@@ -263,9 +263,10 @@ const QuickActions = styled.div`
           align-items: center;
           gap: 16px;
           font-size: 14px;
+          font-family: sans-serif;
 
           span:first-child {
-            font-weight: 600;
+
             color: #111;
           }
 
@@ -328,6 +329,7 @@ const RightPanel = styled.div`
   flex-direction: column;
   gap: 0;
   padding: 0;
+  
 `;
 
 const TrackingSection = styled.div`
@@ -335,6 +337,7 @@ const TrackingSection = styled.div`
   padding: 10px;
   border-radius: 12px;
   margin-bottom: 0px;
+   font-family: 'Poppins', sans-serif;
   
 
   .icons-container {
@@ -375,9 +378,11 @@ const TrackingSection = styled.div`
     display: flex;
     flex-direction: column;
     gap: 10px;
+    
   }
 
   .account-item {
+   font-family: 'Poppins', sans-serif;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -538,13 +543,14 @@ const TransactionHistory = styled.div`
     background: #e0e0e0;
     border-radius: 8px;
     transition: background-color 0.2s ease;
+    gap: 30px;
 
     &:hover {
       background: #d0d0d0;
     }
 
     .avatar {
-      margin-right: 12px;
+     
       width: 32px;
       height: 32px;
     }
@@ -553,7 +559,7 @@ const TransactionHistory = styled.div`
       flex: 1;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 20px;
       
       h4 {
         margin: 0;
@@ -569,8 +575,8 @@ const TransactionHistory = styled.div`
 
     .amount {
       color: rgb(5, 1, 3);
-      margin-left: auto;
-      font-weight: 500;
+     
+     
     }
   }
 `;
@@ -590,7 +596,7 @@ const Dashboard = () => {
             <BalanceCard>
               <div className="balance-row">
                 <div className="balance-item">
-                  <h3>Money Out</h3>
+                  <p>Money Out:</p>
                   <p>-R10 000</p>
                 </div>
                 
@@ -601,7 +607,8 @@ const Dashboard = () => {
               <NanaCardWrapper>
                 <NanaCardShadow />
                 <NanaCard>
-                  {/* existing card content */}
+                  <div className="card-name">MR PRINCE MASHUNU</div>
+                 
                 </NanaCard>
               </NanaCardWrapper>
             </div>
@@ -748,7 +755,7 @@ const Dashboard = () => {
                 </div>
               </div>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>Monthly expenses <img src="/src/assets/icons/expenses.png" alt="arrow" className="arrow-icon" style={{ width: '16px', height: '16px' }} /></h3>
-              <div className="total">00</div>
+            <p className="total" style={{ fontFamily: 'Inter', fontSize: '30px', fontWeight: '400', marginTop: '4px', marginBottom: '4px', color: '#333333' }}>00</p>
               <AccountProgress>
                 <div className="label">
                   <span>Baby Care Account</span>

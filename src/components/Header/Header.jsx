@@ -1,6 +1,9 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Settings, Notifications, Person } from '@mui/icons-material';
+import personIcon from '../../assets/icons/person.png';
+import notificationIcon from '../../assets/icons/notifications.png';
+import notificationIndicatorIcon from '../../assets/icons/notification-icon.png';
+import settingsIcon from '../../assets/icons/settings.png';
 
 const HeaderContainer = styled.div`
   display: flex;
@@ -13,6 +16,7 @@ const HeaderContainer = styled.div`
   background: white;
   border-bottom: 1px solid #eee;
   z-index: 1000;
+  font-family: 'Poppins', sans-serif;
 
   h2 {
     font-size: 20px;
@@ -30,11 +34,21 @@ const HeaderContainer = styled.div`
       flex-direction: column;
       align-items: center;
       gap: 4px;
+      position: relative;
 
-      svg {
+      img {
         cursor: pointer;
-        color: #666;
-        font-size: 20px;
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+      }
+
+      .notification-indicator {
+        position: absolute;
+        top: -4px;
+        right: -2px;
+        width: 12px;
+        height: 12px;
       }
 
       span {
@@ -51,16 +65,14 @@ const Header = () => {
       <h2><span style={{ fontWeight: 'normal' }}>Welcome Back, </span><span style={{ fontWeight: 'bold' }}>Mr Prince</span></h2>
       <div className="icons">
         <div className="icon-container">
-          <Notifications />
-          <span>Notifications</span>
+          <img src={personIcon} alt="Profile" />
         </div>
         <div className="icon-container">
-          <Settings />
-          <span>Settings</span>
+          <img src={notificationIcon} alt="Notifications" />
+          <img src={notificationIndicatorIcon} alt="Notification Indicator" className="notification-indicator" />
         </div>
         <div className="icon-container">
-          <Person />
-          <span>Profile</span>
+          <img src={settingsIcon} alt="Settings" />
         </div>
       </div>
     </HeaderContainer>

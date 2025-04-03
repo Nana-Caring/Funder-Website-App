@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
+import editIcon from '../../assets/icons/edit.png';
+import deleteIcon from '../../assets/icons/delete.png';
 import Header from '../Header/Header';
 
 const Container = styled.div`
@@ -74,10 +74,10 @@ const AddButton = styled.button`
   color: white;
   border: none;
   padding: 10px 20px;
-  border-radius: 4px;
+  border-radius: 20px;
   cursor: pointer;
   font-size: 14px;
-  align-self: flex-start;
+  align-self: flex-end;
 
   &:hover {
     background: #333;
@@ -96,15 +96,24 @@ const Table = styled.table`
   border-collapse: collapse;
 
   th, td {
-    padding: 12px;
+    padding: 3px;
     text-align: left;
-    border-bottom: 1px solid #eee;
+    line-height: 0.4;
+  }
+
+  td {
+    border: 1px solid #ddd;
   }
 
   th {
     background: #f8f8f8;
     font-weight: 500;
     color: #666;
+    border-bottom: 2px solid #ddd;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 1px solid #ddd;
   }
 `;
 
@@ -112,12 +121,17 @@ const ActionButton = styled.button`
   background: none;
   border: none;
   cursor: pointer;
-  color: ${props => props.delete ? '#ff4444' : '#666'};
   padding: 4px;
   margin: 0 4px;
 
-  &:hover {
-    color: ${props => props.delete ? '#ff0000' : '#333'};
+  img {
+    width: 20px;
+    height: 20px;
+    opacity: 0.7;
+  }
+
+  &:hover img {
+    opacity: 1;
   }
 `;
 
@@ -160,6 +174,7 @@ const MyAccounts = () => {
         </FormSection>
 
         <AccountsTable>
+          <h4>My Accounts</h4>
           <Table>
             <thead>
               <tr>
@@ -175,10 +190,10 @@ const MyAccounts = () => {
                   <td>{account.accountNumber}</td>
                   <td>
                     <ActionButton>
-                      <EditIcon />
+                      <img src={editIcon} alt="Edit" />
                     </ActionButton>
-                    <ActionButton delete>
-                      <DeleteIcon />
+                    <ActionButton>
+                      <img src={deleteIcon} alt="Delete" />
                     </ActionButton>
                   </td>
                 </tr>

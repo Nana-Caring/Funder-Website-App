@@ -9,27 +9,29 @@ const Container = styled.div`
 `;
 
 const MessagesWrapper = styled.div`
-  background-color: white;
+  background-color: #f5f5f5;
   border-radius: 12px;
   padding: 24px;
   width: 80%;
   max-width: 1000px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 `;
 
 const MessageCard = styled.div`
-  padding: 16px 0;
+  padding: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #dcdcdc;
+  background-color: #ffffff;
+  transition: background-color 0.2s ease;
 
   &:last-child {
     border-bottom: none;
   }
 
   &:hover {
-    background-color: #f8f8f8;
+    background-color: #e8e8e8;
   }
 `;
 

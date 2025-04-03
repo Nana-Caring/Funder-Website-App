@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import editIcon from '../../assets/icons/edit.png';
+import deleteIcon from '../../assets/icons/delete.png';
 
 const BeneficiaryForm = () => {
   const [beneficiaries, setBeneficiaries] = useState([
@@ -135,7 +137,7 @@ const BeneficiaryForm = () => {
         </div>
       </form>
 
-      <h3 style={{ marginBottom: '20px', fontSize: '16px', fontWeight: '500', marginLeft: '40px' }}>Beneficiaries</h3>
+      <h3 style={{ marginBottom: '20px', fontSize: '16px', fontWeight: '800', marginLeft: '40px' }}>Beneficiaries</h3>
       <div style={{ width: '81%', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', padding: '8px', marginLeft: '40px' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
@@ -157,11 +159,10 @@ const BeneficiaryForm = () => {
                         padding: '4px',
                         border: 'none',
                         background: 'none',
-                        cursor: 'pointer',
-                        color: '#4CAF50'
+                        cursor: 'pointer'
                       }}
                     >
-                      ✏️
+                      <img src={editIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
                     </button>
                     <button
                       onClick={() => setBeneficiaries(prev => prev.filter((_, i) => i !== index))}
@@ -169,11 +170,10 @@ const BeneficiaryForm = () => {
                         padding: '4px',
                         border: 'none',
                         background: 'none',
-                        cursor: 'pointer',
-                        color: '#f44336'
+                        cursor: 'pointer'
                       }}
                     >
-                      🗑️
+                      <img src={deleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
                     </button>
                   </div>
                 </td>

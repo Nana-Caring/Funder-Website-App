@@ -4,7 +4,7 @@ import './Statements.css';
 const Statements = () => {
   return (
     <div className="statements-container">
-        <h2>Latest statements</h2>
+      <h2>Latest statements</h2>
       <div className="statements-header">
         <div className="filter-section">
           <span>Filter by:</span>
@@ -26,88 +26,31 @@ const Statements = () => {
         </div>
       </div>
 
-    
-
-      <div className="statements-table">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Date and time</th>
-              <th>Money out</th>
-              <th>Beneficiary</th>
-              <th>Account name</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              {
-                id: 1,
-                date: '25-mar-2025 11:05 AM',
-                amount: 'R500.00',
-                beneficiary: 'Son',
-                account: 'Savings Account'
-              },
-              {
-                id: 2,
-                date: '25-mar-2025 11:05 AM',
-                amount: 'R1000.00',
-                beneficiary: 'Daughter',
-                account: 'Medication Account'
-              },
-              {
-                id: 3,
-                date: '25-mar-2025 11:05 AM',
-                amount: 'R500.00',
-                beneficiary: 'Son',
-                account: 'Savings Account'
-              },
-              {
-                id: 4,
-                date: '25-mar-2025 11:05 AM',
-                amount: 'R1000.00',
-                beneficiary: 'Daughter',
-                account: 'Medication Account'
-              },
-              {
-                id: 5,
-                date: '25-mar-2025 11:05 AM',
-                amount: 'R500.00',
-                beneficiary: 'Son',
-                account: 'Savings Account'
-              },
-              {
-                id: 6,
-                date: '25-mar-2025 11:05 AM',
-                amount: 'R1000.00',
-                beneficiary: 'Daughter',
-                account: 'Medication Account'
-              },
-              {
-                id: 7,
-                date: '25-mar-2025 11:05 AM',
-                amount: 'R500.00',
-                beneficiary: 'Son',
-                account: 'Savings Account'
-              },
-              {
-                id: 8,
-                date: '25-mar-2025 11:05 AM',
-                amount: 'R1000.00',
-                beneficiary: 'Daughter',
-                account: 'Medication Account'
-              }
-            ].map((item) => (
-              <tr key={item.id}>
-                <td>{item.id}</td>
-                <td>{item.date}</td>
-                <td>{item.amount}</td>
-                <td>{item.beneficiary}</td>
-                <td>{item.account}</td>
+      <div className="statements-table-wrapper">
+        <div className="statements-table">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Date and time</th>
+                <th>Money out</th>
+                <th>Beneficiary</th>
+                <th>Account name</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {[...Array(20).keys()].map((i) => (
+                <tr key={i}>
+                  <td>{i + 1}</td>
+                  <td>25-mar-2025 11:05 AM</td>
+                  <td>R{(i % 2 === 0 ? 500 : 1000).toFixed(2)}</td>
+                  <td>{i % 2 === 0 ? 'Son' : 'Daughter'}</td>
+                  <td>{i % 2 === 0 ? 'Savings Account' : 'Medication Account'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

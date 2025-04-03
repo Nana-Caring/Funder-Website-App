@@ -18,6 +18,7 @@ const SidebarContainer = styled.div`
   display: flex;
   flex-direction: column;
   border-right: 2px solid gray;
+  font-family: 'Poppins', sans-serif;
 `;
 
 const Logo = styled.div`

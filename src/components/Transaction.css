@@ -1,0 +1,24 @@
+.transaction {
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    padding: 10px;
+    background-color: #fff;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.transaction-amount {
+    font-weight: bold;
+}
+
+.transaction-delete {
+    cursor: pointer;
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+.transaction-date {
+    color: #666;
+    font-size: 0.9em;
+}

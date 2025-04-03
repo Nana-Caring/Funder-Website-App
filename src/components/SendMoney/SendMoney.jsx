@@ -94,7 +94,7 @@ const AmountField = styled.div`
 const PayButton = styled.button`
   background-color: black;
   color: white;
-  padding: 8px 16px;
+  padding: 8px 35px;
   border: none;
   border-radius: 20px;
   font-size: 14px;
