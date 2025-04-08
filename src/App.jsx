@@ -9,6 +9,7 @@ import SendMoney from './components/SendMoney/SendMoney'
 import BeneficiaryForm from './components/Beneficiary/Beneficiary'
 import Messages from './components/Messages/Messages'
 import Statements from './components/Statements/Statements'
+import LandingPage from './components/LandingPage/LandingPage'
 import './App.css'
 
 const AppContainer = styled.div`
@@ -19,23 +20,30 @@ const AppContainer = styled.div`
   position: relative;
 `;
 
+const DashboardLayout = () => (
+  <AppContainer>
+    <Sidebar />
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <Header title="Dashboard" />
+      <Routes>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/my-accounts" element={<MyAccounts />} />
+        <Route path="/send-money" element={<SendMoney />} />
+        <Route path="/beneficiary" element={<BeneficiaryForm />} />
+        <Route path="/messages" element={<Messages />} />
+        <Route path="/statements" element={<Statements />} />
+      </Routes>
+    </div>
+  </AppContainer>
+);
+
 function App() {
   return (
     <Router>
-      <AppContainer>
-        <Sidebar />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <Header title="Dashboard" />
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/my-accounts" element={<MyAccounts />} />
-            <Route path="/send-money" element={<SendMoney />} />
-            <Route path="/beneficiary" element={<BeneficiaryForm />} />
-            <Route path="/messages" element={<Messages />} />
-            <Route path="/statements" element={<Statements />} />
-          </Routes>
-        </div>
-      </AppContainer>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/*" element={<DashboardLayout />} />
+      </Routes>
     </Router>
   )
 }

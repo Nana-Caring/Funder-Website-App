@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import {
   Search,
@@ -175,7 +176,7 @@ const QuickActions = styled.div`
    
 
     &:first-child {
-      flex: 0.8;
+      flex: 0.7;
     }
 
     h3 {
@@ -263,7 +264,7 @@ const QuickActions = styled.div`
           align-items: center;
           gap: 16px;
           font-size: 14px;
-          font-family: sans-serif;
+          font-family: Poppins, sans-serif;
 
           span:first-child {
 
@@ -582,6 +583,7 @@ const TransactionHistory = styled.div`
 `;
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   return (
@@ -702,7 +704,10 @@ const Dashboard = () => {
               <div className="action-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3>Manage Requests</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div 
+                    onClick={() => navigate('/messages')} 
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                  >
                     <span style={{ color: '#ff0000', fontWeight: 'bold', fontSize: '14px' }}>see all</span>
                     <img src="/src/assets/icons/arrow.png" alt="arrow" style={{ width: '16px', height: '16px', color: '#666' }} />
                   </div>
@@ -789,8 +794,8 @@ const Dashboard = () => {
 
             <TransactionHistory>
               <h3>
-                Transaction History
-                <Search className="search-icon" />
+               Latest Transactions
+               
               </h3>
               <div className="transaction">
                 <Avatar className="avatar" />
