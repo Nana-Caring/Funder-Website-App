@@ -25,7 +25,12 @@ const LandingPage = () => {
 
       <div className="hero-section">
         <div className="hero-content">
-          <h1>Empowering Families, Ensuring Every Child's Needs Are Met.</h1>
+          <p className="hero-text">
+            Empowering<br />
+            Families, Ensuring<br />
+            Every Child's Needs<br />
+            Are Met.
+          </p>
           <p>A secure financial platform ensuring funds are used solely for children's essential needs.</p>
           <button className="download-btn">Download App</button>
         </div>
@@ -36,26 +41,26 @@ const LandingPage = () => {
 
       <div className="features-section">
         <div className="feature-item">
-          <h3>01</h3>
-          <h4>Financial transaction</h4>
+          <p className="feature-number">01</p>
+          <p className="feature-title">Financial transaction</p>
           <p>Manage financial transactions on the website and on the mobile app.</p>
         </div>
 
         <div className="feature-item">
-          <h3>02</h3>
-          <h4>Easy to use System</h4>
+          <p className="feature-number">02</p>
+          <p className="feature-title">Easy to use System</p>
           <p>Each card can have its own unique holder name and balance.</p>
         </div>
 
         <div className="feature-item">
-          <h3>03</h3>
-          <h4>Secure and Reliable</h4>
+          <p className="feature-number">03</p>
+          <p className="feature-title">Secure and Reliable</p>
           <p>Ensure all financial transactions are encrypted and securely processable to protect user data.</p>
         </div>
 
         <div className="feature-item">
-          <h3>04</h3>
-          <h4>Multi-Platform Accessibility</h4>
+          <p className="feature-number">04</p>
+          <p className="feature-title">Multi-Platform Accessibility</p>
           <p>Users can manage financial transactions seamlessly across both web and mobile applications.</p>
         </div>
       </div>

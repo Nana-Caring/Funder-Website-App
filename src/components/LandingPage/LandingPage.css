@@ -3,7 +3,7 @@
 .landing-page {
   font-family: 'Poppins', sans-serif;
   height: 100vh;
-  padding: 0 5%;
+  padding: 0 4%;
   background-color: #ffffff;
   display: flex;
   flex-direction: column;
@@ -13,12 +13,19 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 0;
-  height: 10vh;
+  padding: 0.3rem 0;
+  height: 9vh;
+  margin-bottom: 20px;
+  position: fixed;
+  top: 0;
+  left: 4%;
+  right: 4%;
+  background-color: #ffffff;
+  z-index: 1000;
 }
 
 .nav-logo {
-  height: 101px;
+  height: 90px;
 }
 
 .nav-center {
@@ -46,44 +53,45 @@
 
 .signup-btn {
   text-decoration: none;
-  background-color: #FF1F7D;
-  color: white;
-  padding: 0.5rem 1.5rem;
+  background-color: #ffffff;
+  color: #000000;
+  padding: 0.8rem 1.8rem;
   border-radius: 25px;
   font-weight: 500;
+  border: 2px solid #FFA500EE;
 }
 
 .hero-section {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 349px;
-  gap: 2rem;
-  padding: 2rem 0;
+  height: 35vh;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  margin-top: 17vh;
 }
 
 .hero-content {
   flex: 1;
   max-width: 600px;
+  margin-left: 100px;
 }
 
-.hero-content h1 {
+.hero-text {
   font-size: 36px;
   line-height: 1.2;
-  margin-bottom: 1rem;
+  font-weight: 700;
   color: #333;
+  margin-bottom: 1.5rem;
+ 
 }
 
-.hero-content p {
-  font-size: 1rem;
-  color: #666;
-  margin-bottom: 1.5rem;
-}
+
 
 .download-btn {
-  background-color: #FF1F7D;
-  color: white;
-  border: none;
+  background-color: #ffffff;
+  color: #000000;
+  border: 2px solid #FFA500EE;
   padding: 0.8rem 1.8rem;
   border-radius: 25px;
   font-size: 1rem;
@@ -100,46 +108,47 @@
 }
 
 .card-image {
-  max-width: 510px;
-  height: 300px;
-  
+  max-width: 450px;
+  height: 270px;
   object-fit: contain;
 }
 
 .features-section {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1.5rem;
-  height: 45vh;
-  padding: 2rem 0;
+  gap: 0.8rem;
+  margin-top: 1rem;
 }
 
 .feature-item {
-  padding: 1rem;
+  margin-top: 2rem;
+  padding: 0.5rem;
 }
 
-.feature-item h3 {
-  font-size: 1.8rem;
-  color: #FF1F7D;
-  margin-bottom: 0.8rem;
+.feature-item .feature-number {
+  font-size: 28px;
+  color: black;
+  margin-bottom: 0.5rem;
 }
 
-.feature-item h4 {
-  font-size: 1.1rem;
-  color: #333;
-  margin-bottom: 0.4rem;
+.feature-item .feature-title {
+  font-size: 21px;
+  color: #FFA500EE;
+  margin-bottom: 0.5rem;
 }
 
-.feature-item p {
+.feature-item p:last-child {
   color: #666;
-  line-height: 1.4;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.2;
 }
 
 @media (max-width: 1024px) {
   .features-section {
     grid-template-columns: repeat(2, 1fr);
   }
+  
+
 }
 
 @media (max-width: 768px) {
@@ -148,9 +157,6 @@
     text-align: center;
   }
 
-  .hero-content h1 {
-    font-size: 36px;
-  }
 
   .features-section {
     grid-template-columns: 1fr;
