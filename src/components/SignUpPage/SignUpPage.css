@@ -73,8 +73,9 @@
 
 .hero-content {
   flex: 1;
-  max-width: 600px;
+  max-width: 480px;
   margin-left: 100px;
+ 
 }
 
 .hero-text {
@@ -165,4 +166,93 @@
   .nav-center {
     display: none;
   }
+}
+
+.registration-form {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  width: 100%;
+  max-width: 400px;
+  margin-top: 25px;
+  margin-right: 120px;
+}
+
+.signup-form h2 {
+  font-size: 20px;
+  margin-bottom: 3px;
+  color: #333;
+}
+
+.form-description {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.form-section h3 {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.form-group {
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.form-group label {
+  min-width: 80px;
+  text-align: left;
+  font-size: 12px;
+  margin-right: 8px;
+}
+
+.form-group input {
+  flex: 1;
+  padding: 6px 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+
+}
+
+.form-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding: 0 8px;
+}
+
+.nav-dots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex: 1;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ddd;
+  
+}
+
+.dot.active {
+  background: #008000;
+}
+
+.next-btn {
+  background: white;
+  color: #008000;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
 }
