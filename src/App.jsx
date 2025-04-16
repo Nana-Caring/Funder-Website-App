@@ -12,6 +12,7 @@ import Statements from './components/Statements/Statements'
 import LandingPage from './components/LandingPage/LandingPage'
 import SignUpPage from './components/SignUpPage/SignUpPage'
 import LoginPage from './components/LoginPage/LoginPage'
+import SecondSignUp from './components/SignUpPage/SecondSignUp'
 import './App.css'
 
 const AppContainer = styled.div`
@@ -45,6 +46,7 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/signup" element={<SignUpPage />} />
+        <Route path="/second-signup" element={<SecondSignUp />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/*" element={<DashboardLayout />} />
       </Routes>

@@ -1,17 +1,10 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import './SignUpPage.css';
+import { Link } from 'react-router-dom';
+import './SecondSignUp.css';
 import landingCard from '../../assets/images/landingCard.png';
 import logo from '../../assets/logo.jpg';
 
-const SignUpPage = () => {
-  const navigate = useNavigate();
-
-  const handleNext = (e) => {
-    e.preventDefault();
-    navigate('/second-signup');
-  };
-
+const SecondSignUp = () => {
   return (
     <div className="landing-page">
       <nav className="landing-nav">
@@ -46,34 +39,39 @@ const SignUpPage = () => {
             <h2>Create a Nana account</h2>
             <p className="form-description">Follow the steps to create your account.Provide accurate information.</p>
             <div className="form-section">
-              <h3>Personal Details</h3>
-              <div className="form-group">
-                <label>First Name:</label>
-                <input type="text" required />
+              <div className="account-type-section">
+                <p>Who is creating the account</p>
+                <div className="radio-group">
+                  <label>
+                    <input type="checkbox" name="accountType" value="caregiver" />
+                    Caregiver
+                  </label>
+                  <div className="funder-checkbox">
+                    <label>
+                      <input type="checkbox" name="accountType" value="funder" />
+                      Funder
+                    </label>
+                  </div>
+                </div>
               </div>
-              <div className="form-group">
-                <label>Last Name:</label>
-                <input type="text" required />
-              </div>
-              <div className="form-group">
-                <label>Surname:</label>
-                <input type="text" required />
-              </div>
-              <div className="form-group">
-                <label>Email:</label>
-                <input type="email" required />
-              </div>
-              <div className="form-group">
-                <label>ID No:</label>
-                <input type="text" required />
+              <div className="password-section">
+                <p>Confirm Passwords:</p>
+                <div className="form-group">
+                  <label>Password:</label>
+                  <input type="password" placeholder="Enter password" required />
+                </div>
+                <div className="form-group">
+                  <label>Confirm Password:</label>
+                  <input type="password" placeholder="Re-enter password" required />
+                </div>
               </div>
             </div>
             <div className="form-navigation">
               <div className="nav-dots">
-                <span className="dot active"></span>
                 <span className="dot"></span>
+                <span className="dot active"></span>
               </div>
-              <button type="button" className="next-btn"  onClick={() => navigate('/second-signup')} >Next →</button>
+              <button type="submit" className="signup">Sign up →</button>
             </div>
           </form>
         </div>
@@ -108,4 +106,4 @@ const SignUpPage = () => {
   );
 };
 
-export default SignUpPage;
+export default SecondSignUp;

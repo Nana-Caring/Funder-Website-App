@@ -104,12 +104,14 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  max-width: 45%;
+  max-width: 50%;
+  
+  margin-right: 60px;
 }
 
 .card-image {
-  max-width: 455px;
-  height: 275px;
+  max-width: 460px;
+  height: 300px;
   object-fit: contain;
 }
 
@@ -122,25 +124,25 @@
 
 .feature-item {
   margin-top: 2rem;
-  padding: 0.5rem;
+  padding: 0.1rem;
 }
 
 .feature-item .feature-number {
   font-size: 28px;
   color: black;
-  margin-bottom: 0.5rem;
+
 }
 
 .feature-item .feature-title {
   font-size: 21px;
   color: #FFA500EE;
-  margin-bottom: 0.5rem;
+  
 }
 
 .feature-item p:last-child {
   color: #666;
   font-size: 0.85rem;
-  line-height: 1.2;
+ 
 }
 
 @media (max-width: 1024px) {
