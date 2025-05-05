@@ -1,9 +1,54 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { loginUser } from '../../store/slices/Authentication';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import './LoginPage.css';
 import logo from '../../assets/logo.jpg';
 
 const LoginPage = () => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { loading, error: authError } = useSelector(state => state.authentication);
+
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const handleInputChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const result = await dispatch(loginUser(formData)).unwrap();
+      console.log('Login successful:', result);
+      
+      // Check user role and handle navigation
+      if (result.user.role === 'caregiver' || result.user.role === 'dependent') {
+        setError('Please download our mobile app to access your account');
+        return;
+      }
+      
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Login failed:', err);
+      setError(err.message || 'Login failed');
+    }
+  };
+
   return (
     <div className="landing-page">
       <nav className="landing-nav">
@@ -34,19 +79,63 @@ const LoginPage = () => {
           <button className="download-btn">Download App</button>
         </div>
         <div className="login-form">
-          <form>
+          <form onSubmit={handleSubmit}>
             <h2>Login</h2>
-            <p className="form-description">Provide your email and username</p>
+            {error && (
+              <div className="error-message">
+                <p>{error}</p>
+                {(error.includes('download') || error.includes('mobile app')) && (
+                  <a 
+                    href="#" 
+                    className="download-link"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.open('your-app-store-link', '_blank');
+                    }}
+                  >
+                    Download App →
+                  </a>
+                )}
+              </div>
+            )}
+            <p className="form-description">Provide your email and password</p>
             <div className="form-group">
               <label>Email:</label>
-              <input type="email" required />
+              <input 
+                type="email" 
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                required 
+              />
             </div>
             <div className="form-group">
               <label>Password:</label>
-              <input type="password" required />
+              <div className="password-input-container">
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  required 
+                />
+                <button 
+                  type="button" 
+                  className="password-toggle-btn"
+                  onClick={togglePasswordVisibility}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
             </div>
             <div className="form-navigation">
-              <button type="submit" className="login-submit-btn">Login →</button>
+              <button 
+                type="submit" 
+                className="login-submit-btn"
+                disabled={loading}
+              >
+                {loading ? 'Logging in...' : 'Login →'}
+              </button>
             </div>
           </form>
         </div>

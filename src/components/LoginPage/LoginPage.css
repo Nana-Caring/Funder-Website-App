@@ -107,7 +107,18 @@
   font-weight: 500;
 }
 
+.download-link {
+  display: block;
+  color: #FFA500;
+  text-decoration: none;
+  margin-top: 8px;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
 
+.download-link:hover {
+  color: #FF8C00;
+}
 
 .features-section {
   display: grid;
@@ -226,6 +237,39 @@
 
 }
 
+.password-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.password-input-container input {
+  flex: 1;
+  padding-right: 35px; /* Make space for the icon */
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  height: 100%;
+}
+
+.password-toggle-btn:hover {
+  color: #333;
+}
+
+.password-toggle-btn:focus {
+  outline: none;
+}
+
 .form-navigation {
   display: flex;
   justify-content: flex-end;
@@ -262,6 +306,15 @@
 
 .dot.active {
   background: #008000;
+}
+
+.error-message {
+  color: #dc3545;
+  text-align: center;
+  margin: 10px 0;
+  padding: 10px;
+  background-color: #fff8f8;
+  border-radius: 4px;
 }
 
 
