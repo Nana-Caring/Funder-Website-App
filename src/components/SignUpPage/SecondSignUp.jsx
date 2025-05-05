@@ -1,10 +1,111 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { registerUser } from '../../store/slices/Authentication';
 import './SecondSignUp.css';
 import landingCard from '../../assets/images/landingCard.png';
 import logo from '../../assets/logo.jpg';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 const SecondSignUp = () => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { loading, error } = useSelector(state => state.authentication);
+
+  const [formData, setFormData] = useState({
+    accountType: '',
+    password: '',
+    confirmPassword: ''
+  });
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword);
+  };
+
+  const validateSouthAfricanID = (idNumber) => {
+    const cleanId = idNumber.replace(/\D/g, '');
+
+    if (cleanId.length !== 13) {
+      return false;
+    }
+
+    if (!/^\d+$/.test(cleanId)) {
+      return false;
+    }
+
+    const year = parseInt(cleanId.substring(0, 2));
+    const month = parseInt(cleanId.substring(2, 4));
+    const day = parseInt(cleanId.substring(4, 6));
+
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value, type } = e.target;
+    if (type === 'radio') {
+      setFormData({
+        ...formData,
+        accountType: value
+      });
+      console.log('Selected role:', value);
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value
+      });
+    }
+  };
+
+  const handleBack = () => {
+    // Save current form data before going back
+    localStorage.setItem('secondStepData', JSON.stringify(formData));
+    navigate('/signup');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (formData.password !== formData.confirmPassword) {
+      alert("Passwords don't match!");
+      return;
+    }
+
+    try {
+      const firstStepData = JSON.parse(localStorage.getItem('registrationData'));
+
+      if (!validateSouthAfricanID(firstStepData.idNumber)) {
+        alert("Please enter a valid 13-digit South African ID number");
+        return;
+      }
+
+      const userData = {
+        ...firstStepData,
+        password: formData.password,
+        role: formData.accountType,
+        idNumber: firstStepData.idNumber.replace(/\D/g, '')
+      };
+
+      console.log('Submitting registration data:', userData);
+      await dispatch(registerUser(userData)).unwrap();
+      localStorage.removeItem('registrationData');
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Registration failed:', err);
+      alert(err.message || 'Registration failed. Please try again.');
+    }
+  };
+
   return (
     <div className="landing-page">
       <nav className="landing-nav">
@@ -35,34 +136,79 @@ const SecondSignUp = () => {
           <button className="download-btn">Download App</button>
         </div>
         <div className="registration-form">
-          <form className="signup-form">
+          <form className="signup-form" onSubmit={handleSubmit}>
             <h2>Create a Nana account</h2>
-            <p className="form-description">Follow the steps to create your account.Provide accurate information.</p>
+            {error && <p className="error-message">{error}</p>}
+            <p className="form-description">Follow the steps to create your account. Provide accurate information.</p>
             <div className="form-section">
               <div className="account-type-section">
-                <p>Who is creating the account</p>
+                <p>Select your role:</p>
                 <div className="radio-group">
-                  <label>
-                    <input type="checkbox" name="accountType" value="caregiver" />
+                  <label className={`role-option ${formData.accountType === 'caregiver' ? 'selected' : ''}`}>
+                    <input 
+                      type="radio"
+                      name="accountType"
+                      value="caregiver"
+                      checked={formData.accountType === 'caregiver'}
+                      onChange={handleInputChange}
+                      required
+                    />
                     Caregiver
                   </label>
-                  <div className="funder-checkbox">
-                    <label>
-                      <input type="checkbox" name="accountType" value="funder" />
-                      Funder
-                    </label>
-                  </div>
+                  <label className={`role-option ${formData.accountType === 'funder' ? 'selected' : ''}`}>
+                    <input 
+                      type="radio"
+                      name="accountType"
+                      value="funder"
+                      checked={formData.accountType === 'funder'}
+                      onChange={handleInputChange}
+                      required
+                    />
+                    Funder
+                  </label>
                 </div>
               </div>
               <div className="password-section">
                 <p>Confirm Passwords:</p>
                 <div className="form-group">
                   <label>Password:</label>
-                  <input type="password" placeholder="Enter password" required />
+                  <div className="password-input-container">
+                    <input 
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      placeholder="Enter password" 
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      required 
+                    />
+                    <button 
+                      type="button" 
+                      className="password-toggle-btn"
+                      onClick={togglePasswordVisibility}
+                    >
+                      {showPassword ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
                 </div>
                 <div className="form-group">
                   <label>Confirm Password:</label>
-                  <input type="password" placeholder="Re-enter password" required />
+                  <div className="password-input-container">
+                    <input 
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      placeholder="Re-enter password"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      required 
+                    />
+                    <button 
+                      type="button" 
+                      className="password-toggle-btn"
+                      onClick={toggleConfirmPasswordVisibility}
+                    >
+                      {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -71,7 +217,22 @@ const SecondSignUp = () => {
                 <span className="dot"></span>
                 <span className="dot active"></span>
               </div>
-              <button type="submit" className="signup">Sign up →</button>
+              <div className="button-group">
+                <button 
+                  type="button" 
+                  className="back-btn" 
+                  onClick={handleBack}
+                >
+                  ← Back
+                </button>
+                <button 
+                  type="submit" 
+                  className="signup"
+                  disabled={loading}
+                >
+                  {loading ? 'Signing up...' : 'Sign up →'}
+                </button>
+              </div>
             </div>
           </form>
         </div>

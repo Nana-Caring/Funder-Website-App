@@ -61,10 +61,18 @@
   border: 2px solid #FFA500EE;
 }
 
-.signup{
-  background-color: #ffffff;
+.signup {
+  background: #ffffff;
   color: #008000;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
 }
+
+
 .hero-section {
   display: flex;
   justify-content: space-between;
@@ -90,8 +98,6 @@
   margin-bottom: 1.5rem;
  
 }
-
-
 
 .download-btn {
   background-color: #ffffff;
@@ -152,8 +158,6 @@
   .features-section {
     grid-template-columns: repeat(2, 1fr);
   }
-  
-
 }
 
 @media (max-width: 768px) {
@@ -161,7 +165,6 @@
     flex-direction: column;
     text-align: center;
   }
-
 
   .features-section {
     grid-template-columns: 1fr;
@@ -244,7 +247,44 @@
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 12px;
+}
 
+.password-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.password-input-container input {
+  width: 100%;
+  padding-right: 35px;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  height: 100%;
+}
+
+.password-toggle-btn:hover {
+  color: #333;
+}
+
+.password-toggle-btn:focus {
+  outline: none;
+}
+
+.password-toggle-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .form-navigation {
@@ -267,7 +307,6 @@
   height: 12px;
   border-radius: 50%;
   background: #ddd;
-  
 }
 
 .dot.active {
@@ -282,6 +321,30 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.button-group {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 1rem;
+  justify-content: space-between;
+}
+
+.back-btn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 4px;
+  background: white;
+  color: #008000;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+  background: #FF8C00;
 }
 
 .account-type-section p:first-child,
