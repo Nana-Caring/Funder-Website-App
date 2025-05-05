@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import styled from 'styled-components';
 import { useSelector } from 'react-redux';
@@ -16,6 +16,7 @@ import LandingPage from './components/LandingPage/LandingPage'
 import SignUpPage from './components/SignUpPage/SignUpPage'
 import LoginPage from './components/LoginPage/LoginPage'
 import SecondSignUp from './components/SignUpPage/SecondSignUp'
+import SplashScreen from './components/SplashScreen/SplashScreen';
 import './App.css'
 
 const AppContainer = styled.div`
@@ -94,26 +95,32 @@ const DashboardLayout = () => {
 
 function App() {
   const { loading } = useSelector(state => state.authentication);
+  const [showSplash, setShowSplash] = useState(true);
 
   return (
     <>
-      {loading && <Loader />}
-      <Suspense fallback={<Loader />}>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/signup" element={<SignUpPage />} />
-          <Route path="/second-signup" element={<SecondSignUp />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route 
-            path="/*" 
-            element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            } 
-          />
-        </Routes>
-      </Suspense>
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+      {!showSplash && (
+        <>
+          {loading && <Loader />}
+          <Suspense fallback={<Loader />}>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/signup" element={<SignUpPage />} />
+              <Route path="/second-signup" element={<SecondSignUp />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route 
+                path="/*" 
+                element={
+                  <ProtectedRoute>
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                } 
+              />
+            </Routes>
+          </Suspense>
+        </>
+      )}
     </>
   );
 }
