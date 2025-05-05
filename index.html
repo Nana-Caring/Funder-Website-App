@@ -2,13 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./src/assets/logo.jpg" sizes="32x32 48x48" />
+    <link rel="icon" type="image/svg+xml" href="./src/assets/logo.jpg" sizes="64x64 96x96" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NANA Caring</title>
     <style>
       link[rel="icon"] {
-        width: 60px;
-        height: 60px;
+        width: 156px;
+        height: 156px;
+      }
+
+      /* Add specific favicon sizes for different devices */
+      @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+        link[rel="icon"] {
+          width: 128px;
+          height: 128px;
+        }
       }
     </style>
   </head>
