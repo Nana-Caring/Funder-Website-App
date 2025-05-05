@@ -65,7 +65,7 @@ const Sidebar = () => {
         
       </Logo>
 
-      <MenuItem to="/" active={location.pathname === "/" ? 1 : 0}>
+      <MenuItem to="/dashboard" active={location.pathname === "/dashboard" ? 1 : 0}>
         <img src={homeIcon} alt="Home" />
         Home
       </MenuItem>
