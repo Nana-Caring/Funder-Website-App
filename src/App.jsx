@@ -1,6 +1,9 @@
-import React from 'react'
-import styled from 'styled-components'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import React, { Suspense } from 'react';
+import { Routes, Route } from 'react-router-dom';
+import styled from 'styled-components';
+import { useSelector } from 'react-redux';
+import Loader from './components/Loader/Loader';
+import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
 import Sidebar from './components/Sidebar/Sidebar'
 import Header from './components/Header/Header'
 import Dashboard from './components/Dashboard/Dashboard'
@@ -23,35 +26,96 @@ const AppContainer = styled.div`
   position: relative;
 `;
 
-const DashboardLayout = () => (
-  <AppContainer>
-    <Sidebar />
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-      <Header title="Dashboard" />
-      <Routes>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/my-accounts" element={<MyAccounts />} />
-        <Route path="/send-money" element={<SendMoney />} />
-        <Route path="/beneficiary" element={<BeneficiaryForm />} />
-        <Route path="/messages" element={<Messages />} />
-        <Route path="/statements" element={<Statements />} />
-      </Routes>
-    </div>
-  </AppContainer>
-);
+const DashboardLayout = () => {
+  const { loading } = useSelector(state => state.authentication);
+
+  return (
+    <AppContainer>
+      {loading && <Loader />}
+      <Sidebar />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Header title="Dashboard" />
+        <Suspense fallback={<Loader />}>
+          <Routes>
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/my-accounts" 
+              element={
+                <ProtectedRoute>
+                  <MyAccounts />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/send-money" 
+              element={
+                <ProtectedRoute>
+                  <SendMoney />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/beneficiary" 
+              element={
+                <ProtectedRoute>
+                  <BeneficiaryForm />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/messages" 
+              element={
+                <ProtectedRoute>
+                  <Messages />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/statements" 
+              element={
+                <ProtectedRoute>
+                  <Statements />
+                </ProtectedRoute>
+              } 
+            />
+          </Routes>
+        </Suspense>
+      </div>
+    </AppContainer>
+  );
+};
 
 function App() {
+  const { loading } = useSelector(state => state.authentication);
+
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/signup" element={<SignUpPage />} />
-        <Route path="/second-signup" element={<SecondSignUp />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/*" element={<DashboardLayout />} />
-      </Routes>
-    </Router>
-  )
+    <>
+      {loading && <Loader />}
+      <Suspense fallback={<Loader />}>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/second-signup" element={<SecondSignUp />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route 
+            path="/*" 
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            } 
+          />
+        </Routes>
+      </Suspense>
+    </>
+  );
 }
 
-export default App
+export default App;
