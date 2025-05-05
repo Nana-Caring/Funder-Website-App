@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { useSelector } from 'react-redux';
 import personIcon from '../../assets/icons/person.png';
 import notificationIcon from '../../assets/icons/notifications.png';
 import notificationIndicatorIcon from '../../assets/icons/notification-icon.png';
@@ -60,9 +61,14 @@ const HeaderContainer = styled.div`
 `;
 
 const Header = () => {
+  const surname = localStorage.getItem('surname') || 'User';
+
   return (
     <HeaderContainer>
-      <h2><span style={{ fontWeight: 'normal' }}>Welcome Back, </span><span style={{ fontWeight: 'bold' }}>Mr Prince</span></h2>
+      <h2>
+        <span style={{ fontWeight: 'normal' }}>Welcome Back, </span>
+        <span style={{ fontWeight: 'bold' }}>Mr {surname}</span>
+      </h2>
       <div className="icons">
         <div className="icon-container">
           <img src={personIcon} alt="Profile" />
