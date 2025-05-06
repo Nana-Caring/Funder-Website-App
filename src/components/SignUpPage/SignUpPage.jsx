@@ -84,11 +84,27 @@ const SignUpPage = () => {
   const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
-    // Load saved form data from localStorage if it exists
-    const savedData = localStorage.getItem('registrationData');
-    if (savedData) {
-      setFormData(JSON.parse(savedData));
-    }
+    // Clear form data when component mounts or window refreshes
+    const handleBeforeUnload = () => {
+      localStorage.removeItem('registrationData');
+    };
+
+    // Add event listener for page refresh/close
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Clear any existing form data on mount
+    setFormData({
+      firstName: '',
+      lastName: '',
+      surname: '',
+      email: '',
+      idNumber: ''
+    });
+    
+    // Cleanup function to remove event listener
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, []);
 
   const validateIdNumber = (idNumber) => {
