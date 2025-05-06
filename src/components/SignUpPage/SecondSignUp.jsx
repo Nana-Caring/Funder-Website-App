@@ -30,25 +30,73 @@ const SecondSignUp = () => {
   };
 
   const validateSouthAfricanID = (idNumber) => {
+    // Remove any non-digit characters
     const cleanId = idNumber.replace(/\D/g, '');
 
-    if (cleanId.length !== 13) {
-      return false;
+    // Check basic format
+    if (cleanId.length !== 13 || !/^\d+$/.test(cleanId)) {
+      return 'ID number must be exactly 13 digits';
     }
 
-    if (!/^\d+$/.test(cleanId)) {
-      return false;
-    }
-
+    // Extract components
     const year = parseInt(cleanId.substring(0, 2));
     const month = parseInt(cleanId.substring(2, 4));
     const day = parseInt(cleanId.substring(4, 6));
+    const gender = parseInt(cleanId.substring(6, 7));
+    const citizenship = parseInt(cleanId.substring(10, 11));
 
-    if (month < 1 || month > 12 || day < 1 || day > 31) {
-      return false;
+    // Validate date
+    const currentYear = new Date().getFullYear() % 100;
+    const fullYear = year > currentYear ? 1900 + year : 2000 + year;
+    const date = new Date(fullYear, month - 1, day);
+
+    if (
+      date.getFullYear() !== fullYear ||
+      date.getMonth() !== month - 1 ||
+      date.getDate() !== day ||
+      month < 1 ||
+      month > 12 ||
+      day < 1 ||
+      day > 31
+    ) {
+      return 'Invalid date in ID number';
     }
 
-    return true;
+    // Validate gender
+    if (gender < 0 || gender > 9) {
+      return 'Invalid gender digit in ID number';
+    }
+
+    // Validate citizenship
+    if (citizenship < 0 || citizenship > 1) {
+      return 'Invalid citizenship digit in ID number';
+    }
+
+    // Luhn algorithm checksum validation
+    const digits = cleanId.split('').map(Number);
+    let sum = 0;
+    let isDouble = false;
+
+    for (let i = digits.length - 2; i >= 0; i--) {
+      let digit = digits[i];
+
+      if (isDouble) {
+        digit *= 2;
+        if (digit > 9) {
+          digit -= 9;
+        }
+      }
+
+      sum += digit;
+      isDouble = !isDouble;
+    }
+
+    const checkDigit = (10 - (sum % 10)) % 10;
+    if (checkDigit !== digits[12]) {
+      return 'Invalid ID number checksum';
+    }
+
+    return null; // validation passed
   };
 
   const handleInputChange = (e) => {
@@ -84,8 +132,9 @@ const SecondSignUp = () => {
     try {
       const firstStepData = JSON.parse(localStorage.getItem('registrationData'));
 
-      if (!validateSouthAfricanID(firstStepData.idNumber)) {
-        alert("Please enter a valid 13-digit South African ID number");
+      const validationError = validateSouthAfricanID(firstStepData.idNumber);
+      if (validationError) {
+        alert(validationError);
         return;
       }
 
@@ -230,7 +279,7 @@ const SecondSignUp = () => {
                   className="signup"
                   disabled={loading}
                 >
-                  {loading ? 'Signing up...' : 'Sign up →'}
+                  {loading ? 'Signing up...' : 'Sign up'}
                 </button>
               </div>
             </div>
