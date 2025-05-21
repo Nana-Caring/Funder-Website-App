@@ -17,6 +17,9 @@ import SignUpPage from './components/SignUpPage/SignUpPage'
 import LoginPage from './components/LoginPage/LoginPage'
 import SecondSignUp from './components/SignUpPage/SecondSignUp'
 import SplashScreen from './components/SplashScreen/SplashScreen';
+import Benefits from './components/BenefitsPage/Benefits';
+import HowItWorksPage from './components/HowItWorks/HowItWorks';
+import Contact from './components/ContactPage/Contact';
 import './App.css'
 
 const AppContainer = styled.div`
@@ -109,6 +112,9 @@ function App() {
               <Route path="/signup" element={<SignUpPage />} />
               <Route path="/second-signup" element={<SecondSignUp />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/benefits" element={<Benefits />} />
+              <Route path="/how-it-works" element={<HowItWorksPage />} />
+              <Route path="/contact" element={<Contact />} />
               <Route 
                 path="/*" 
                 element={
