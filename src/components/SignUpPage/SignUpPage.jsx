@@ -6,67 +6,6 @@ import './SignUpPage.css';
 import landingCard from '../../assets/images/landingCard.png';
 import logo from '../../assets/logo.jpg';
 
-const validateSouthAfricanID = (idNumber) => {
-  // Remove any non-digit characters
-  const cleanId = idNumber.replace(/\D/g, '');
-
-  // Check if exactly 13 digits
-  if (cleanId.length !== 13) {
-    return 'ID number must be exactly 13 digits';
-  }
-
-  // Extract date components
-  const year = parseInt(cleanId.substring(0, 2));
-  const month = parseInt(cleanId.substring(2, 4));
-  const day = parseInt(cleanId.substring(4, 6));
-
-  // Convert to full year (assuming no one is over 100 years old)
-  const currentYear = new Date().getFullYear() % 100;
-  const fullYear = year > currentYear ? 1900 + year : 2000 + year;
-
-  // Validate date
-  const dob = new Date(fullYear, month - 1, day);
-  if (
-    dob.getFullYear() !== fullYear ||
-    dob.getMonth() !== month - 1 ||
-    dob.getDate() !== day ||
-    month < 1 ||
-    month > 12 ||
-    day < 1 ||
-    day > 31
-  ) {
-    return 'Invalid date in ID number';
-  }
-
-  // Validate gender and citizenship
-  const genderNum = parseInt(cleanId.substring(6, 10));
-  const citizenshipNum = parseInt(cleanId.substring(10, 11));
-  if (genderNum < 0 || genderNum > 9999) {
-    return 'Invalid gender digits in ID';
-  }
-  if (citizenshipNum < 0 || citizenshipNum > 1) {
-    return 'Invalid citizenship digit in ID';
-  }
-
-  // Luhn algorithm validation
-  const digits = cleanId.split('').map(Number);
-  let sum = 0;
-  for (let i = 0; i < 13; i++) {
-    let num = digits[i];
-    if ((i + 1) % 2 === 0) {
-      num *= 2;
-      if (num > 9) num -= 9;
-    }
-    sum += num;
-  }
-
-  if (sum % 10 !== 0) {
-    return 'Invalid ID number checksum';
-  }
-
-  return null; // validation passed
-};
-
 const SignUpPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -107,17 +46,6 @@ const SignUpPage = () => {
     };
   }, []);
 
-  const validateIdNumber = (idNumber) => {
-    const cleanId = idNumber.replace(/\D/g, '');
-    if (cleanId.length !== 13) {
-      return 'ID number must be exactly 13 digits';
-    }
-    if (!/^\d+$/.test(cleanId)) {
-      return 'ID number must contain only numbers';
-    }
-    return null;
-  };
-
   const validateForm = () => {
     const errors = {};
     
@@ -138,31 +66,16 @@ const SignUpPage = () => {
       errors.email = 'Please enter a valid email address';
     }
 
-    // ID Number validation
-    const idError = validateIdNumber(formData.idNumber);
-    if (idError) {
-      errors.idNumber = idError;
-    }
-
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
-    if (name === 'idNumber') {
-      const numbersOnly = value.replace(/\D/g, '').slice(0, 13);
-      setFormData(prev => ({
-        ...prev,
-        [name]: numbersOnly
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
-    }
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
 
     // Clear error for this field when user starts typing
     setFormErrors(prev => ({
@@ -174,16 +87,6 @@ const SignUpPage = () => {
   const handleNext = async (e) => {
     e.preventDefault();
 
-    // Validate ID number first
-    const idError = validateSouthAfricanID(formData.idNumber);
-    if (idError) {
-      setFormErrors(prev => ({
-        ...prev,
-        idNumber: idError
-      }));
-      return;
-    }
-
     if (!validateForm()) {
       return;
     }
@@ -191,7 +94,6 @@ const SignUpPage = () => {
     try {
       const cleanedData = {
         ...formData,
-        idNumber: formData.idNumber.replace(/\D/g, ''),
         email: formData.email.toLowerCase().trim()
       };
 
@@ -297,9 +199,7 @@ const SignUpPage = () => {
                   name="idNumber"
                   value={formData.idNumber}
                   onChange={handleInputChange}
-                  maxLength="13"
-                  pattern="\d*"
-                  placeholder="Enter 13 digit ID number"
+                  placeholder="Enter ID number"
                   required
                 />
                 {formErrors.idNumber && <p className="error-message">{formErrors.idNumber}</p>}

@@ -1,44 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
-// Helper function to validate South African ID
-const validateSAID = (idNumber) => {
-  const cleanId = idNumber.replace(/\D/g, '');
-  if (cleanId.length !== 13) return false;
-
-  // Validate date of birth portion
-  const year = parseInt(cleanId.substring(0, 2), 10);
-  const month = parseInt(cleanId.substring(2, 4), 10);
-  const day = parseInt(cleanId.substring(4, 6), 10);
-
-  // Convert YY to full YYYY (assume people are not older than 100)
-  const currentYear = new Date().getFullYear() % 100;
-  const fullYear = year > currentYear ? 1900 + year : 2000 + year;
-
-  const dob = new Date(fullYear, month - 1, day);
-  if (
-    dob.getFullYear() !== fullYear ||
-    dob.getMonth() !== month - 1 ||
-    dob.getDate() !== day
-  ) {
-    return false;
-  }
-
-  // Luhn algorithm for checksum
-  const digits = cleanId.split('').map(Number);
-  let sum = 0;
-
-  for (let i = 0; i < 13; i++) {
-    let num = digits[i];
-    if ((i + 1) % 2 === 0) {
-      num *= 2;
-      if (num > 9) num -= 9;
-    }
-    sum += num;
-  }
-
-  return sum % 10 === 0;
-};
-
 // Login async thunk
 export const loginUser = createAsyncThunk(
   'authentication/loginUser',
@@ -83,17 +44,14 @@ export const registerUser = createAsyncThunk(
   'authentication/registerUser',
   async (userData, { rejectWithValue }) => {
     try {
-      // Validate ID number before sending
-      if (!validateSAID(userData.idNumber)) {
-        return rejectWithValue('Valid 13-digit numeric ID number required');
-      }
-
+      // Format user data with proper ID handling
       const formattedData = {
         ...userData,
-        idNumber: userData.idNumber.replace(/\D/g, '')
+        idNumber: userData.idNumber ? userData.idNumber.toString().trim() : null
       };
 
-      console.log('Registration Request:', formattedData);
+      // Debug log
+      console.log('Formatted Registration Data:', formattedData);
 
       const response = await fetch('https://nanacaring-backend.onrender.com/api/auth/register', {
         method: 'POST',
@@ -104,24 +62,34 @@ export const registerUser = createAsyncThunk(
       });
 
       const data = await response.json();
-      console.log('Registration Response:', data);
-
+      
+      // Enhanced error handling
       if (!response.ok) {
-        return rejectWithValue(data.message || 'Registration failed');
+        console.error('Server Response:', data);
+        return rejectWithValue({
+          message: data.message || 'Registration failed',
+          status: response.status,
+          details: data.error || null
+        });
       }
 
-      // Store user data in localStorage upon successful registration
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('firstName', data.user.firstName);
-      localStorage.setItem('lastName', data.user.lastName);
-      localStorage.setItem('surname', data.user.surname);
-      localStorage.setItem('id', data.user.id);
-      localStorage.setItem('role', data.user.role);
+      // Store user data only if registration was successful
+      if (data.user && data.token) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('firstName', data.user.firstName);
+        localStorage.setItem('lastName', data.user.lastName);
+        localStorage.setItem('surname', data.user.surname);
+        localStorage.setItem('id', data.user.id);
+        localStorage.setItem('role', data.user.role);
+      }
 
       return data;
     } catch (error) {
       console.error('Registration Error:', error);
-      return rejectWithValue(error.message || 'Registration failed');
+      return rejectWithValue({
+        message: 'Registration failed - Network or server error',
+        details: error.message
+      });
     }
   }
 );
