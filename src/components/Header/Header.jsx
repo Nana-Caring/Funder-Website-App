@@ -11,8 +11,9 @@ const HeaderContainer = styled.div`
   justify-content: space-between;
   align-items: center;
   padding: 12px 20px;
-  width: 100%;
+  width: 96%;
   margin: 0;
+  margin-left: ${props => props.isCareGiver ? '45px' : '0'};
   box-sizing: border-box;
   background: white;
   border-bottom: 1px solid #eee;
@@ -60,15 +61,19 @@ const HeaderContainer = styled.div`
   }
 `;
 
-const Header = () => {
+const Header = ({ title, isCareGiver }) => {
   const surname = localStorage.getItem('surname') || 'User';
 
   return (
-    <HeaderContainer>
-      <h2>
-        <span style={{ fontWeight: 'normal' }}>Welcome Back, </span>
-        <span style={{ fontWeight: 'bold' }}>Mr {surname}</span>
-      </h2>
+    <HeaderContainer isCareGiver={isCareGiver}>
+      {title ? (
+        <h2>{title}</h2>
+      ) : (
+        <h2>
+          <span style={{ fontWeight: 'normal' }}>Welcome Back, </span>
+          <span style={{ fontWeight: 'bold' }}>Mr {surname}</span>
+        </h2>
+      )}
       <div className="icons">
         <div className="icon-container">
           <img src={personIcon} alt="Profile" />

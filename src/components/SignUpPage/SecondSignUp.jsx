@@ -6,6 +6,7 @@ import './SecondSignUp.css';
 import landingCard from '../../assets/images/landingCard.png';
 import logo from '../../assets/logo.jpg';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import FeaturesSection from '../common/FeaturesSection';
 
 const SecondSignUp = () => {
   const navigate = useNavigate();
@@ -20,6 +21,25 @@ const SecondSignUp = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
+
+  // Add message styles to your CSS file
+  const messageStyles = {
+    success: {
+      backgroundColor: '#d4edda',
+      color: '#155724',
+      padding: '1rem',
+      borderRadius: '4px',
+      marginBottom: '1rem'
+    },
+    error: {
+      backgroundColor: '#f8d7da',
+      color: '#721c24',
+      padding: '1rem',
+      borderRadius: '4px',
+      marginBottom: '1rem'
+    }
+  };
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
@@ -27,76 +47,6 @@ const SecondSignUp = () => {
 
   const toggleConfirmPasswordVisibility = () => {
     setShowConfirmPassword(!showConfirmPassword);
-  };
-
-  const validateSouthAfricanID = (idNumber) => {
-    // Remove any non-digit characters
-    const cleanId = idNumber.replace(/\D/g, '');
-
-    // Check basic format
-    if (cleanId.length !== 13 || !/^\d+$/.test(cleanId)) {
-      return 'ID number must be exactly 13 digits';
-    }
-
-    // Extract components
-    const year = parseInt(cleanId.substring(0, 2));
-    const month = parseInt(cleanId.substring(2, 4));
-    const day = parseInt(cleanId.substring(4, 6));
-    const gender = parseInt(cleanId.substring(6, 7));
-    const citizenship = parseInt(cleanId.substring(10, 11));
-
-    // Validate date
-    const currentYear = new Date().getFullYear() % 100;
-    const fullYear = year > currentYear ? 1900 + year : 2000 + year;
-    const date = new Date(fullYear, month - 1, day);
-
-    if (
-      date.getFullYear() !== fullYear ||
-      date.getMonth() !== month - 1 ||
-      date.getDate() !== day ||
-      month < 1 ||
-      month > 12 ||
-      day < 1 ||
-      day > 31
-    ) {
-      return 'Invalid date in ID number';
-    }
-
-    // Validate gender
-    if (gender < 0 || gender > 9) {
-      return 'Invalid gender digit in ID number';
-    }
-
-    // Validate citizenship
-    if (citizenship < 0 || citizenship > 1) {
-      return 'Invalid citizenship digit in ID number';
-    }
-
-    // Luhn algorithm checksum validation
-    const digits = cleanId.split('').map(Number);
-    let sum = 0;
-    let isDouble = false;
-
-    for (let i = digits.length - 2; i >= 0; i--) {
-      let digit = digits[i];
-
-      if (isDouble) {
-        digit *= 2;
-        if (digit > 9) {
-          digit -= 9;
-        }
-      }
-
-      sum += digit;
-      isDouble = !isDouble;
-    }
-
-    const checkDigit = (10 - (sum % 10)) % 10;
-    if (checkDigit !== digits[12]) {
-      return 'Invalid ID number checksum';
-    }
-
-    return null; // validation passed
   };
 
   const handleInputChange = (e) => {
@@ -123,35 +73,44 @@ const SecondSignUp = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setMessage({ type: '', text: '' }); // Clear previous messages
 
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords don't match!");
+      setMessage({
+        type: 'error',
+        text: "Passwords don't match!"
+      });
       return;
     }
 
     try {
       const firstStepData = JSON.parse(localStorage.getItem('registrationData'));
 
-      const validationError = validateSouthAfricanID(firstStepData.idNumber);
-      if (validationError) {
-        alert(validationError);
-        return;
-      }
-
       const userData = {
         ...firstStepData,
         password: formData.password,
         role: formData.accountType,
-        idNumber: firstStepData.idNumber.replace(/\D/g, '')
+        Idnumber: firstStepData.idNumber || ''
       };
 
-      console.log('Submitting registration data:', userData);
       await dispatch(registerUser(userData)).unwrap();
-      localStorage.removeItem('registrationData');
-      navigate('/dashboard');
+      setMessage({
+        type: 'success',
+        text: 'Registration successful! Redirecting to dashboard...'
+      });
+      
+      // Clear storage and redirect after a short delay
+      setTimeout(() => {
+        localStorage.removeItem('registrationData');
+        navigate('/dashboard');
+      }, 2000);
+
     } catch (err) {
       console.error('Registration failed:', err);
-      alert(err.message || 'Registration failed. Please try again.');
+      setMessage({
+        type: 'error',
+        text: err.message || 'Registration failed. Please try again.'
+      });
     }
   };
 
@@ -187,6 +146,14 @@ const SecondSignUp = () => {
         <div className="registration-form">
           <form className="signup-form" onSubmit={handleSubmit}>
             <h2>Create a Nana account</h2>
+            
+            {/* Add message display */}
+            {message.text && (
+              <div style={messageStyles[message.type]}>
+                {message.text}
+              </div>
+            )}
+
             {error && <p className="error-message">{error}</p>}
             <p className="form-description">Follow the steps to create your account. Provide accurate information.</p>
             <div className="form-section">
@@ -287,31 +254,7 @@ const SecondSignUp = () => {
         </div>
       </div>
 
-      <div className="features-section">
-        <div className="feature-item">
-          <p className="feature-number">01</p>
-          <p className="feature-title">Financial transaction</p>
-          <p>Manage financial transactions on the website and on the mobile app.</p>
-        </div>
-
-        <div className="feature-item">
-          <p className="feature-number">02</p>
-          <p className="feature-title">Easy to use System</p>
-          <p>Each card can have its own unique holder name and balance.</p>
-        </div>
-
-        <div className="feature-item">
-          <p className="feature-number">03</p>
-          <p className="feature-title">Secure and Reliable</p>
-          <p>Ensure all financial transactions are encrypted and securely processable to protect user data.</p>
-        </div>
-
-        <div className="feature-item">
-          <p className="feature-number">04</p>
-          <p className="feature-title">Multi-Platform Accessibility</p>
-          <p>Users can manage financial transactions seamlessly across both web and mobile applications.</p>
-        </div>
-      </div>
+      <FeaturesSection />
     </div>
   );
 };

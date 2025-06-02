@@ -1,39 +1,32 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import logo from '../../assets/logo.jpg';
 import { FaCreditCard, FaUser, FaUsers } from 'react-icons/fa';
 import fraud from '../../assets/icons/fraud.png';
 import contact from '../../assets/icons/contact-person.png';
+import LandingNav from '../LandingNav/LandingNav';
+import FeaturesSection from '../common/FeaturesSection';
 
 const Contact = () => {
   return (
     <div className="landing-page">
-      <nav className="landing-nav">
-        <div className="nav-left">
-          <img src={logo} alt="Nana Logo" className="nav-logo" />
-        </div>
-        <div className="nav-center">
-          <Link to="/how-it-works">How it works</Link>
-          <Link to="/benefits">Benefits</Link>
-          <Link to="/contact" className="active">Contact Us</Link>
-        </div>
-        <div className="nav-right">
-          <Link to="/login" className="login-btn">Log in</Link>
-          <Link to="/signup" className="signup-btn">Sign up</Link>
-        </div>
-      </nav>
-
+      <LandingNav />
       <div className="main-content contact-content">
         <div className="contact-form-section">
           <h2 className="contact-title">CONTACT US</h2>
           <p className="contact-desc">Please send us an email by filling the form</p>
           <form className="contact-form">
-            <label>Email Address:</label>
-            <input type="email" required />
-            <label>Subject:</label>
-            <input type="text" required />
-            <label>Message:</label>
-            <textarea rows="3" required></textarea>
+            <div>
+              <label>Email Address:</label>
+              <input type="email" required />
+            </div>
+            <div>
+              <label>Subject:</label>
+              <input type="text" required />
+            </div>
+            <div>
+              <label>Message:</label>
+              <textarea rows="3" required></textarea>
+            </div>
             <button type="submit">Send Message</button>
           </form>
         </div>
@@ -58,28 +51,7 @@ const Contact = () => {
         </div>
       </div>
 
-      <div className="features-section">
-        <div className="feature-item">
-          <p className="feature-number">01</p>
-          <p className="feature-title">Financial transaction</p>
-          <p>Manage financial transactions on the website and on the mobile app.</p>
-        </div>
-        <div className="feature-item">
-          <p className="feature-number">02</p>
-          <p className="feature-title">Easy to use System</p>
-          <p>Each card can have its own unique holder name and balance.</p>
-        </div>
-        <div className="feature-item">
-          <p className="feature-number">03</p>
-          <p className="feature-title">Secure and Reliable</p>
-          <p>Ensures all financial transactions are encrypted and securely processed to protect user data.</p>
-        </div>
-        <div className="feature-item">
-          <p className="feature-number">04</p>
-          <p className="feature-title">Multi-Platform Accessibility</p>
-          <p>Users can manage financial transactions seamlessly across both web and mobile applications.</p>
-        </div>
-      </div>
+      <FeaturesSection />
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
@@ -90,31 +62,18 @@ const Contact = () => {
           display: flex;
           flex-direction: column;
         }
-        .landing-nav {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          background: white;
-          padding: 1rem 4%;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-          z-index: 1000;
-        }
         .main-content.contact-content {
-          margin-top: 110px;
+          margin-top: 140px;
           padding: 0 4%;
           display: flex;
           gap: 1.2rem;
-          min-height: calc(100vh - 110px - 180px); /* navbar + features section height */
+          min-height: calc(100vh - 110px - 180px);
           align-items: center;
           justify-content: center;
         }
         .contact-form-section {
           flex: 1;
-          max-width: 270px;
+          max-width: 400px;
         }
         .contact-title {
           color: #14532d;
@@ -139,6 +98,8 @@ const Contact = () => {
           font-size: 0.85rem;
           color: #14532d;
           font-weight: 500;
+          width: 110px;
+          margin-top: 8px;
         }
         .contact-form input, .contact-form textarea {
           border: 1px solid #ccc;
@@ -146,6 +107,12 @@ const Contact = () => {
           padding: 0.3rem;
           font-size: 0.85rem;
           font-family: inherit;
+          flex: 1;
+        }
+        .contact-form > div {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
         }
         .contact-form button {
           margin-top: 0.4rem;
@@ -239,4 +206,4 @@ const Contact = () => {
   );
 };
 
-export default Contact; 
+export default Contact;

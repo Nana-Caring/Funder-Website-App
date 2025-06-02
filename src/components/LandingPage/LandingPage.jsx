@@ -1,13 +1,15 @@
 import React from 'react';
-import LandingNavbar from '../common/LandingNavbar';
-import FeaturesSection from '../common/FeaturesSection';
+import { Link } from 'react-router-dom';
+import './LandingPage.css';
 import landingCard from '../../assets/images/landingCard.png';
-import logo from '../../assets/logo.jpg';
+import FeaturesSection from '../common/FeaturesSection';
+import LandingNav from '../LandingNav/LandingNav';
 
 const LandingPage = () => {
   return (
     <div className="landing-page">
-      <LandingNavbar active="home" />
+      <LandingNav />
+
       <div className="hero-section">
         <div className="hero-content">
           <p className="hero-text">
@@ -23,6 +25,7 @@ const LandingPage = () => {
           <img src={landingCard} alt="Nana Card" className="card-image" />
         </div>
       </div>
+
       <FeaturesSection />
     </div>
   );
