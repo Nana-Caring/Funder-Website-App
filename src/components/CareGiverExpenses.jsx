@@ -1,5 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
+import avatar1 from '../assets/avatars/avatar1.png';
+import expensesIcon from '../assets/icons/expenses.png';
 
 const accounts = [
   { color: '#a084ee', label: 'Baby Care Account', percent: 0 },
@@ -147,15 +149,27 @@ const Amount = styled.div`
   font-weight: bold;
 `;
 
+const ExpensesTitle = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+`;
+
 const CareGiverExpenses = () => {
   return (
     <Card>
       {/* Palesa logo and text row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <img src="/palesa-logo.svg" alt="Palesa logo" style={{ width: 32, height: 32 }} />
+        <img src={avatar1} alt="Avatar" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: '50%' }} />
         <span style={{ fontWeight: 600, fontSize: 18, color: '#185c37' }}>Palesa</span>
       </div>
-      <h3>Monthly expenses 📅</h3>
+      <ExpensesTitle>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          Monthly expenses <img src={expensesIcon} alt="Expenses" style={{ width: 24, height: 24 }} />
+        </span>
+      
+      </ExpensesTitle>
       <h1 style={{ fontSize: '40px', margin: '8px 0' }}>00</h1>
 
       <StackedProgressContainer>
