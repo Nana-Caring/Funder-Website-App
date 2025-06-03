@@ -11,7 +11,7 @@ const Container = styled.div`
   justify-content: flex-start;
   padding: 16px;
   margin-left: auto;
-  margin-top: 80px; /* Add margin to move content below header */
+  margin-top: 60px; /* Add margin to move content below header */
   box-sizing: border-box;
   overflow: hidden;
 `;
@@ -44,13 +44,9 @@ const FormContainer = styled.div`
   width: 100%;
   position: relative;
   overflow: hidden;
-<<<<<<< HEAD
-  max-height: calc(100vh - 180px); /* Adjusted height */
-=======
   max-width: 420px;
   width: 100%;
   max-height: calc(100vh - 200px);
->>>>>>> b97bcd35efaf20ec0a209f6bdadf9dc6a12671f2
 `;
 
 const FormTitle = styled.h2`
@@ -95,11 +91,15 @@ const Input = styled.input`
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  margin-top: 16px; /* Reduced from 20px */
   background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  max-height: calc(100vh - 380px);
+
+  thead {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 1;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
 `;
 
 const Th = styled.th`
@@ -140,25 +140,116 @@ const Step = styled.div`
 
 const BottomRow = styled.div`
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   margin-top: 20px;
   position: relative;
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 12px;
+  position: absolute;
+  right: 0;
 `;
 
 const NextButton = styled.button`
   background: #FD3E6E;
   color: white;
   border: none;
-  padding: 6px 16px; /* Reduced padding */
+  padding: 8px 20px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 13px; /* Reduced from 14px */
-  position: absolute;
-  right: 0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  transition: background 0.2s ease;
   
   &:hover {
     background: #e63562;
+  }
+`;
+
+const BackButton = styled(NextButton)`
+  background: #FD3E6E;
+  
+  &:hover {
+    background: #e63562;
+  }
+`;
+
+const Avatar = styled.div`
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: ${props => props.color};
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  font-size: 14px;
+  text-transform: uppercase;
+`;
+
+const TableWrapper = styled.div`
+  width: 800px;
+  height: 300px; // Fixed height
+  overflow: hidden;
+  margin-top: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  background: white;
+
+  .table-container {
+    height: 100%;
+    overflow-y: auto;
+
+    /* Custom scrollbar styling */
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 3px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #ddd;
+      border-radius: 3px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: #ccc;
+    }
+  }
+`;
+
+const FeedbackMessage = styled.div`
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 16px 24px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: slideIn 0.3s ease;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  background-color: ${props => props.success ? '#4CAF50' : '#f44336'};
+  color: white;
+
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
   }
 `;
 
@@ -167,6 +258,55 @@ const CareGiverBeneficiary = () => {
   const [relation, setRelation] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [beneficiaries, setBeneficiaries] = useState([
+    { id: 1, name: 'Pulane Thando Malumane', idNumber: '0001234567', relation: 'Daughter' },
+    { id: 2, name: 'Pulane Thando Malumane', idNumber: '0001234567', relation: 'Sister' },
+  ]);
+  const [feedback, setFeedback] = useState(null);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    surname: '',
+    email: '',
+    idNumber: ''
+  });
+
+  const getRandomPastelColor = () => {
+    const hue = Math.floor(Math.random() * 360);
+    return `hsl(${hue}, 70%, 75%)`;
+  };
+
+  const handleComplete = () => {
+    if (password !== confirmPassword) {
+      setFeedback({ success: false, message: 'Passwords do not match!' });
+      return;
+    }
+
+    const newBeneficiary = {
+      id: beneficiaries.length + 1,
+      name: `${formData.firstName} ${formData.lastName} ${formData.surname}`,
+      idNumber: formData.idNumber,
+      relation: relation
+    };
+
+    setBeneficiaries([...beneficiaries, newBeneficiary]);
+    setFeedback({ success: true, message: 'Beneficiary added successfully!' });
+    setStep(1);
+    // Reset form
+    setFormData({
+      firstName: '',
+      lastName: '',
+      surname: '',
+      email: '',
+      idNumber: ''
+    });
+    setRelation('');
+    setPassword('');
+    setConfirmPassword('');
+
+    // Clear feedback after 3 seconds
+    setTimeout(() => setFeedback(null), 3000);
+  };
 
   return (
     <Container>
@@ -235,40 +375,59 @@ const CareGiverBeneficiary = () => {
                   <Step active={step === 1} />
                   <Step active={step === 2} />
                 </StepIndicator>
-                <NextButton style={{ background: '#fff', color: '#185c37', border: 'none' }}>
-                  Complete <span style={{ marginLeft: 8 }}>&rarr;</span>
-                </NextButton>
+                <ButtonGroup>
+                  <BackButton onClick={() => setStep(1)}>
+                    <span style={{ marginRight: 8 }}>&larr;</span> Back
+                  </BackButton>
+                  <NextButton 
+                    onClick={handleComplete}
+                    style={{ background: '#FD3E6E' }}
+                  >
+                    Complete <span style={{ marginLeft: 8 }}>&rarr;</span>
+                  </NextButton>
+                </ButtonGroup>
               </BottomRow>
             </>
           )}
         </FormContainer>
-        {step === 1 && (
-          <Table>
-            <thead>
-              <tr>
-                <Th>Names</Th>
-                <Th>ID Number</Th>
-                <Th>Relation</Th>
-                <Th>Action</Th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <Td>Pulane Thando Malumane</Td>
-                <Td>0001234567</Td>
-                <Td>Daughter</Td>
-                <Td>•••</Td>
-              </tr>
-              <tr>
-                <Td>Pulane Thando Malumane</Td>
-                <Td>0001234567</Td>
-                <Td>Sister</Td>
-                <Td>•••</Td>
-              </tr>
-            </tbody>
-          </Table>
-        )}
+
+        <TableWrapper>
+          <div className="table-container">
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Avatar</Th>
+                  <Th>Names</Th>
+                  <Th>ID Number</Th>
+                  <Th>Relation</Th>
+                  <Th>Action</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {beneficiaries.map((beneficiary) => (
+                  <tr key={beneficiary.id}>
+                    <Td>
+                      <Avatar color={getRandomPastelColor()}>
+                        {beneficiary.name.charAt(0)}
+                      </Avatar>
+                    </Td>
+                    <Td>{beneficiary.name}</Td>
+                    <Td>{beneficiary.idNumber}</Td>
+                    <Td>{beneficiary.relation}</Td>
+                    <Td>•••</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+        </TableWrapper>
       </Content>
+      
+      {feedback && (
+        <FeedbackMessage success={feedback.success}>
+          {feedback.message}
+        </FeedbackMessage>
+      )}
     </Container>
   );
 };

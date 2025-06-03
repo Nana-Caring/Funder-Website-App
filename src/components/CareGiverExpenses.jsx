@@ -3,12 +3,26 @@ import styled from 'styled-components';
 import avatar1 from '../assets/avatars/avatar1.png';
 import expensesIcon from '../assets/icons/expenses.png';
 
-const accounts = [
-  { color: '#a084ee', label: 'Baby Care Account', percent: 0 },
-  { color: '#3b82f6', label: 'Entertainment Account', percent: 0 },
-  { color: '#ffb84c', label: 'Healthcare Account', percent: 0 },
-  { color: '#4ade80', label: 'Education Account', percent: 0 },
-];
+const accountsData = {
+  palesa: [
+    { color: '#a084ee', label: 'Baby Care Account', percent: 25 },
+    { color: '#3b82f6', label: 'Entertainment Account', percent: 15 },
+    { color: '#ffb84c', label: 'Healthcare Account', percent: 35 },
+    { color: '#4ade80', label: 'Education Account', percent: 25 },
+  ],
+  thando: [
+    { color: '#a084ee', label: 'Baby Care Account', percent: 30 },
+    { color: '#3b82f6', label: 'Entertainment Account', percent: 20 },
+    { color: '#ffb84c', label: 'Healthcare Account', percent: 20 },
+    { color: '#4ade80', label: 'Education Account', percent: 30 },
+  ],
+  lesedi: [
+    { color: '#a084ee', label: 'Baby Care Account', percent: 20 },
+    { color: '#3b82f6', label: 'Entertainment Account', percent: 30 },
+    { color: '#ffb84c', label: 'Healthcare Account', percent: 25 },
+    { color: '#4ade80', label: 'Education Account', percent: 25 },
+  ],
+};
 
 const transactions = [
   {
@@ -80,24 +94,25 @@ const mockTransactions = {
 const Container = styled.div`
   width: calc(100% - 250px);
   margin-left: auto;
-  margin-top: 50px;
+  margin-top: 40px;
   display: flex;
   justify-content: center;
-  padding: 24px;
+  padding: 16px;
   box-sizing: border-box;
+  height: calc(100vh - 80px);
 `;
 
 const Card = styled.div`
   width: 100%;
-  max-width: 480px;
+  max-width: 400px;
   background: white;
-  border-radius: 16px;
-  padding: 24px;
+  border-radius: 12px;
+  padding: 16px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
   font-family: sans-serif;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 140px);
+  height: calc(100vh - 120px);
 `;
 
 const StackedProgressContainer = styled.div`
@@ -111,7 +126,8 @@ const StackedProgressContainer = styled.div`
 const Segment = styled.div`
   height: 100%;
   background-color: ${props => props.color};
-  width: 25%;
+  width: ${props => props.width}%;
+  transition: width 0.3s ease;
 `;
 
 const LegendWrapper = styled.div`
@@ -182,9 +198,9 @@ const TransactionCard = styled.div`
   align-items: flex-start;
   justify-content: space-between;
   background: #f9f9f9;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 8px;
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 6px;
 `;
 
 const CategoryInfo = styled.div`
@@ -207,11 +223,11 @@ const Amount = styled.div`
 const TransactionsContainer = styled.div`
   flex: 1;
   overflow-y: auto;
-  margin-top: 12px;
-  padding-right: 8px;
+  margin-top: 8px;
+  padding-right: 4px;
 
   &::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;
   }
 
   &::-webkit-scrollbar-track {
@@ -241,8 +257,77 @@ const TabButton = styled.span`
   }
 `;
 
+const BeneficiaryToggle = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+`;
+
+const BeneficiaryButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  background: ${props => props.active ? '#f0f0f0' : 'transparent'};
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #f0f0f0;
+  }
+`;
+
+const Avatar = styled.div`
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: ${props => props.color};
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+`;
+
 const CareGiverExpenses = () => {
   const [activeTab, setActiveTab] = useState('currentMonth');
+  const [activeBeneficiary, setActiveBeneficiary] = useState('palesa');
+
+  const beneficiaries = {
+    palesa: {
+      name: 'Palesa',
+      color: '#185c37',
+      transactions: mockTransactions
+    },
+    thando: {
+      name: 'Thando',
+      color: '#c1126b',
+      transactions: {
+        ...mockTransactions,
+        currentMonth: mockTransactions.currentMonth.map(tx => ({
+          ...tx,
+          amount: tx.amount.replace('500', '300').replace('5000', '2000')
+        }))
+      }
+    },
+    lesedi: {
+      name: 'Lesedi',
+      color: '#3b82f6',
+      transactions: {
+        ...mockTransactions,
+        currentMonth: mockTransactions.currentMonth.map(tx => ({
+          ...tx,
+          amount: tx.amount.replace('500', '800').replace('5000', '3000')
+        }))
+      }
+    }
+  };
 
   const tabTitles = {
     lastMonth: 'Last Month',
@@ -250,46 +335,71 @@ const CareGiverExpenses = () => {
     future: 'Future',
   };
 
-  const getTabTotal = transactions => {
-    return transactions
-      .reduce((total, tx) => {
-        const amount = parseFloat(tx.amount.replace('R', '').replace(',', ''));
-        return total + Math.abs(amount);
-      }, 0)
-      .toFixed(2);
+  const calculateTotalExpenses = () => {
+    const transactions = beneficiaries[activeBeneficiary].transactions[activeTab];
+    return transactions.reduce((total, tx) => {
+      const amount = Math.abs(parseFloat(tx.amount.replace('R', '').replace(',', '')));
+      return total + amount;
+    }, 0).toFixed(2);
+  };
+
+  const getTabTotal = (transactions) => {
+    return transactions.reduce((total, tx) => {
+      const amount = Math.abs(parseFloat(tx.amount.replace('R', '').replace(',', '')));
+      return total + amount;
+    }, 0).toFixed(2);
   };
 
   return (
     <Container>
       <Card>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <img src="/palesa-logo.svg" alt="Palesa logo" style={{ width: 32, height: 32 }} />
-          <span style={{ fontWeight: 600, fontSize: 18, color: '#185c37' }}>Palesa</span>
+        <BeneficiaryToggle>
+          {Object.entries(beneficiaries).map(([key, ben]) => (
+            <BeneficiaryButton
+              key={key}
+              active={activeBeneficiary === key}
+              onClick={() => setActiveBeneficiary(key)}
+            >
+              <Avatar color={ben.color}>
+                {ben.name.charAt(0)}
+              </Avatar>
+              <span style={{ 
+                fontWeight: activeBeneficiary === key ? '600' : '400',
+                color: '#333'
+              }}>
+                {ben.name}
+              </span>
+            </BeneficiaryButton>
+          ))}
+        </BeneficiaryToggle>
         </div>
-        <h3>Monthly expenses 📅</h3>
-        <h1 style={{ fontSize: '40px', margin: '8px 0' }}>00</h1>
+        <h3 style={{ fontSize: '14px', marginBottom: '4px' }}>Monthly expenses 📅</h3>
+        {/* <h1 style={{ fontSize: '32px', margin: '4px 0' }}>R{calculateTotalExpenses()}</h1> */}
 
         <StackedProgressContainer>
-          {accounts.map((acc, idx) => (
-            <Segment key={idx} color={acc.color} />
+          {accountsData[activeBeneficiary].map((acc, idx) => (
+            <Segment key={idx} color={acc.color} width={acc.percent} />
           ))}
         </StackedProgressContainer>
 
         <LegendWrapper>
-          {accounts.map((acc, idx) => (
+          {accountsData[activeBeneficiary].map((acc, idx) => (
             <LegendItem key={idx}>
               <ColorDotLabel>
                 <ColorDot color={acc.color} />
                 <span>{acc.label}</span>
               </ColorDotLabel>
-              <span>00%</span>
+              <span>{acc.percent}%</span>
             </LegendItem>
           ))}
         </LegendWrapper>
 
+        
+
         <SectionTitle>
           <span>Monthly Transactions</span>
-          <span>~R{getTabTotal(mockTransactions[activeTab])}</span>
+          <span>R{getTabTotal(beneficiaries[activeBeneficiary].transactions[activeTab])}</span>
         </SectionTitle>
 
         <Tabs>
@@ -305,7 +415,7 @@ const CareGiverExpenses = () => {
         </Tabs>
 
         <TransactionsContainer>
-          {mockTransactions[activeTab].map((tx, index) => (
+          {beneficiaries[activeBeneficiary].transactions[activeTab].map((tx, index) => (
             <TransactionItem key={index}>
               <DateLabel>{tx.date}</DateLabel>
               <TransactionCard>

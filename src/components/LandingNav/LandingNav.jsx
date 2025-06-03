@@ -31,9 +31,7 @@ const LandingNav = () => {
       <div className="nav-right">
         <Link to="/login" className="login-btn">Log in</Link>
         <Link to="/signup" className="signup-btn">Sign up</Link>
-        <Link to="/profile" className="profile-btn">
-          <FaUser />
-        </Link>
+       
       </div>
 
       {/* Hamburger icon for mobile */}
@@ -73,19 +71,19 @@ const LandingNav = () => {
           left: 0;
           right: 0;
           background: white;
-          padding: 1rem 4%;
+          padding: 0rem 4%;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
           z-index: 1000;
+          position:fixed;
         }
         .nav-left {
           display: flex;
           align-items: center;
         }
         .nav-logo {
-          height: 40px;
+          height: 90px;
           width: auto;
         }
         .nav-center {

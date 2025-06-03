@@ -749,6 +749,20 @@ const ResponsiveStyles = styled.div`
 `;
 
 
+const LetterAvatar = styled.div`
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: ${props => props.color || '#FD3E6E'};
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+`;
+
 const mockRequests = [
   { name: 'Charity Matlapo', category: 'Healthcare', amount: 'R10 000' },
   { name: 'John Smith', category: 'Education', amount: 'R5 000' },
@@ -805,15 +819,15 @@ const Dashboard = () => {
                 <h3>Quick Transfer</h3>
                 <div className="users">
                   <div className="user-container">
-                    <Avatar className="avatar" alt="Tim" src="/src/assets/avatars/avatar1.png" />
+                    <LetterAvatar color="#185c37">S</LetterAvatar>
                     <span className="user-name">Son</span>
                   </div>
                   <div className="user-container">
-                    <Avatar className="avatar" alt="Daughter" src="/src/assets/avatars/avatar2.png" />
+                    <LetterAvatar color="#c1126b">D</LetterAvatar>
                     <span className="user-name">Daughter</span>
                   </div>
                   <div className="user-container">
-                    <Avatar className="avatar" alt="Chris" src="/src/assets/avatars/avatar3.png" />
+                    <LetterAvatar color="#3b82f6">C</LetterAvatar>
                     <span className="user-name">Chris</span>
                   </div>
                   <img src="/src/assets/icons/arrow.png" alt="arrow" className="arrow-icon" />
@@ -918,8 +932,8 @@ const Dashboard = () => {
           <RightPanel>
             <TrackingSection>
               <div className="icons-container">
-                <Avatar alt="Parent" src="/src/assets/avatars/avatar2.png" />
-                <Avatar alt="Child" src="/src/assets/avatars/avatar3.png" />
+                <LetterAvatar color="#185c37">P</LetterAvatar>
+                <LetterAvatar color="#c1126b">C</LetterAvatar>
                 <img src="/src/assets/icons/arrow.png" alt="arrow" className="arrow-icon" />
                 <div className="dots">
                   <div className="dot"></div>
@@ -968,7 +982,9 @@ const Dashboard = () => {
               <div className="transactions-container">
                 {mockTransactions.map((transaction) => (
                   <div className="transaction" key={transaction.id}>
-                    <Avatar className="avatar" />
+                    <LetterAvatar>
+                      {transaction.type.charAt(0)}
+                    </LetterAvatar>
                     <div className="details">
                       <span>{transaction.type}</span>
                       <span>{transaction.date}</span>
