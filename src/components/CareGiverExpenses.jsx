@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import avatar1 from '../assets/avatars/avatar1.png';
+import expensesIcon from '../assets/icons/expenses.png';
 
 const accounts = [
   { color: '#a084ee', label: 'Baby Care Account', percent: 0 },
