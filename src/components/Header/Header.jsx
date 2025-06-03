@@ -7,70 +7,113 @@ import notificationIndicatorIcon from '../../assets/icons/notification-icon.png'
 import settingsIcon from '../../assets/icons/settings.png';
 
 const HeaderContainer = styled.div`
+  position: fixed;
+  top: 0;
+  right: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
-  width: 96%;
-  margin: 0;
-  margin-left: ${props => props.isCareGiver ? '45px' : '0'};
+  padding: 0px 40px 0px 60px; /* Increased left padding from 30px to 60px */
+  width: calc(100% - 250px); /* Adjust width based on sidebar */
+  margin-left: auto;
   box-sizing: border-box;
   background: white;
   border-bottom: 1px solid #eee;
-  z-index: 1000;
   font-family: 'Poppins', sans-serif;
+  height: 60px;
+ 
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04); /* Subtle shadow for elevation */
 
   h2 {
-    font-size: 20px;
+    font-size: 16px; /* Reduced font size */
     color: #333;
     margin: 0;
   }
 
   .icons {
     display: flex;
-    gap: 15px;
+    gap: 12px; /* Reduced gap */
     align-items: center;
 
     .icon-container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 4px;
+      gap: 2px; /* Reduced gap */
       position: relative;
 
       img {
         cursor: pointer;
-        width: 24px;
-        height: 24px;
+        width: 20px; /* Reduced icon size */
+        height: 20px; /* Reduced icon size */
         object-fit: contain;
       }
 
       .notification-indicator {
         position: absolute;
-        top: -4px;
+        top: -2px;
         right: -2px;
-        width: 12px;
-        height: 12px;
+        width: 8px; /* Reduced indicator size */
+        height: 8px; /* Reduced indicator size */
       }
 
       span {
-        font-size: 12px;
+        font-size: 11px; /* Reduced font size */
         color: #666;
+      }
+    }
+  }
+
+  @media (max-width: 1024px) {
+    width: calc(100% - 200px); /* Adjust for smaller screens */
+    padding: 8px 30px 8px 40px; /* Adjusted padding for smaller screens */
+    
+    h2 {
+      font-size: 15px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    width: calc(100% - 180px); /* Further adjust for mobile */
+    padding: 8px 20px 8px 30px; /* Further adjusted for mobile */
+    
+    .icons {
+      gap: 8px;
+      
+      .icon-container img {
+        width: 18px;
+        height: 18px;
       }
     }
   }
 `;
 
-const Header = ({ title, isCareGiver }) => {
+const MainContent = styled.div`
+  margin-top: 60px; /* Same as header height */
+  padding: 16px;
+  width: calc(100% - 250px);
+  margin-left: auto;
+  box-sizing: border-box;
+  
+  @media (max-width: 1024px) {
+    width: calc(100% - 200px);
+  }
+
+  @media (max-width: 768px) {
+    width: calc(100% - 180px);
+  }
+`;
+
+const Header = ({ title }) => {
   const surname = localStorage.getItem('surname') || 'User';
 
   return (
-    <HeaderContainer isCareGiver={isCareGiver}>
+    <HeaderContainer>
       {title ? (
         <h2>{title}</h2>
       ) : (
         <h2>
-          <span style={{ fontWeight: 'normal' }}>Welcome Back, </span>
+          <span style={{ fontWeight: 'normal', fontSize: '14px' }}>Welcome Back, </span>
           <span style={{ fontWeight: 'bold' }}>Mr {surname}</span>
         </h2>
       )}

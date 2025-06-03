@@ -29,60 +29,53 @@ const MainContent = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  overflow-y: auto;
-  padding: 16px 16px 16px 16px;
-  width: 97%;
+  align-items: center;
+  padding: 16px;
+  width: calc(100% - 250px);
+  margin-left: auto;
+  margin-top: 80px;
   box-sizing: border-box;
-  margin-left: 30px;
 `;
 
 const Grid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(505px, 1fr));
-  grid-gap: 24px;
-  width: 100%;
-  max-width: 4400px;
-  margin: 0 auto;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-gap: 16px;
+  margin-bottom: 16px;
   align-items: start;
+  width: 100%;
+  justify-content: center; /* Center grid items */
 `;
 
 const Card = styled.div`
   background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  padding: 16px; /* Reduced padding */
   display: flex;
   flex-direction: column;
-  min-height: 280px;
-  height: auto;
-  overflow: hidden;
+  min-height: 240px; /* Reduced height */
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+  }
 `;
 
 const RequestsTable = styled.div`
-  width: 90%;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  max-height: 200px;
+  gap: 12px;
+  max-height: 180px; /* Reduced height */
   overflow-y: auto;
-  padding-right: 10px;
-  margin: 0 auto;
 `;
 
 const RequestsCard = styled(Card)`
-  width: 90%;
-  max-width: 1800px;
-  margin: 0 auto;
-  padding: 20px;
-  height: 280px;
-  min-height: auto;
-  overflow: hidden;
-
-  ${RequestsTable} {
-    margin-top: 10px;
-  }
+  max-width: 100%;
+  margin: 0;
+  padding: 16px;
+  min-height: 200px; /* Reduced height */
 `;
 
 const FlexRow = styled.div`
@@ -93,8 +86,8 @@ const FlexRow = styled.div`
 
 
 const Avatar = styled.div`
-  width: 36px;
-  height: 36px;
+  width: 32px; /* Reduced size */
+  height: 32px;
   border-radius: 50%;
   background: #a084ee;
   display: flex;
@@ -108,10 +101,10 @@ const Avatar = styled.div`
 
 const BarChart = styled.div`
   display: flex;
-  height: 24px;
+  height: 20px; /* Reduced height */
   border-radius: 8px;
   overflow: hidden;
-  margin: 24px 0 16px 0;
+  margin: 16px 0 12px 0; /* Reduced margins */
   background: #e5e7eb;
 `;
 
@@ -144,10 +137,9 @@ const Dot = styled.span`
 `;
 
 const SectionTitle = styled.div`
-  font-size: 18px;
-  fontWeight: 600;
+  font-size: 16px; /* Reduced font size */
+  margin-bottom: 14px; /* Reduced margin */
   color: #222;
-  margin-bottom: 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -265,86 +257,110 @@ const DotIndicator = styled.span`
   display: inline-block;
 `;
 
+const ResponsiveWrapper = styled.div`
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto; /* Center the wrapper */
+  padding: 0 12px;
+
+  @media (max-width: 1200px) {
+    ${Grid} {
+      grid-template-columns: 1fr;
+      max-width: 600px;
+      margin: 0 auto; /* Center grid on smaller screens */
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 0 8px;
+    ${Grid} {
+      grid-template-columns: 1fr;
+    }
+  }
+`;
+
+// Update the component return statement
 const CareGiverHome = () => {
   return (
     <MainContent>
-      <Grid>
-        {/* Left: Monthly expenses and bar chart */}
-        <Card>
-          {/* Avatars centered at the top */}
-          <AvatarsRow>
-            <Avatar>P</Avatar>
-            
-            <Avatar style={{ background: '#ff4c60' }}>C</Avatar>
-            <img src={arrowIcon} alt="Arrow" style={{ width: 24, height: 24 }} />
-          </AvatarsRow>
-          {/* Dots below avatars */}
-          <DotsRow>
-            <DotIndicator active />
-            <DotIndicator />
-          </DotsRow>
-          {/* Monthly expenses and rest of content */}
-          <FlexRow style={{ justifyContent: 'space-between', marginBottom: 4 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-             
-              <div style={{ color: '#222', fontWeight: 500, fontSize: 16 }}>Monthly expenses</div>
-              <img src={expensesIcon} alt="Expenses" style={{ width: 24, height: 24 }} />
-            </div>
-            <div />
-          </FlexRow>
-         
-          <BarChart style={{ margin: '10px 0 8px 0' }}>
-            {accounts.map((acc, i) => (
-              <Bar key={acc.label} color={acc.color} percent={25} />
-            ))}
-          </BarChart>
-          <Legend>
-            {accounts.map(acc => (
-              <LegendRow key={acc.label}>
-                <Dot color={acc.color} />
-                <span>{acc.label}</span>
-                <span style={{ marginLeft: 'auto', color: '#888' }}>00%</span>
-              </LegendRow>
-            ))}
-          </Legend>
-        </Card>
-        {/* Right: Transaction History */}
-        <Card>
-          <SectionTitle>
-            Transaction History <SeeAll>see all &rarr;</SeeAll>
+      <ResponsiveWrapper>
+        <Grid>
+          {/* Left: Monthly expenses and bar chart */}
+          <Card>
+            {/* Avatars centered at the top */}
+            <AvatarsRow>
+              <Avatar>P</Avatar>
+              
+              <Avatar style={{ background: '#ff4c60' }}>C</Avatar>
+              <img src={arrowIcon} alt="Arrow" style={{ width: 24, height: 24 }} />
+            </AvatarsRow>
+            {/* Dots below avatars */}
+            <DotsRow>
+              <DotIndicator active />
+              <DotIndicator />
+            </DotsRow>
+            {/* Monthly expenses and rest of content */}
+            <FlexRow style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+               
+                <div style={{ color: '#222', fontWeight: 500, fontSize: 16 }}>Monthly expenses</div>
+                <img src={expensesIcon} alt="Expenses" style={{ width: 24, height: 24 }} />
+              </div>
+              <div />
+            </FlexRow>
+           
+            <BarChart style={{ margin: '10px 0 8px 0' }}>
+              {accounts.map((acc, i) => (
+                <Bar key={acc.label} color={acc.color} percent={25} />
+              ))}
+            </BarChart>
+            <Legend>
+              {accounts.map(acc => (
+                <LegendRow key={acc.label}>
+                  <Dot color={acc.color} />
+                  <span>{acc.label}</span>
+                  <span style={{ marginLeft: 'auto', color: '#888' }}>00%</span>
+                </LegendRow>
+              ))}
+            </Legend>
+          </Card>
+          {/* Right: Transaction History */}
+          <Card>
+            <SectionTitle>
+              Transaction History <SeeAll>see all &rarr;</SeeAll>
+            </SectionTitle>
+            <TransactionList>
+              {transactions.slice(0, 4).map((tx, i) => (
+                <TransactionItem key={i}>
+                  <TransactionAvatar>A</TransactionAvatar>
+                  <TransactionInfo>
+                    <TransactionName>{tx.name}</TransactionName>
+                    <TransactionDate>{tx.date}</TransactionDate>
+                  </TransactionInfo>
+                  <TransactionAmount>{tx.amount}</TransactionAmount>
+                </TransactionItem>
+              ))}
+            </TransactionList>
+          </Card>
+        </Grid>
+        <RequestsCard>
+          <SectionTitle style={{ padding: '0 12px 0 12px' }}>
+            Requests <SeeAll>see all &rarr;</SeeAll>
           </SectionTitle>
-          <TransactionList>
-            {transactions.slice(0, 4).map((tx, i) => (
-              <TransactionItem key={i}>
-                <TransactionAvatar>A</TransactionAvatar>
-                <TransactionInfo>
-                  <TransactionName>{tx.name}</TransactionName>
-                  <TransactionDate>{tx.date}</TransactionDate>
-                </TransactionInfo>
-                <TransactionAmount>{tx.amount}</TransactionAmount>
-              </TransactionItem>
+          <RequestsTable>
+            {requests.map((req, i) => (
+              <RequestRow key={i}>
+                <RequestName>{req.name}</RequestName>
+                <RequestReason>{req.reason}</RequestReason>
+                <RequestAmount>{req.amount}</RequestAmount>
+                <RequestAction>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="2" fill="#888"/><circle cx="12" cy="12" r="2" fill="#888"/><circle cx="19" cy="12" r="2" fill="#888"/></svg>
+                </RequestAction>
+              </RequestRow>
             ))}
-          </TransactionList>
-        </Card>
-      </Grid>
-      {/* Requests Table */}
-      <RequestsCard>
-        <SectionTitle style={{ padding: '0 12px 0 12px' }}>
-          Requests <SeeAll>see all &rarr;</SeeAll>
-        </SectionTitle>
-        <RequestsTable>
-          {requests.map((req, i) => (
-            <RequestRow key={i}>
-              <RequestName>{req.name}</RequestName>
-              <RequestReason>{req.reason}</RequestReason>
-              <RequestAmount>{req.amount}</RequestAmount>
-              <RequestAction>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="2" fill="#888"/><circle cx="12" cy="12" r="2" fill="#888"/><circle cx="19" cy="12" r="2" fill="#888"/></svg>
-              </RequestAction>
-            </RequestRow>
-          ))}
-        </RequestsTable>
-      </RequestsCard>
+          </RequestsTable>
+        </RequestsCard>
+      </ResponsiveWrapper>
     </MainContent>
   );
 };

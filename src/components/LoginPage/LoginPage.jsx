@@ -20,6 +20,41 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
+  const handleNavigation = (role) => {
+    switch (role) {
+      case 'caregiver':
+        navigate('/CareGiverHome');
+        break;
+      case 'dependent':
+        navigate('/DependentHome');
+        break;
+      case 'funder':
+        navigate('/dashboard');
+        break;
+      default:
+        setError('Invalid user role');
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      const result = await dispatch(loginUser(formData)).unwrap();
+      
+      if (!result.user?.role) {
+        throw new Error('User role not specified');
+      }
+      // Handle navigation based on role
+      handleNavigation(result.user.role);
+      
+    } catch (err) {
+      console.error('Login failed:', err);
+      setError(err.message || 'Login failed. Please try again.');
+    }
+  };
+
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
@@ -29,25 +64,6 @@ const LoginPage = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const result = await dispatch(loginUser(formData)).unwrap();
-      console.log('Login successful:', result);
-      
-      // Check user role and handle navigation
-      if (result.user.role === 'caregiver' || result.user.role === 'dependent') {
-        setError('Please download our mobile app to access your account');
-        return;
-      }
-      
-      navigate('/dashboard');
-    } catch (err) {
-      console.error('Login failed:', err);
-      setError(err.message || 'Login failed');
-    }
   };
 
   return (
@@ -86,16 +102,24 @@ const LoginPage = () => {
               <div className="error-message">
                 <p>{error}</p>
                 {(error.includes('download') || error.includes('mobile app')) && (
-                  <a 
-                    href="#" 
-                    className="download-link"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      window.open('your-app-store-link', '_blank');
-                    }}
-                  >
-                    Download App →
-                  </a>
+                  <div className="app-download-options">
+                    <a 
+                      href="your-ios-app-link"
+                      className="download-link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Download iOS App →
+                    </a>
+                    <a 
+                      href="your-android-app-link"
+                      className="download-link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Download Android App →
+                    </a>
+                  </div>
                 )}
               </div>
             )}

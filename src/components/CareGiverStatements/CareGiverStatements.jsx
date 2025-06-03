@@ -14,19 +14,21 @@ const mockData = [
 
 const Container = styled.div`
   width: 100%;
-  height: 100vh;
-  background: #f3f7f1;
+  height: calc(100vh - 100px); /* Adjust for header margin */
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center; /* Center horizontally */
   justify-content: flex-start;
-  padding: 12px 0 0 0;
+  padding: 24px;
+  box-sizing: border-box;
 `;
 
 const Content = styled.div`
-  width: 90vw;
-  max-width: 900px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto; /* Center the content */
+  padding: 0 12px;
+  box-sizing: border-box;
 `;
 
 const Title = styled.h3`
@@ -39,50 +41,94 @@ const Title = styled.h3`
 const FilterRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 10px;
+  gap: 12px; /* Reduced from 16px */
+  margin-bottom: 8px;
+  flex-wrap: wrap;
 `;
 
 const Select = styled.select`
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 4px 8px; /* Reduced padding */
+  border-radius: 4px;
   border: 1px solid #d1d5db;
   background: #fff;
-  font-size: 14px;
+  font-size: 13px;
 `;
 
 const SearchInput = styled.input`
   margin-left: auto;
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 4px 8px; /* Reduced padding */
+  border-radius: 4px;
   border: 1px solid #d1d5db;
-  font-size: 14px;
-  width: 180px;
+  font-size: 13px;
+  width: 160px; /* Reduced from 180px */
 `;
 
 const TableWrapper = styled.div`
   background: #fff;
   border-radius: 16px;
-  overflow: hidden;
+  overflow-y: auto;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  height: calc(100vh - 280px); /* Fixed height for scrolling */
+  margin-top: 16px;
+
+  /* Custom scrollbar styling */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #ddd;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: #ccc;
+  }
 `;
 
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
+
+  thead {
+    position: sticky;
+    top: 0;
+    background: #f3f7f1;
+    z-index: 1;
+    
+    tr {
+      th {
+        padding: 12px 16px;
+        background: #f3f7f1; /* Ensure header background is solid */
+      }
+    }
+  }
+
+  tbody {
+    tr {
+      &:hover {
+        background: #f8f9fa;
+      }
+    }
+  }
 `;
 
 const Th = styled.th`
   background: #f3f7f1;
   color: #222;
   font-weight: 500;
-  padding: 10px 8px;
+  padding: 8px 6px; /* Reduced padding */
   text-align: left;
 `;
 
 const Td = styled.td`
-  padding: 10px 8px;
+  padding: 8px 6px; /* Reduced padding */
   border-top: 1px solid #f0f0f0;
   color: #333;
 `;
@@ -103,8 +149,10 @@ const MainContent = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  overflow: hidden;
-  width: 100%;
+  width: calc(100% - 250px);
+  margin-left: auto;
+  margin-top: 80px; /* Add margin to move content below header */
+  box-sizing: border-box;
 `;
 
 const CareGiverStatements = () => {
@@ -181,4 +229,4 @@ const CareGiverStatements = () => {
   );
 };
 
-export default CareGiverStatements; 
+export default CareGiverStatements;

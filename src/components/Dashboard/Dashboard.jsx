@@ -21,49 +21,43 @@ import { Avatar, Modal, IconButton } from '@mui/material';
 */
 const Container = styled.div`
   display: flex;
-  width: 100%;
-  background-color: white;
+  width: calc(100% - 250px); /* Account for sidebar width */
+  height: calc(100vh - 80px); /* Account for header height */
   position: relative;
+  margin-left: auto;
+  margin-top: 25px; /* Space below header */
   flex-direction: column;
-  height: 100%;
   overflow: hidden;
+  align-items: center;
+  padding: 24px; /* Add equal padding around content */
+  box-sizing: border-box;
 `;
 
-/* 
-  The main area (right side) after the sidebar.
-  It includes a top header and the main content below it.
-*/
 const DashboardContainer = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
   width: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 20px;
+  max-width: 1000px; /* Reduced from 1200px for better centering */
+  margin: 0 auto; /* Center horizontally */
+  box-sizing: border-box;
+  gap: 24px; /* Add consistent spacing between elements */
 `;
 
-/* 
-  Main content area below the header:
-  We want two columns:
-    - Left column (balance, card, quick actions)
-    - Right column (tracking, transaction history)
-*/
 const MainContent = styled.div`
   display: flex;
-  gap: 10px;
-  padding: 0;
+  gap: 24px; /* Consistent spacing */
   width: 100%;
-  
+  justify-content: center; /* Center content horizontally */
   
   > div {
     &:first-child {
       flex: 1.5;
-      min-width: 300px;
+      max-width: 600px; /* Reduced from 700px */
     }
     &:last-child {
       flex: 1;
-      min-width: 250px;
+      max-width: 350px; /* Reduced from 400px */
     }
   }
 `;
@@ -73,6 +67,7 @@ const BalanceCard = styled.div`
   padding: 12px;
   border-radius: 12px;
   margin-bottom: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 
   display: flex;
   flex-direction: column;
@@ -109,7 +104,7 @@ const BalanceCard = styled.div`
   }
 `;
 
-import cardBg from '../../assets/card.jpg';
+import cardBg from '../../assets/images/card-bg.png';
 
 const NanaCardWrapper = styled.div`
   position: relative;
@@ -127,7 +122,8 @@ const NanaCardShadow = styled.div`
   background-color: gray;
   border-radius: 15px;
   z-index: 0;
-  filter: blur(1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  filter: blur(8px);
 `;
 
 const NanaCard = styled.div`
@@ -163,17 +159,18 @@ const QuickActions = styled.div`
   background: white;
   padding: 20px;
   border-radius: 12px;
+  margin-top:25px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 
   display: flex;
   gap: 16px;
-  margin-top:25px;
 
   .action-card {
     flex: 1;
     background: white;
     padding: 10px;
     border-radius: 12px;
-   
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 
     &:first-child {
       flex: 0.7;
@@ -232,24 +229,38 @@ const QuickActions = styled.div`
 
     .deposit-selects {
       margin: 4px 0;
-      
+      max-height: 200px; /* Fixed height for scrolling */
+      overflow-y: auto; /* Enable vertical scrolling */
+      padding-right: 4px; /* Add space for scrollbar */
 
+      /* Custom scrollbar styling */
+      &::-webkit-scrollbar {
+        width: 4px;
+      }
 
-      .to-text {
-        text-align: center;
-        margin: 4px 0;
-        color: #666;
+      &::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 2px;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: #ddd;
+        border-radius: 2px;
+      }
+
+      &::-webkit-scrollbar-thumb:hover {
+        background: #ccc;
       }
 
       .request-item {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 8px;
+        padding: 6px 8px; /* Slightly reduced padding */
         background: #e0e0e0;
         border-radius: 8px;
-        margin-bottom: 8px;
+        margin-bottom: 6px; /* Reduced spacing between items */
         transition: background-color 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 
         &:last-child {
           margin-bottom: 0;
@@ -258,34 +269,31 @@ const QuickActions = styled.div`
         &:hover {
           background: #d0d0d0;
         }
+
         .request-details {
+          flex: 1;
           display: flex;
-          flex-direction: row;
           align-items: center;
-          gap: 16px;
-          font-size: 14px;
-          font-family: Poppins, sans-serif;
+          justify-content: space-between;
+          gap: 12px; /* Reduced from 16px */
+          font-size: 11px; /* Reduced from 14px */
+          font-family: 'Poppins', sans-serif;
 
-          span:first-child {
+          span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
 
-            color: #111;
+            &:first-child {
+              color: #111;
+              font-weight: 500;
+            }
+
+            &:last-child {
+              color: #666;
+              cursor: pointer;
+            }
           }
-
-          span:last-child {
-            font-size: 12px;
-            color: #333;
-          }
-        }
-
-        .request-amount {
-          font-weight: 600;
-          color: #111;
-        }
-
-        .more-options {
-          color: #333;
-          font-weight: bold;
-          cursor: pointer;
         }
       }
     }
@@ -326,11 +334,10 @@ const QuickActions = styled.div`
 
 const RightPanel = styled.div`
   display: flex;
-  margin-right:12px;
   flex-direction: column;
-  gap: 0;
-  padding: 0;
-  
+  gap: 20px;
+  width: 100%;
+  max-width: 400px;
 `;
 
 const TrackingSection = styled.div`
@@ -339,7 +346,7 @@ const TrackingSection = styled.div`
   border-radius: 12px;
   margin-bottom: 0px;
    font-family: 'Poppins', sans-serif;
-  
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 
   .icons-container {
     display: flex;
@@ -518,21 +525,43 @@ const SendMoneyModal = styled.div`
 `;
 
 const TransactionHistory = styled.div`
-  margin-top:0;
+  margin-top: 0;
   background: white;
-  padding: 4px;
+  padding: 12px;
   border-radius: 12px;
-
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   
   h3 {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin: 0 0 8px 0;
+    position: sticky;
+    top: 0;
+    background: white;
+    padding: 8px 0;
+    margin: 0;
+    z-index: 1;
+  }
 
-    .search-icon {
-      cursor: pointer;
-      color: #666;
+  .transactions-container {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 4px;
+
+    /* Custom scrollbar styling */
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 2px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #ddd;
+      border-radius: 2px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: #ccc;
     }
   }
 
@@ -544,56 +573,212 @@ const TransactionHistory = styled.div`
     background: #e0e0e0;
     border-radius: 8px;
     transition: background-color 0.2s ease;
-    gap: 30px;
+    gap: 16px; /* Reduced from 30px */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 
     &:hover {
       background: #d0d0d0;
     }
 
     .avatar {
-     
-      width: 32px;
-      height: 32px;
+      width: 28px; /* Reduced from 32px */
+      height: 28px; /* Reduced from 32px */
+      flex-shrink: 0;
     }
 
     .details {
       flex: 1;
       display: flex;
       align-items: center;
-      gap: 20px;
+      justify-content: space-between;
+      gap: 12px; /* Reduced from 20px */
+      font-size: 11px; /* Reduced font size */
+      color: #666;
       
-      h4 {
-        margin: 0;
-        font-size: 14px;
-        color: #333;
+      span {
+        white-space: nowrap; /* Keep text in one line */
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
-      p {
-        margin: 0;
-        font-size: 12px;
-        color: #666;
+
+      .amount {
+        color: rgb(5, 1, 3);
+        font-weight: 500;
+        margin-left: auto;
       }
     }
+  }
 
-    .amount {
-      color: rgb(5, 1, 3);
-     
-     
+  @media (max-width: 480px) {
+    .transaction {
+      gap: 8px;
+      
+      .details {
+        font-size: 10px;
+        gap: 8px;
+      }
     }
   }
 `;
+
+const ResponsiveStyles = styled.div`
+  @media (max-width: 1200px) {
+    ${Container} {
+      padding: 16px; /* Smaller padding on smaller screens */
+    }
+    ${MainContent} {
+      flex-direction: column;
+      align-items: center; /* Center items when stacked */
+      
+      > div {
+        &:first-child, &:last-child {
+          max-width: 600px;
+          width: 100%;
+        }
+      }
+    }
+  }
+
+  @media (max-width: 1024px) {
+    ${MainContent} {
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start; /* Changed from center */
+    }
+    ${RightPanel} {
+      margin-right: 0;
+      margin-top: 24px;
+    }
+    ${DashboardContainer} {
+      padding: 12px;
+      align-items: flex-start; /* Changed from center */
+    }
+  }
+
+  @media (max-width: 768px) {
+    ${Container} {
+      width: calc(100% - 200px);
+    }
+    
+    ${DashboardContainer} {
+      padding: 12px;
+    }
+    ${MainContent} {
+      flex-direction: column;
+      gap: 16px;
+      align-items: flex-start; /* Changed from center */
+      > div {
+        min-width: 0;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start; /* Changed from center */
+      }
+    }
+    ${BalanceCard}, ${QuickActions}, ${TrackingSection}, ${TransactionHistory} {
+      padding: 10px;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    ${NanaCardWrapper} {
+      max-width: 98vw;
+    }
+    ${NanaCard} {
+      height: 120px;
+      max-width: 98vw;
+      padding: 10px;
+      font-size: 14px;
+    }
+    ${QuickActions} {
+      flex-direction: column;
+      gap: 12px;
+      .action-card {
+        margin-bottom: 8px;
+      }
+    }
+    ${SendMoneyModal} {
+      width: 95vw;
+      padding: 12px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    ${DashboardContainer} {
+      padding: 4px;
+      align-items: center;
+    }
+    ${BalanceCard}, ${QuickActions}, ${TrackingSection}, ${TransactionHistory} {
+      padding: 6px;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 98vw;
+      margin: 0 auto;
+    }
+    ${NanaCard} {
+      height: 90px;
+      font-size: 12px;
+      padding: 6px;
+    }
+    ${QuickActions} {
+      gap: 8px;
+      .action-card {
+        padding: 6px;
+      }
+    }
+    ${SendMoneyModal} {
+      width: 99vw;
+      padding: 6px;
+    }
+    .modal-header h2 {
+      font-size: 16px;
+    }
+    .form-group label, .form-group select, .form-group input {
+      font-size: 12px;
+    }
+    ${TransactionHistory} .transaction {
+      gap: 10px;
+      font-size: 12px;
+      .avatar {
+        width: 24px;
+        height: 24px;
+      }
+    }
+  }
+`;
+
+
+const mockRequests = [
+  { name: 'Charity Matlapo', category: 'Healthcare', amount: 'R10 000' },
+  { name: 'John Smith', category: 'Education', amount: 'R5 000' },
+  { name: 'Sarah Johnson', category: 'Baby Care', amount: 'R3 500' },
+  { name: 'Michael Brown', category: 'Entertainment', amount: 'R2 000' },
+  { name: 'Emma Davis', category: 'Healthcare', amount: 'R8 000' },
+];
+
+const mockTransactions = [
+  { id: 1, type: 'School fees', date: '11-feb-25 11:00 AM', amount: '-R10 000' },
+  { id: 2, type: 'Healthcare', date: '10-feb-25 02:30 PM', amount: '-R2 500' },
+  { id: 3, type: 'Entertainment', date: '09-feb-25 09:15 AM', amount: '-R1 500' },
+  { id: 4, type: 'Baby Care', date: '08-feb-25 03:45 PM', amount: '-R3 000' },
+  { id: 5, type: 'Education', date: '07-feb-25 10:20 AM', amount: '-R5 000' },
+  { id: 6, type: 'Healthcare', date: '06-feb-25 01:00 PM', amount: '-R800' },
+  { id: 7, type: 'Entertainment', date: '05-feb-25 04:30 PM', amount: '-R2 000' },
+  { id: 8, type: 'Baby Care', date: '04-feb-25 11:45 AM', amount: '-R1 200' }
+];
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const userName = localStorage.getItem('userName') || 'User';
   return (
-    <Container>
-     
-     
-      {/* --- MAIN DASHBOARD AREA --- */}
+    <ResponsiveStyles>
+      <Container>
       <DashboardContainer>
+        
         <MainContent>
-          {/* LEFT COLUMN */}
           <div>
             <BalanceCard>
               <div className="balance-row">
@@ -713,33 +898,16 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <div className="deposit-selects">
-                  <div className="request-item">
-                    <div className="request-details">
-                      <span>Charity Matlapo</span>
-                      <span>Healthcare</span>
-                      <span  >R10 000</span>
-                      <span >...</span>
+                  {mockRequests.map((request, index) => (
+                    <div className="request-item" key={index}>
+                      <div className="request-details">
+                        <span>{request.name}</span>
+                        <span>{request.category}</span>
+                        <span>{request.amount}</span>
+                        <span>...</span>
+                      </div>
                     </div>
-                    
-                  </div>
-                  <div className="request-item">
-                    <div className="request-details">
-                    <span>Charity Matlapo</span>
-                      <span>Healthcare</span>
-                      <span  >R10 000</span>
-                      <span >...</span>
-                    </div>
-                   
-                  </div>
-                  <div className="request-item">
-                    <div className="request-details">
-                    <span>Charity Matlapo</span>
-                      <span>Healthcare</span>
-                      <span  >R10 000</span>
-                      <span >...</span>
-                    </div>
-                    
-                  </div>
+                  ))}
                 </div>
                 {/* <button>See All</button> */}
               </div>
@@ -797,38 +965,24 @@ const Dashboard = () => {
                Latest Transactions
                
               </h3>
-              <div className="transaction">
-                <Avatar className="avatar" />
-                <div className="details">
-                  <span>School fees</span>
-                  <span>11-feb-25 11:00 AM</span>
-                  <span className="amount">-R10 000</span>
-                </div>
-               
-              </div>
-              <div className="transaction">
-                <Avatar className="avatar" />
-                <div className="details">
-                  <span>School fees</span>
-                  <span>11-feb-25 11:00 AM</span>
-                  <span className="amount">-R10 000</span>
-                </div>
-               
-              </div>
-              <div className="transaction">
-                <Avatar className="avatar" />
-                <div className="details">
-                  <span>School fees</span>
-                  <span>11-feb-25 11:00 AM</span>
-                  <span className="amount">-R10 000</span>
-                </div>
-                
+              <div className="transactions-container">
+                {mockTransactions.map((transaction) => (
+                  <div className="transaction" key={transaction.id}>
+                    <Avatar className="avatar" />
+                    <div className="details">
+                      <span>{transaction.type}</span>
+                      <span>{transaction.date}</span>
+                      <span className="amount">{transaction.amount}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </TransactionHistory>
           </RightPanel>
         </MainContent>
       </DashboardContainer>
     </Container>
+    </ResponsiveStyles>
   );
 };
 

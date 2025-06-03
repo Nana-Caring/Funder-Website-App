@@ -11,14 +11,38 @@ import statementsIcon from '../../assets/icons/statements-icon.png';
 import messagesIcon from '../../assets/icons/messages.png';
 
 const SidebarContainer = styled.div`
-  width: 235px;
-  height: 150vh;
+  width: 250px; /* Fixed width */
+  min-width: 250px; /* Prevent shrinking */
+  height: 100vh; /* Changed from 150vh to viewport height */
   background-color: #fff;
   padding: 20px;
   display: flex;
   flex-direction: column;
   border-right: 2px solid gray;
   font-family: 'Poppins', sans-serif;
+  position: fixed; /* Keep sidebar fixed */
+  left: 0;
+  top: 0;
+  z-index: 100;
+  overflow-y: auto; /* Allow scrolling if content is too long */
+
+  /* Custom scrollbar styling */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #ddd;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: #ccc;
+  }
 `;
 
 const Logo = styled.div`
@@ -41,9 +65,10 @@ const MenuItem = styled(Link)`
   border-radius: 8px;
   color: ${props => props.active ? 'black' : '#666'};
   background-color: ${props => props.active ? '#FD3E6E' : 'transparent'};
-  margin-bottom: 8px;
+  margin: 4px 0;
+  width: calc(100% - 24px); /* Account for padding */
   transition: all 0.3s ease;
-
+ 
   &:hover {
     background-color: #fff0f4;
     color: #ff4081;
@@ -53,6 +78,14 @@ const MenuItem = styled(Link)`
     width: 20px;
     height: 20px;
     object-fit: contain;
+  }
+
+  &:first-child {
+    margin-top: 0;
+  }
+  
+  &:last-child {
+    margin-bottom: 0;
   }
 `;
 

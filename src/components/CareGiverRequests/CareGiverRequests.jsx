@@ -5,29 +5,39 @@ const beneficiaries = ['Choose beneficiary', 'Pulane Thando Malumane', 'Other'];
 const accounts = ['Choose Account', 'Savings Account', 'Medication Account'];
 
 const mockRequests = [
-  { name: 'Pulane Thando Malumane', reason: 'Healthcare', status: 'Approved' },
-  { name: 'Pulane Thando Malumane', reason: 'Clothing', status: 'Declined' },
+  { name: 'Pulane Thando Malumane', reason: 'Healthcare - Monthly Medication', status: 'Approved', date: '2024-05-01' },
+  { name: 'Pulane Thando Malumane', reason: 'Clothing - Winter Uniform', status: 'Declined', date: '2024-04-28' },
+  { name: 'Pulane Thando Malumane', reason: 'Education - School Fees', status: 'Pending', date: '2024-04-25' },
+  { name: 'Pulane Thando Malumane', reason: 'Healthcare - Dentist Visit', status: 'Approved', date: '2024-04-20' },
+  { name: 'Pulane Thando Malumane', reason: 'Entertainment - School Trip', status: 'Pending', date: '2024-04-15' },
+  { name: 'Pulane Thando Malumane', reason: 'Healthcare - Eye Check', status: 'Approved', date: '2024-04-10' },
+  { name: 'Pulane Thando Malumane', reason: 'Education - Study Materials', status: 'Approved', date: '2024-04-05' },
+  { name: 'Pulane Thando Malumane', reason: 'Clothing - Sports Kit', status: 'Declined', date: '2024-04-01' },
+  { name: 'Pulane Thando Malumane', reason: 'Healthcare - Pharmacy', status: 'Approved', date: '2024-03-28' },
+  { name: 'Pulane Thando Malumane', reason: 'Education - Extra Classes', status: 'Pending', date: '2024-03-25' },
+  { name: 'Pulane Thando Malumane', reason: 'Entertainment - Birthday', status: 'Approved', date: '2024-03-20' },
+  { name: 'Pulane Thando Malumane', reason: 'Healthcare - Checkup', status: 'Approved', date: '2024-03-15' },
 ];
 
 const Container = styled.div`
   width: 100%;
-  min-height: 100vh;
-  background: #f3f7f1;
+  max-width: 800px; /* Limit maximum width */
+  min-height: calc(100vh - 80px); /* Account for header */
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 12px;
+  padding: 24px;
+  box-sizing: border-box;
 `;
 
 const Card = styled.div`
   background: #f7faf7;
   border-radius: 18px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  padding: 16px 16px 12px 16px;
+  padding: 24px;
   width: 100%;
   max-width: 540px;
-  margin-bottom: 18px;
-  max-height: 330px;
+  margin-bottom: 24px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -105,13 +115,41 @@ const TableWrapper = styled.div`
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   width: 100%;
   max-width: 700px;
-  max-height: 200px;
+  height: 400px; /* Fixed height for scrolling */
+  margin-top: 24px;
+
+  /* Custom scrollbar styling */
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #ddd;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: #ccc;
+  }
 `;
 
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
+
+  thead {
+    position: sticky;
+    top: 0;
+    background: #f3f7f1;
+    z-index: 1;
+  }
 `;
 
 const Th = styled.th`
@@ -126,6 +164,18 @@ const Td = styled.td`
   padding: 0px 2px;
   border-top: 1px solid #f0f0f0;
   color: #333;
+`;
+
+const StatusCell = styled(Td)`
+  color: ${props => {
+    switch (props.status) {
+      case 'Approved': return '#2a7a4a';
+      case 'Declined': return '#dc3545';
+      case 'Pending': return '#ffc107';
+      default: return '#333';
+    }
+  }};
+  font-weight: 500;
 `;
 
 const ActionButton = styled.button`
@@ -152,8 +202,10 @@ const MainContent = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  overflow: hidden;
-  width: 100%;
+  width: calc(100% - 250px); /* Account for sidebar */
+  margin-left: auto;
+  margin-top: 80px; /* Move content below header */
+  background: #f7faf7;
 `;
 
 const CareGiverRequests = () => {
@@ -204,6 +256,7 @@ const CareGiverRequests = () => {
               <tr>
                 <Th>Name</Th>
                 <Th>Reason</Th>
+                <Th>Date</Th>
                 <Th>Status</Th>
                 <Th>Action</Th>
               </tr>
@@ -213,10 +266,15 @@ const CareGiverRequests = () => {
                 <tr key={idx}>
                   <Td>{req.name}</Td>
                   <Td>{req.reason}</Td>
-                  <Td>{req.status}</Td>
+                  <Td>{new Date(req.date).toLocaleDateString()}</Td>
+                  <StatusCell status={req.status}>{req.status}</StatusCell>
                   <Td>
                     <ActionButton title="More">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="2" fill="#888"/><circle cx="12" cy="12" r="2" fill="#888"/><circle cx="19" cy="12" r="2" fill="#888"/></svg>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <circle cx="5" cy="12" r="2" fill="#888"/>
+                        <circle cx="12" cy="12" r="2" fill="#888"/>
+                        <circle cx="19" cy="12" r="2" fill="#888"/>
+                      </svg>
                     </ActionButton>
                   </Td>
                 </tr>

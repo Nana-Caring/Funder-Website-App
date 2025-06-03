@@ -1,16 +1,23 @@
 .statements-container {
   padding: 20px;
-  height: 100vh;
+  height: calc(100vh - 80px); /* Account for header */
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  align-items: center;
+  width: calc(100% - 250px); /* Account for sidebar */
+  margin-left: auto;
+  margin-top: 80px;
+  overflow: hidden; /* Prevent scrolling on container */
 }
 
 .statements-header {
+  width: 90%;
+  max-width: 1000px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  flex-shrink: 0; /* Prevent header from shrinking */
 }
 
 .filter-section {
@@ -19,14 +26,21 @@
   gap: 10px;
 }
 
-.filter-dropdown {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+.statements-table-wrapper {
+  width: 90%;
+  max-width: 1000px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow: hidden; /* Hide overflow */
 }
 
 .search-section {
   flex: 0 1 300px;
+  margin-left: auto;
 }
 
 .search-input {
@@ -36,17 +50,9 @@
   border-radius: 4px;
 }
 
-.statements-table-wrapper {
-  flex: 1;
-  overflow: hidden;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
 .statements-table {
-  height: 100%;
-  overflow: auto;
+  flex: 1;
+  overflow-y: auto; /* Enable scrolling for table content */
   position: relative;
 }
 
@@ -3332,3 +3338,562 @@ td {
   margin: 0;
   color: #333;
 }
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #333;
+}
+
+.statements-header h2 {
+  font-weight: bold;
+  margin: 0;
+  color: #

@@ -4,11 +4,11 @@ import styled from 'styled-components';
 const Container = styled.div`
   display: flex;
   width: 100%;
-  background-color: #f8f9f5;
   position: relative;
   height: 100vh;
   justify-content: center;
   align-items: center;
+  position: relative;
 `;
 
 const FormSection = styled.div`
