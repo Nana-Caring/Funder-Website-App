@@ -6,17 +6,16 @@ const SplashContainer = styled.div`
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
+  width: 100vw;
   height: 100vh;
-  background: #ffffff;
+  background: #fff;
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  z-index: 10000;
-  transition: opacity 0.5s ease-out;
-  opacity: ${props => props.isVisible ? 1 : 0};
-  pointer-events: ${props => props.isVisible ? 'all' : 'none'};
+  z-index: 1000;
+  opacity: ${props => props.$isVisible ? 1 : 0};
+  visibility: ${props => props.$isVisible ? 'visible' : 'hidden'};
+  transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
 `;
 
 const LogoContainer = styled.div`
@@ -58,19 +57,19 @@ const LoadingText = styled.p`
 `;
 
 const SplashScreen = ({ onFinish }) => {
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = React.useState(true);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const timer = setTimeout(() => {
       setIsVisible(false);
-      if (onFinish) onFinish();
-    }, 3000); // Show splash screen for 3 seconds
+      onFinish?.();
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, [onFinish]);
 
   return (
-    <SplashContainer isVisible={isVisible}>
+    <SplashContainer $isVisible={isVisible}>
       <LogoContainer>
         <img src={logo} alt="NANA Caring Logo" />
       </LogoContainer>

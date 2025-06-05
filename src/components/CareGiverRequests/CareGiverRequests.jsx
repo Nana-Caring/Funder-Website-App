@@ -28,6 +28,7 @@ const Container = styled.div`
   align-items: center;
   padding: 24px;
   box-sizing: border-box;
+  margin-top: -30px; /* Move content below header */ 
 `;
 
 const Card = styled.div`

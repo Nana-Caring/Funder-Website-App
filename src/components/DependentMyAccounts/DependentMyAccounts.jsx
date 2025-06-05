@@ -4,13 +4,15 @@ import { ExpandMore } from '@mui/icons-material';
 import cardBg from '../../assets/card.jpg';
 
 const Container = styled.div`
-  display: flex;
-  width: 100%;
-  background-color: #f5f5f5;
-  position: relative;
+display: flex;
   flex-direction: column;
-  height: calc(100vh - 64px);
+  width: 90%;
+  margin-top: -40px;
+  height: calc(100vh - 60px); /* Adjust height to fill the viewport minus header */
   overflow: hidden;
+  position: relative;
+  margin-left: 175px; /* Adjust this value to match the width of the sidebar */
+  
 `;
 
 const Content = styled.div`

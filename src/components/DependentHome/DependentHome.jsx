@@ -22,12 +22,15 @@ import { Avatar, Modal, IconButton } from '@mui/material';
 */
 const Container = styled.div`
   display: flex;
-  width: 100%;
-  background-color: white;
-  position: relative;
   flex-direction: column;
-  height: 100%;
+  width: 90%;
+  margin-top: -40px;
+  height: calc(100vh - 60px); /* Adjust height to fill the viewport minus header */
   overflow: hidden;
+  position: relative;
+  margin-left: 175px; /* Adjust this value to match the width of the sidebar */
+  
+ 
 `;
 
 /* 
@@ -39,9 +42,10 @@ const DashboardContainer = styled.div`
   display: flex;
   flex-direction: column;
   width: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 20px;
+  
+  
+  padding: 20px 0 20px 0; // Remove side padding, keep top/bottom
+  height: 100%;
 `;
 
 /* 
@@ -53,10 +57,11 @@ const DashboardContainer = styled.div`
 const MainContent = styled.div`
   display: flex;
   gap: 8px;
-  padding: 0;
   width: 100%;
-  
-  
+  justify-content: center; // Center the columns horizontally
+  align-items: flex-start; // Align items to the top
+  height: 100%;
+
   > div {
     &:first-child {
       flex: 1.5;
@@ -673,8 +678,8 @@ const DependentHome = () => {
                     padding: '10px', 
                     border: 'none', 
                     borderRadius: '8px', 
-                    background: '#e0e0e0', 
-                    color: '#333', 
+                    background: '#fd3e6e', 
+                    color: 'white', 
                     fontSize: '14px', 
                     cursor: 'pointer',
                     fontFamily: 'Inter, sans-serif'

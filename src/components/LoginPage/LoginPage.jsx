@@ -1,57 +1,107 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { loginUser } from '../../store/slices/Authentication';
+import { loginUser, loginSuccess, loginFailure } from '../../store/slices/Authentication';
+import authService from '../../services/authService';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import './LoginPage.css';
 import logo from '../../assets/logo.jpg';
 import FeaturesSection from '../common/FeaturesSection';
 
+export const useAuth = () => {
+  const { token, isAuthenticated, user } = useSelector(state => state.authentication);
+
+  useEffect(() => {
+    if (token) {
+      authService.setupAxiosInterceptors(token);
+    }
+  }, [token]);
+
+  return {
+    isAuthenticated,
+    user,
+    token
+  };
+};
+
 const LoginPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { loading, error: authError } = useSelector(state => state.authentication);
+  const { error: authError } = useSelector(state => state.authentication);
 
+  // Add loading state
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
-
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-
-  const handleNavigation = (role) => {
-    switch (role) {
-      case 'caregiver':
-        navigate('/CareGiverHome');
-        break;
-      case 'dependent':
-        navigate('/DependentHome');
-        break;
-      case 'funder':
-        navigate('/dashboard');
-        break;
-      default:
-        setError('Invalid user role');
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
+    
     try {
-      const result = await dispatch(loginUser(formData)).unwrap();
-      
-      if (!result.user?.role) {
-        throw new Error('User role not specified');
+      if (!formData.email || !formData.password) {
+        setError('Please fill in all fields');
+        return;
       }
-      // Handle navigation based on role
-      handleNavigation(result.user.role);
+
+      setLoading(true);
+
+      // Dispatch login action
+      const response = await dispatch(loginUser(formData)).unwrap();
+      
+      if (!response || !response.token) {
+        throw new Error('Invalid response from server');
+      }
+
+      // Explicitly dispatch login success to update Redux state
+      dispatch(loginSuccess({ 
+        token: response.token, 
+        user: response.user 
+      }));
+
+      // Store auth data in localStorage
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem('userRole', response.user.role);
+      localStorage.setItem('userId', response.user.id);
+      localStorage.setItem('surname', response.user.surname || '');
+
+      // Setup axios interceptors
+      authService.setupAxiosInterceptors(response.token);
+
+      // Use replace: true to prevent going back to login
+      switch (response.user.role) {
+        case 'caregiver':
+          navigate('/CareGiverHome', { replace: true });
+          break;
+        case 'dependent':
+          navigate('/dependent-home', { replace: true });
+          break;
+        case 'funder':
+          navigate('/dashboard', { replace: true });
+          break;
+        default:
+          throw new Error('Invalid user role');
+      }
       
     } catch (err) {
-      console.error('Login failed:', err);
-      setError(err.message || 'Login failed. Please try again.');
+      console.error('Login Error:', err);
+      
+      // Clear any stored data on error
+      localStorage.clear();
+      dispatch(loginFailure(err.message));
+      
+      setError(
+        err.response?.data?.message || 
+        err.message || 
+        'Login failed. Please try again.'
+      );
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -1,40 +1,26 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import axios from 'axios';
 
 // Login async thunk
 export const loginUser = createAsyncThunk(
-  'authentication/loginUser',
+  'auth/login',
   async (credentials, { rejectWithValue }) => {
     try {
-      console.log('Login Request:', credentials);
-      
-      const response = await fetch('https://nanacaring-backend.onrender.com/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials)
-      });
+      const response = await axios.post(
+        'https://nanacaring-backend.onrender.com/api/auth/login',
+        credentials
+      );
 
-      const data = await response.json();
-      console.log('Login Response:', data);
-
-      if (!response.ok) {
-        console.error('Login Error:', data);
-        return rejectWithValue(data.message || 'Login failed');
+      if (!response.data || !response.data.token) {
+        return rejectWithValue('Invalid response from server');
       }
 
-      // Store user data in localStorage
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('firstName', data.user.firstName);
-      localStorage.setItem('lastName', data.user.lastName);
-      localStorage.setItem('surname', data.user.surname);
-      localStorage.setItem('id', data.user.id);
-      localStorage.setItem('role', data.user.role);
-      
-      return data;
+      return response.data;
     } catch (error) {
-      console.error('Login Error:', error);
-      return rejectWithValue(error.message || 'Login failed');
+      return rejectWithValue(
+        error.response?.data?.message || 
+        'Failed to connect to server'
+      );
     }
   }
 );
@@ -76,10 +62,9 @@ export const registerUser = createAsyncThunk(
       // Store user data only if registration was successful
       if (data.user && data.token) {
         localStorage.setItem('token', data.token);
+        localStorage.setItem('userId', data.user.id);
         localStorage.setItem('firstName', data.user.firstName);
         localStorage.setItem('lastName', data.user.lastName);
-        localStorage.setItem('surname', data.user.surname);
-        localStorage.setItem('id', data.user.id);
         localStorage.setItem('role', data.user.role);
       }
 
@@ -95,26 +80,28 @@ export const registerUser = createAsyncThunk(
 );
 
 const initialState = {
-  isAuthenticated: false,
+  isAuthenticated: !!localStorage.getItem('token'),
   user: {
-    id: localStorage.getItem('id') || null,
-    firstName: localStorage.getItem('firstName') || '',
-    lastName: localStorage.getItem('lastName') || '',
-    surname: localStorage.getItem('surname') || '',
-    role: localStorage.getItem('role') || ''
+    id: localStorage.getItem('userId'),
+    firstName: localStorage.getItem('firstName'),
+    lastName: localStorage.getItem('lastName'),
+    role: localStorage.getItem('role'),
   },
   token: localStorage.getItem('token'),
   loading: false,
+  error: null
 };
 
 const authenticationSlice = createSlice({
   name: 'authentication',
-  initialState,
+  initialState: {
+    user: JSON.parse(localStorage.getItem('user')),
+    token: localStorage.getItem('token'),
+    isAuthenticated: !!localStorage.getItem('token'),
+    loading: false,
+    error: null
+  },
   reducers: {
-    loginStart: (state) => {
-      state.loading = true;
-      state.error = null;
-    },
     loginSuccess: (state, action) => {
       state.isAuthenticated = true;
       state.user = action.payload.user;
@@ -123,25 +110,21 @@ const authenticationSlice = createSlice({
       state.error = null;
     },
     loginFailure: (state, action) => {
+      state.isAuthenticated = false;
+      state.user = null;
+      state.token = null;
       state.loading = false;
       state.error = action.payload;
+      // Clear localStorage on failure
+      localStorage.clear();
     },
     logout: (state) => {
       state.isAuthenticated = false;
       state.user = null;
       state.token = null;
       state.loading = false;
-      state.error = null;
-      // Clear all stored data
-      localStorage.removeItem('token');
-      localStorage.removeItem('firstName');
-      localStorage.removeItem('lastName');
-      localStorage.removeItem('surname');
-      localStorage.removeItem('id');
-      localStorage.removeItem('role');
-    },
-    clearError: (state) => {
-      state.error = null;
+      // Clear localStorage on logout
+      localStorage.clear();
     }
   },
   extraReducers: (builder) => {
@@ -153,56 +136,23 @@ const authenticationSlice = createSlice({
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
-        state.user = {
-          id: action.payload.user.id,
-          firstName: action.payload.user.firstName,
-          lastName: action.payload.user.lastName,
-          surname: action.payload.user.surname,
-          role: action.payload.user.role
-        };
+        state.user = action.payload.user;
         state.token = action.payload.token;
-        state.error = null;
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
+        state.error = action.payload;
         state.isAuthenticated = false;
         state.user = null;
         state.token = null;
-        state.error = action.payload;
-      })
-      .addCase(registerUser.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(registerUser.fulfilled, (state, action) => {
-        state.loading = false;
-        state.isAuthenticated = true;
-        state.user = {
-          id: action.payload.user.id,
-          firstName: action.payload.user.firstName,
-          lastName: action.payload.user.lastName,
-          surname: action.payload.user.surname,
-          role: action.payload.user.role
-        };
-        state.token = action.payload.token;
-        state.error = null;
-      })
-      .addCase(registerUser.rejected, (state, action) => {
-        state.loading = false;
-        state.isAuthenticated = false;
-        state.user = null;
-        state.token = null;
-        state.error = action.payload;
       });
   }
 });
 
 export const { 
-    loginStart, 
     loginSuccess, 
     loginFailure, 
-    logout, 
-    clearError 
+    logout 
 } = authenticationSlice.actions;
 
 export default authenticationSlice.reducer;

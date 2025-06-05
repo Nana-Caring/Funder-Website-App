@@ -94,7 +94,7 @@ const mockTransactions = {
 const Container = styled.div`
   width: calc(100% - 250px);
   margin-left: auto;
-  margin-top: 40px;
+  margin-top: 30px;
   display: flex;
   justify-content: center;
   padding: 16px;

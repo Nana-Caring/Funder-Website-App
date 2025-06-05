@@ -13,14 +13,15 @@ const mockData = [
 ];
 
 const Container = styled.div`
-  width: 100%;
-  height: calc(100vh - 64px);
-  background: #f3f7f1;
   display: flex;
   flex-direction: column;
-  padding: 20px;
-  box-sizing: border-box;
+  width: 90%;
+  margin-top: -40px;
+  height: calc(100vh - 60px); /* Adjust height to fill the viewport minus header */
   overflow: hidden;
+  position: relative;
+  margin-left: 175px; /* Adjust this value to match the width of the sidebar */
+  
 `;
 
 const Content = styled.div`

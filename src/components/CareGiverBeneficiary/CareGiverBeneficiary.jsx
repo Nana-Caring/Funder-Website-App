@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { registerDependent } from '../../services/api';
+import { useSelector } from 'react-redux';
 
 const Container = styled.div`
   width: calc(100% - 250px);
@@ -18,35 +20,21 @@ const Container = styled.div`
 
 const Content = styled.div`
   width: 100%;
-  max-width: 800px;
-  margin: 0 auto; /* Center the content */
-  padding: 20px;
-  box-sizing: border-box;
-  overflow: hidden;
-
-  @media (max-width: 1024px) {
-    max-width: 700px;
-    padding: 16px;
-  }
-
-  @media (max-width: 768px) {
-    max-width: 600px;
-    padding: 12px;
-  }
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  height: calc(100vh - 100px);
 `;
 
 const FormContainer = styled.div`
   background: white;
-  padding: 16px; /* Reduced from 20px */
+  padding: 16px;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  margin: 0 auto 24px; /* Center the form and add bottom margin */
-  width: 100%;
+  margin: 0 auto 24px;
   position: relative;
-  overflow: hidden;
-  max-width: 420px;
-  width: 100%;
-  max-height: calc(100vh - 200px);
+  width: 420px;
 `;
 
 const FormTitle = styled.h2`
@@ -194,9 +182,9 @@ const Avatar = styled.div`
 
 const TableWrapper = styled.div`
   width: 800px;
-  height: 300px; // Fixed height
+  height: 100; // Fixed height
   overflow: hidden;
-  margin-top: 16px;
+  margin-bottom: 25px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   background: white;
@@ -270,42 +258,167 @@ const CareGiverBeneficiary = () => {
     email: '',
     idNumber: ''
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const token = localStorage.getItem('token');
+  const { user } = useSelector(state => state.authentication);
+
+  useEffect(() => {
+    if (!token) {
+      setFeedback({
+        success: false,
+        message: 'No authentication token found. Please login again.'
+      });
+    }
+  }, [token]);
 
   const getRandomPastelColor = () => {
     const hue = Math.floor(Math.random() * 360);
     return `hsl(${hue}, 70%, 75%)`;
   };
 
-  const handleComplete = () => {
-    if (password !== confirmPassword) {
-      setFeedback({ success: false, message: 'Passwords do not match!' });
-      return;
+  // Update the validation function
+  const validateStep1 = () => {
+    const { firstName, lastName, surname, email, idNumber } = formData;
+    
+    // Check all required fields including lastName
+    if (!firstName || !lastName || !surname || !email || !idNumber) {
+      setFeedback({
+        success: false,
+        message: 'Please fill in all required fields before proceeding'
+      });
+      return false;
     }
 
-    const newBeneficiary = {
-      id: beneficiaries.length + 1,
-      name: `${formData.firstName} ${formData.lastName} ${formData.surname}`,
-      idNumber: formData.idNumber,
-      relation: relation
-    };
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setFeedback({
+        success: false,
+        message: 'Please enter a valid email address'
+      });
+      return false;
+    }
 
-    setBeneficiaries([...beneficiaries, newBeneficiary]);
-    setFeedback({ success: true, message: 'Beneficiary added successfully!' });
-    setStep(1);
-    // Reset form
-    setFormData({
-      firstName: '',
-      lastName: '',
-      surname: '',
-      email: '',
-      idNumber: ''
-    });
-    setRelation('');
-    setPassword('');
-    setConfirmPassword('');
+    // ID validation
+    if (idNumber.length !== 13 || !/^\d+$/.test(idNumber)) {
+      setFeedback({
+        success: false,
+        message: 'ID Number must be exactly 13 digits'
+      });
+      return false;
+    }
 
-    // Clear feedback after 3 seconds
-    setTimeout(() => setFeedback(null), 3000);
+    return true;
+  };
+
+  const validateStep2 = () => {
+    if (!relation) {
+      setFeedback({
+        success: false,
+        message: 'Please select your relation'
+      });
+      return false;
+    }
+
+    if (!password) {
+      setFeedback({
+        success: false,
+        message: 'Password is required'
+      });
+      return false;
+    }
+
+    if (password !== confirmPassword) {
+      setFeedback({
+        success: false,
+        message: 'Passwords do not match'
+      });
+      return false;
+    }
+
+    if (password.length < 6) {
+      setFeedback({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleComplete = async () => {
+    try {
+      if (!validateStep2()) {
+        return;
+      }
+
+      setIsLoading(true);
+
+      // Format data according to the expected API structure
+      const dependentData = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        surname: formData.surname.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: password,
+        Idnumber: formData.idNumber.trim(), // Note the capital 'I' in Idnumber
+        relation: relation.trim()
+      };
+
+      // Debug log
+      console.log('Sending registration data:', {
+        ...dependentData,
+        password: '[HIDDEN]'
+      });
+
+      // Make API call with token
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const result = await registerDependent(dependentData, token);
+      console.log('Registration successful:', result);
+
+      // Update UI after successful registration
+      const newBeneficiary = {
+        id: beneficiaries.length + 1,
+        name: `${dependentData.firstName} ${dependentData.lastName} ${dependentData.surname}`.trim(),
+        idNumber: dependentData.Idnumber,
+        relation: dependentData.relation
+      };
+
+      setBeneficiaries([...beneficiaries, newBeneficiary]);
+      setFeedback({ success: true, message: 'Beneficiary registered successfully!' });
+      
+      // Reset form
+      setFormData({
+        firstName: '',
+        lastName: '',
+        surname: '',
+        email: '',
+        idNumber: ''
+      });
+      setRelation('');
+      setPassword('');
+      setConfirmPassword('');
+      setStep(1);
+
+    } catch (error) {
+      console.error('Registration Error Details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        requestData: dependentData
+      });
+
+      setFeedback({
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to register beneficiary'
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -317,31 +430,72 @@ const CareGiverBeneficiary = () => {
               <FormTitle>Follow the steps to add a beneficiary</FormTitle>
               <FormSubtitle>Please make sure the information is correct</FormSubtitle>
               <FormGroup>
-                <Label>First Name</Label>
-                <Input type="text" />
+                <Label>First Name: <span style={{ color: '#ff4444', fontSize: 11 }}>*</span></Label>
+                <Input 
+                  type="text"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                  required
+                  placeholder="Enter first name"
+                />
               </FormGroup>
               <FormGroup>
-                <Label>Last Name</Label>
-                <Input type="text" />
+                <Label>Last Name: <span style={{ color: '#ff4444', fontSize: 11 }}>*</span></Label>
+                <Input 
+                  type="text"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                  required
+                  placeholder="Enter last name"
+                />
               </FormGroup>
               <FormGroup>
-                <Label>Surname</Label>
-                <Input type="text" />
+                <Label>Surname: <span style={{ color: '#ff4444', fontSize: 11 }}>*</span></Label>
+                <Input 
+                  type="text"
+                  value={formData.surname}
+                  onChange={(e) => setFormData({...formData, surname: e.target.value})}
+                  required
+                  placeholder="Enter surname"
+                />
               </FormGroup>
               <FormGroup>
-                <Label>Email</Label>
-                <Input type="email" />
+                <Label>Email: <span style={{ color: '#ff4444', fontSize: 11 }}>*</span></Label>
+                <Input 
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  required
+                  placeholder="Enter email address"
+                />
               </FormGroup>
               <FormGroup>
-                <Label>ID No</Label>
-                <Input type="text" />
+                <Label>ID No: <span style={{ color: '#ff4444', fontSize: 11 }}>*</span></Label>
+                <Input 
+                  type="text"
+                  value={formData.idNumber}
+                  onChange={(e) => setFormData({...formData, idNumber: e.target.value})}
+                  placeholder="Enter 13 digits"
+                  pattern="\d{13}"
+                  maxLength="13"
+                  required
+                />
               </FormGroup>
               <BottomRow>
                 <StepIndicator>
                   <Step active={step === 1} />
                   <Step active={step === 2} />
                 </StepIndicator>
-                <NextButton onClick={() => setStep(2)}>Next</NextButton>
+                <NextButton 
+                  onClick={() => {
+                    if (validateStep1()) {
+                      setStep(2);
+                      setFeedback(null); // Clear any existing feedback
+                    }
+                  }}
+                >
+                  Next
+                </NextButton>
               </BottomRow>
             </>
           )}
@@ -351,8 +505,19 @@ const CareGiverBeneficiary = () => {
               <FormSubtitle>Please make sure the information is correct</FormSubtitle>
               <div style={{ color: '#185c37', fontWeight: 600, marginBottom: 10, marginTop: 10 }}>How are you related ?</div>
               <FormGroup>
-                <Label>Relation: <span style={{ color: '#888', fontSize: 11 }}>(important)</span></Label>
-                <select value={relation} onChange={e => setRelation(e.target.value)} style={{ flex: 1, padding: '6px', borderRadius: 4, border: '1px solid #ddd', fontSize: 12 }}>
+                <Label>Relation: <span style={{ color: '#ff4444', fontSize: 11 }}>*</span></Label>
+                <select 
+                  value={relation} 
+                  onChange={e => setRelation(e.target.value)}
+                  style={{ 
+                    flex: 1, 
+                    padding: '6px', 
+                    borderRadius: 4, 
+                    border: '1px solid #ddd', 
+                    fontSize: 12 
+                  }}
+                  required
+                >
                   <option value="">Choose your relation</option>
                   <option value="Mother">Mother</option>
                   <option value="Father">Father</option>
@@ -382,8 +547,10 @@ const CareGiverBeneficiary = () => {
                   <NextButton 
                     onClick={handleComplete}
                     style={{ background: '#FD3E6E' }}
+                    disabled={isLoading}
                   >
-                    Complete <span style={{ marginLeft: 8 }}>&rarr;</span>
+                    {isLoading ? 'Registering...' : 'Complete'} 
+                    {!isLoading && <span style={{ marginLeft: 8 }}>&rarr;</span>}
                   </NextButton>
                 </ButtonGroup>
               </BottomRow>

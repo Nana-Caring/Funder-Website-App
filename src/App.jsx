@@ -1,5 +1,5 @@
 import React, { Suspense, useState } from 'react';
-import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate, Outlet } from 'react-router-dom';
 import styled from 'styled-components';
 import { useSelector } from 'react-redux';
 import Loader from './components/Loader/Loader';
@@ -32,7 +32,21 @@ import DependentSidebar from './components/DependentSidebar/DependentSidebar';
 import DependentMyAccounts from './components/DependentMyAccounts/DependentMyAccounts';
 import CareGiverSidebar from './components/CareGiverSidebar/CareGiverSidebar';
 import CareGiverExpenses from './components/CareGiverExpenses';
+import Profile from './components/Profile/Profile';
+import Settings from './components/Settings/Settings';
+import Notifications from './components/Notifications/Notifications';
 import './App.css'
+import CaregiverHeader from './components/Header/CaregiverHeader';
+import DependentHeader from './components/Header/DependentHeader';
+import FunderHeader from './components/Header/FunderHeader';
+
+const AppContainer = styled.div`
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+`;
 
 const MainContentWrapper = styled.div`
   flex-grow: 1;
@@ -40,139 +54,58 @@ const MainContentWrapper = styled.div`
   flex-direction: column;
   overflow-y: hidden;
   padding: 20px;
-  padding-left: 40px; /* Increased left padding to move content away from sidebar */
+  padding-left: 40px;
   background-color: #f8f9fa;
   min-height: calc(100vh - 60px);
   box-sizing: border-box;
 `;
 
-const AppContainer = styled.div`
-  display: flex;
-  height: 100vh; /* Changed to viewport height */
-  width: 100%;
-  position: relative;
-  overflow: hidden;
+const ContentWrapper = styled.div`
+  padding: 80px 24px 24px;
+  min-height: calc(100vh - 80px);
+  box-sizing: border-box;
 `;
 
+const CareGiverLayout = () => {
+  return (
+    <AppContainer>
+      <CareGiverSidebar />
+      <MainContentWrapper>
+        <CaregiverHeader />
+        <Suspense fallback={<Loader />}>
+          <Outlet />
+        </Suspense>
+      </MainContentWrapper>
+    </AppContainer>
+  );
+};
+
+const DependentLayout = () => {
+  const { loading } = useSelector(state => state.authentication);
+
+  return (
+    <AppContainer>
+      <DependentSidebar />
+      <MainContentWrapper>
+        <DependentHeader />
+        <ContentWrapper>
+          <Suspense fallback={<Loader />}>
+            <Outlet />
+          </Suspense>
+        </ContentWrapper>
+      </MainContentWrapper>
+    </AppContainer>
+  );
+};
+
 const DashboardLayout = () => {
-  const { loading } = useSelector(state => state.authentication);
-  const location = useLocation();
-
-  // Get user from Redux store
-const { user } = useSelector(state => state.authentication);
-
-// Determine welcome message and title based on path
-let headerTitle = `Welcome back, ${user?.name || 'User'}`;
-if (location.pathname.startsWith('/my-accounts')) headerTitle = 'Welcome to My Accounts';
-else if (location.pathname.startsWith('/send-money')) headerTitle = 'Welcome to Send Money';
-else if (location.pathname.startsWith('/beneficiary')) headerTitle = 'Welcome to Beneficiary';
-else if (location.pathname.startsWith('/messages')) headerTitle = 'Welcome to Messages';
-else if (location.pathname.startsWith('/statements')) headerTitle = 'Welcome to Statements';
-
   return (
     <AppContainer>
-      {loading && <Loader />}
-      <Sidebar style={{ zIndex: 100 }} />
+      <Sidebar />
       <MainContentWrapper>
-        <Header title={headerTitle} />
+        <FunderHeader />
         <Suspense fallback={<Loader />}>
-          <Routes>
-            <Route 
-              path="/dashboard" 
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/my-accounts" 
-              element={
-                <ProtectedRoute>
-                  <MyAccounts />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/send-money" 
-              element={
-                <ProtectedRoute>
-                  <SendMoney />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/beneficiary" 
-              element={
-                <ProtectedRoute>
-                  <BeneficiaryForm />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/messages" 
-              element={
-                <ProtectedRoute>
-                  <Messages />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-                path="/statements" 
-                element={
-                  
-                  <ProtectedRoute>
-                    <Statements />
-                  </ProtectedRoute>
-                } 
-              />
-          </Routes>
-          
-        </Suspense>
-      </MainContentWrapper>
-    </AppContainer>
-  );
-};
-
-const DependentLayout = ({ children }) => {
-  const { loading } = useSelector(state => state.authentication);
-  const { user } = useSelector(state => state.authentication);
-
-  return (
-    <AppContainer>
-      {loading && <Loader />}
-      <DependentSidebar style={{ zIndex: 100 }}/>
-      <MainContentWrapper>
-        <Header>
-          <div style={{ fontSize: '18px', color: '#333' }}>
-            Welcome back, <span style={{ fontWeight: 'bold' }}>{user?.name || 'User'}</span>
-          </div>
-        </Header>
-        <Suspense fallback={<Loader />}>
-          {children}
-        </Suspense>
-      </MainContentWrapper>
-    </AppContainer>
-  );
-};
-
-const CareGiverLayout = ({ children }) => {
-  const { loading } = useSelector(state => state.authentication);
-  const { user } = useSelector(state => state.authentication);
-
-  return (
-    <AppContainer>
-      {loading && <Loader />}
-      <CareGiverSidebar style={{ zIndex: 100 }}/>
-      <MainContentWrapper>
-        <Header isCareGiver={true}>
-          <div style={{ fontSize: '18px', color: '#333' }}>
-            Welcome back, <span style={{ fontWeight: 'bold' }}>{user?.name || 'Caregiver'}</span>
-          </div>
-        </Header>
-        <Suspense fallback={<Loader />}>
-          {children}
+          <Outlet />
         </Suspense>
       </MainContentWrapper>
     </AppContainer>
@@ -186,56 +119,36 @@ function App() {
   // Caregiver Routes
   const caregiverRoutes = (
     <Routes>
-      <Route path="/" element={<Navigate to="/caregiver-home" />} />
-      <Route 
-        path="/caregiver-home" 
-        element={<CareGiverLayout><CareGiverHome /></CareGiverLayout>}
-      />
-      <Route 
-        path="/caregiver-beneficiary" 
-        element={<CareGiverLayout><CareGiverBeneficiary /></CareGiverLayout>}
-      />
-      <Route 
-        path="/caregiver-expenses" 
-        element={<CareGiverLayout><CareGiverExpenses /></CareGiverLayout>}
-      />
-      <Route 
-        path="/caregiver-requests" 
-        element={<CareGiverLayout><CareGiverRequests /></CareGiverLayout>}
-      />
-      <Route 
-        path="/caregiver-statements" 
-        element={<CareGiverLayout><CareGiverStatements /></CareGiverLayout>}
-      />
-      <Route path="*" element={<Navigate to="/caregiver-home" />} />
+      <Route path="/" element={<CareGiverLayout />}>
+        <Route index element={<Navigate to="/caregiver-home" replace />} />
+        <Route path="caregiver-home" element={<CareGiverHome />} />
+        <Route path="caregiver-beneficiary" element={<CareGiverBeneficiary />} />
+        <Route path="caregiver-expenses" element={<CareGiverExpenses />} />
+        <Route path="caregiver-requests" element={<CareGiverRequests />} />
+        <Route path="caregiver-statements" element={<CareGiverStatements />} />
+        <Route path="profile" element={<Profile />} />
+        <Route path="settings" element={<Settings />} />
+        <Route path="notifications" element={<Notifications />} />
+        <Route path="*" element={<Navigate to="/caregiver-home" replace />} />
+      </Route>
     </Routes>
   );
 
   // Dependent Routes
   const dependentRoutes = (
     <Routes>
-      <Route path="/" element={<Navigate to="/dependent-home" />} />
-      <Route 
-        path="/dependent-home" 
-        element={<DependentLayout><DependentHome /></DependentLayout>}
-      />
-      <Route 
-        path="/dependent-buy" 
-        element={<DependentLayout><DependentBuy /></DependentLayout>}
-      />
-      <Route 
-        path="/dependent-myaccounts" 
-        element={<DependentLayout><DependentMyAccounts /></DependentLayout>}
-      />
-      <Route 
-        path="/dependent-transfer" 
-        element={<DependentLayout><DependentTransfer /></DependentLayout>}
-      />
-      <Route 
-        path="/dependent-statements" 
-        element={<DependentLayout><DependentStatements /></DependentLayout>}
-      />
-      <Route path="*" element={<Navigate to="/dependent-home" />} />
+      <Route path="/" element={<DependentLayout />}>
+        <Route index element={<Navigate to="/dependent-home" replace />} />
+        <Route path="dependent-home" element={<DependentHome />} />
+        <Route path="dependent-buy" element={<DependentBuy />} />
+        <Route path="dependent-myaccounts" element={<DependentMyAccounts />} />
+        <Route path="dependent-transfer" element={<DependentTransfer />} />
+        <Route path="dependent-statements" element={<DependentStatements />} />
+        <Route path="profile" element={<Profile />} />
+        <Route path="settings" element={<Settings />} />
+        <Route path="notifications" element={<Notifications />} />
+        <Route path="*" element={<Navigate to="/dependent-home" replace />} />
+      </Route>
     </Routes>
   );
 
@@ -258,13 +171,39 @@ function App() {
     
     switch (user?.role) {
       case 'caregiver':
-        return caregiverRoutes;
+        return (
+          <Routes>
+            <Route path="/" element={<CareGiverLayout />}>
+              <Route index element={<Navigate to="/caregiver-home" replace />} />
+              <Route path="caregiver-home" element={<CareGiverHome />} />
+              <Route path="caregiver-beneficiary" element={<CareGiverBeneficiary />} />
+              <Route path="caregiver-expenses" element={<CareGiverExpenses />} />
+              <Route path="caregiver-requests" element={<CareGiverRequests />} />
+              <Route path="caregiver-statements" element={<CareGiverStatements />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="notifications" element={<Notifications />} />
+              <Route path="*" element={<Navigate to="/caregiver-home" replace />} />
+            </Route>
+          </Routes>
+        );
       case 'dependent':
         return dependentRoutes;
       case 'funder':
         return (
           <Routes>
-            <Route path="/*" element={<DashboardLayout />} />
+            <Route path="/" element={<Navigate to="/dashboard" />} />
+            <Route path="/*" element={<DashboardLayout />}>
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="my-accounts" element={<MyAccounts />} />
+              <Route path="send-money" element={<SendMoney />} />
+              <Route path="beneficiary" element={<BeneficiaryForm />} />
+              <Route path="messages" element={<Messages />} />
+              <Route path="statements" element={<Statements />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="notifications" element={<Notifications />} />
+            </Route>
           </Routes>
         );
       default:
@@ -274,7 +213,7 @@ function App() {
 
   return (
     <>
-      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+      <SplashScreen onFinish={() => setShowSplash(false)} />
       {!showSplash && (
         <>
           {loading && <Loader />}

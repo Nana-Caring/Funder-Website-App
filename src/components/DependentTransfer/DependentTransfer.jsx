@@ -14,6 +14,16 @@ const Container = styled.div`
   padding: 20px;
   box-sizing: border-box;
   overflow: hidden;
+
+  display: flex;
+  flex-direction: column;
+  width: 90%;
+  margin-top: -40px;
+  height: calc(100vh - 60px); /* Adjust height to fill the viewport minus header */
+  overflow: hidden;
+  position: relative;
+  margin-left: 175px; /* Adjust this value to match the width of the sidebar */
+  
 `;
 
 const Card = styled.div`
