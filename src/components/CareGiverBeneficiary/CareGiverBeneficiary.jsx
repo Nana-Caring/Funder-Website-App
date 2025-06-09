@@ -440,13 +440,13 @@ const CareGiverBeneficiary = () => {
                 />
               </FormGroup>
               <FormGroup>
-                <Label>Last Name: <span style={{ color: '#ff4444', fontSize: 11 }}>*</span></Label>
+                <Label>Middle Name: <span style={{ color: '#ff4444', fontSize: 11 }}>*</span></Label>
                 <Input 
                   type="text"
                   value={formData.lastName}
                   onChange={(e) => setFormData({...formData, lastName: e.target.value})}
                   required
-                  placeholder="Enter last name"
+                  placeholder="Enter middle name"
                 />
               </FormGroup>
               <FormGroup>

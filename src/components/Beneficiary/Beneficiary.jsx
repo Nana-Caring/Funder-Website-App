@@ -38,7 +38,7 @@ const TableContainer = styled.div`
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   padding: 20px;
   margin-top: 16px;
-  height: calc(100vh - 500px); // Adjust height to fit viewport
+  height: 100%; // Adjust height to fit viewport
 
   .table-wrapper {
     height: calc(100% - 100px); // Adjust for header and search
@@ -180,10 +180,8 @@ const BeneficiaryForm = () => {
   
   const [formData, setFormData] = useState({
     name: '',
-    cardNumber: '',
     accountNumber: '',
-    expiryDate: '',
-    ccv: ''
+  
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -221,10 +219,7 @@ const BeneficiaryForm = () => {
       // Reset form
       setFormData({
         name: '',
-        cardNumber: '',
         accountNumber: '',
-        expiryDate: '',
-        ccv: ''
       });
     }
   };
@@ -235,9 +230,6 @@ const BeneficiaryForm = () => {
     setFormData({
       name: beneficiary.name,
       accountNumber: beneficiary.accountNumber,
-      cardNumber: '',
-      expiryDate: '',
-      ccv: ''
     });
   };
 
@@ -246,10 +238,7 @@ const BeneficiaryForm = () => {
     setEditingIndex(null);
     setFormData({
       name: '',
-      cardNumber: '',
       accountNumber: '',
-      expiryDate: '',
-      ccv: ''
     });
   };
 
@@ -283,7 +272,7 @@ const BeneficiaryForm = () => {
               overflow: 'hidden',
               textOverflow: 'ellipsis' 
             }}>
-              Name of beneficiary
+              Name:
             </label>
             <input
               type="text"
@@ -310,34 +299,7 @@ const BeneficiaryForm = () => {
               overflow: 'hidden',
               textOverflow: 'ellipsis' 
             }}>
-              Card number
-            </label>
-            <input
-              type="text"
-              name="cardNumber"
-              value={formData.cardNumber}
-              onChange={handleInputChange}
-              style={{ 
-                width: '200px', // Set fixed width instead of flex: 1
-                padding: '1px 6px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                height: '24px'
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', maxWidth: '400px', margin: '0 auto' }}>
-            <label style={{ 
-              minWidth: '120px', // Reduced from 140px
-              maxWidth: '120px', // Reduced from 140px
-              color: '#333', 
-              fontSize: '14px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis' 
-            }}>
-              Account number
+              Acc No:
             </label>
             <input
               type="text"
@@ -354,61 +316,6 @@ const BeneficiaryForm = () => {
             />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', maxWidth: '400px', margin: '0 auto' }}>
-            <label style={{ 
-              minWidth: '120px', // Reduced from 140px
-              maxWidth: '120px', // Reduced from 140px
-              color: '#333', 
-              fontSize: '14px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis' 
-            }}>
-              Expiry date
-            </label>
-            <input
-              type="text"
-              name="expiryDate"
-              value={formData.expiryDate}
-              onChange={handleInputChange}
-              placeholder="DD/MM/YEAR"
-              style={{ 
-                width: '200px', // Set fixed width instead of flex: 1
-                padding: '1px 6px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                height: '24px' 
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', maxWidth: '400px', margin: '0 auto' }}>
-            <label style={{ 
-              minWidth: '120px', // Reduced from 140px
-              maxWidth: '120px', // Reduced from 140px
-              color: '#333', 
-              fontSize: '14px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis' 
-            }}>
-              CCV
-            </label>
-            <input
-              type="text"
-              name="ccv"
-              value={formData.ccv}
-              onChange={handleInputChange}
-              maxLength={3}
-              style={{ 
-                width: '50px', 
-                padding: '1px 6px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                height: '24px' 
-              }}
-            />
-          </div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '15px', gap: '12px' }}>
