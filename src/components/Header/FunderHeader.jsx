@@ -16,7 +16,7 @@ const FunderHeader = ({ title }) => {
         <h2>{title}</h2>
       ) : (
         <h2>
-          <span style={{ fontWeight: 'normal', fontSize: '14px' }}>Funder Dashboard - </span>
+          <span style={{ fontWeight: 'normal', fontSize: '14px' }}> Welcome, </span>
           <span style={{ fontWeight: 'bold' }}>{surname}</span>
         </h2>
       )}

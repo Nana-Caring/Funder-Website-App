@@ -362,7 +362,7 @@ const CareGiverBeneficiary = () => {
         surname: formData.surname.trim(),
         email: formData.email.trim().toLowerCase(),
         password: password,
-        Idnumber: formData.idNumber.trim(), // Note the capital 'I' in Idnumber
+        Idnumber: formData.idNumber.trim(),
         relation: relation.trim()
       };
 
@@ -408,8 +408,7 @@ const CareGiverBeneficiary = () => {
       console.error('Registration Error Details:', {
         message: error.message,
         response: error.response?.data,
-        status: error.response?.status,
-        requestData: dependentData
+        status: error.response?.status
       });
 
       setFeedback({
@@ -519,11 +518,8 @@ const CareGiverBeneficiary = () => {
                   required
                 >
                   <option value="">Choose your relation</option>
-                  <option value="Mother">Mother</option>
-                  <option value="Father">Father</option>
-                  <option value="Sister">Sister</option>
-                  <option value="Brother">Brother</option>
-                  <option value="Other">Other</option>
+                  <option value="Son">Son</option>
+                  <option value="Daughter">Daughter</option>
                 </select>
               </FormGroup>
               <div style={{ color: '#185c37', fontWeight: 600, marginBottom: 10, marginTop: 10 }}>Confirm passwords:</div>

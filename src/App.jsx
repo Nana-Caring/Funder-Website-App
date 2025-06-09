@@ -39,6 +39,12 @@ import './App.css'
 import CaregiverHeader from './components/Header/CaregiverHeader';
 import DependentHeader from './components/Header/DependentHeader';
 import FunderHeader from './components/Header/FunderHeader';
+import DependentSettings from './components/Settings/DependentSettings';
+import CaregiverSettings from './components/Settings/CaregiverSettings';
+import FunderSettings from './components/Settings/FunderSettings';
+import DependentProfile from './components/Profile/DependentProfile';
+import CaregiverProfile from './components/Profile/CaregiverProfile';
+import FunderProfile from './components/Profile/FunderProfile';
 
 const AppContainer = styled.div`
   display: flex;
@@ -119,15 +125,19 @@ function App() {
   // Caregiver Routes
   const caregiverRoutes = (
     <Routes>
-      <Route path="/" element={<CareGiverLayout />}>
+      <Route path="/" element={
+        <ProtectedRoute allowedRoles={['caregiver']}>
+          <CareGiverLayout />
+        </ProtectedRoute>
+      }>
         <Route index element={<Navigate to="/caregiver-home" replace />} />
         <Route path="caregiver-home" element={<CareGiverHome />} />
         <Route path="caregiver-beneficiary" element={<CareGiverBeneficiary />} />
         <Route path="caregiver-expenses" element={<CareGiverExpenses />} />
         <Route path="caregiver-requests" element={<CareGiverRequests />} />
         <Route path="caregiver-statements" element={<CareGiverStatements />} />
-        <Route path="profile" element={<Profile />} />
-        <Route path="settings" element={<Settings />} />
+        <Route path="profile" element={<CaregiverProfile />} />
+        <Route path="settings" element={<CaregiverSettings />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="*" element={<Navigate to="/caregiver-home" replace />} />
       </Route>
@@ -137,15 +147,19 @@ function App() {
   // Dependent Routes
   const dependentRoutes = (
     <Routes>
-      <Route path="/" element={<DependentLayout />}>
+      <Route path="/" element={
+        <ProtectedRoute allowedRoles={['dependent']}>
+          <DependentLayout />
+        </ProtectedRoute>
+      }>
         <Route index element={<Navigate to="/dependent-home" replace />} />
         <Route path="dependent-home" element={<DependentHome />} />
         <Route path="dependent-buy" element={<DependentBuy />} />
         <Route path="dependent-myaccounts" element={<DependentMyAccounts />} />
         <Route path="dependent-transfer" element={<DependentTransfer />} />
         <Route path="dependent-statements" element={<DependentStatements />} />
-        <Route path="profile" element={<Profile />} />
-        <Route path="settings" element={<Settings />} />
+        <Route path="profile" element={<DependentProfile />} />
+        <Route path="settings" element={<DependentSettings />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="*" element={<Navigate to="/dependent-home" replace />} />
       </Route>
@@ -166,6 +180,7 @@ function App() {
     </Routes>
   );
 
+  // Update the renderRoutes function
   const renderRoutes = () => {
     if (!isAuthenticated) return publicRoutes;
     
@@ -173,15 +188,19 @@ function App() {
       case 'caregiver':
         return (
           <Routes>
-            <Route path="/" element={<CareGiverLayout />}>
+            <Route path="/" element={
+              <ProtectedRoute allowedRoles={['caregiver']}>
+                <CareGiverLayout />
+              </ProtectedRoute>
+            }>
               <Route index element={<Navigate to="/caregiver-home" replace />} />
               <Route path="caregiver-home" element={<CareGiverHome />} />
               <Route path="caregiver-beneficiary" element={<CareGiverBeneficiary />} />
               <Route path="caregiver-expenses" element={<CareGiverExpenses />} />
               <Route path="caregiver-requests" element={<CareGiverRequests />} />
               <Route path="caregiver-statements" element={<CareGiverStatements />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="settings" element={<Settings />} />
+              <Route path="profile" element={<CaregiverProfile />} />
+              <Route path="settings" element={<CaregiverSettings />} />
               <Route path="notifications" element={<Notifications />} />
               <Route path="*" element={<Navigate to="/caregiver-home" replace />} />
             </Route>
@@ -193,15 +212,19 @@ function App() {
         return (
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" />} />
-            <Route path="/*" element={<DashboardLayout />}>
+            <Route path="/*" element={
+              <ProtectedRoute allowedRoles={['funder']}>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }>
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="my-accounts" element={<MyAccounts />} />
               <Route path="send-money" element={<SendMoney />} />
               <Route path="beneficiary" element={<BeneficiaryForm />} />
               <Route path="messages" element={<Messages />} />
               <Route path="statements" element={<Statements />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="settings" element={<Settings />} />
+              <Route path="profile" element={<FunderProfile />} />
+              <Route path="settings" element={<FunderSettings />} />
               <Route path="notifications" element={<Notifications />} />
             </Route>
           </Routes>
