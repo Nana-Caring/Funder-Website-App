@@ -25,14 +25,15 @@ export const loginUser = createAsyncThunk(
   }
 );
 
-// Registration async thunk
+// Update the registration thunk formatting
 export const registerUser = createAsyncThunk(
   'authentication/registerUser',
   async (userData, { rejectWithValue }) => {
     try {
-      // Format user data with proper ID handling
+      // Format user data with proper ID handling and optional middleName
       const formattedData = {
         ...userData,
+        middleName: userData.middleName?.trim() || '', // Make middleName optional
         idNumber: userData.idNumber ? userData.idNumber.toString().trim() : null
       };
 
@@ -59,12 +60,12 @@ export const registerUser = createAsyncThunk(
         });
       }
 
-      // Store user data only if registration was successful
+      // Update localStorage to use middleName instead of lastName
       if (data.user && data.token) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('userId', data.user.id);
         localStorage.setItem('firstName', data.user.firstName);
-        localStorage.setItem('lastName', data.user.lastName);
+        localStorage.setItem('middleName', data.user.middleName || ''); // Store middleName
         localStorage.setItem('role', data.user.role);
       }
 
@@ -79,12 +80,13 @@ export const registerUser = createAsyncThunk(
   }
 );
 
+// Update the initial state
 const initialState = {
   isAuthenticated: !!localStorage.getItem('token'),
   user: {
     id: localStorage.getItem('userId'),
     firstName: localStorage.getItem('firstName'),
-    lastName: localStorage.getItem('lastName'),
+    middleName: localStorage.getItem('middleName'), // Changed from lastName
     role: localStorage.getItem('role'),
   },
   token: localStorage.getItem('token'),

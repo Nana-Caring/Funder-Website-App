@@ -15,7 +15,7 @@ const SignUpPage = () => {
   
   const [formData, setFormData] = useState({
     firstName: '',
-    lastName: '',
+    middleName: '', // Changed from lastName
     surname: '',
     email: '',
     idNumber: ''
@@ -35,7 +35,7 @@ const SignUpPage = () => {
     // Clear any existing form data on mount
     setFormData({
       firstName: '',
-      lastName: '',
+      middleName: '', // Changed from lastName
       surname: '',
       email: '',
       idNumber: ''
@@ -54,9 +54,7 @@ const SignUpPage = () => {
     if (formData.firstName.length < 2) {
       errors.firstName = 'First name must be at least 2 characters';
     }
-    if (formData.lastName.length < 2) {
-      errors.lastName = 'Last name must be at least 2 characters';
-    }
+    // Remove middleName validation since it's optional
     if (formData.surname.length < 2) {
       errors.surname = 'Surname must be at least 2 characters';
     }
@@ -158,16 +156,16 @@ const SignUpPage = () => {
                 {formErrors.firstName && <p className="error-message">{formErrors.firstName}</p>}
               </div>
               <div className="form-group">
-                <label>Second Name:</label>
+                <label>Middle Name:</label> {/* Changed from Second Name */}
                 <input
                   type="text"
-                  name="lastName"
-                  value={formData.lastName}
+                  name="middleName"
+                  value={formData.middleName}
                   onChange={handleInputChange}
-                  className={formErrors.lastName ? 'error' : ''}
-                  required
+                  className={formErrors.middleName ? 'error' : ''}
+                  placeholder="Optional" // Added to indicate it's optional
                 />
-                {formErrors.lastName && <p className="error-message">{formErrors.lastName}</p>}
+                {formErrors.middleName && <p className="error-message">{formErrors.middleName}</p>}
               </div>
               <div className="form-group">
                 <label>Surname:</label>

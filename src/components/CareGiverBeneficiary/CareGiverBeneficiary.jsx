@@ -253,7 +253,7 @@ const CareGiverBeneficiary = () => {
   const [feedback, setFeedback] = useState(null);
   const [formData, setFormData] = useState({
     firstName: '',
-    lastName: '',
+    middleName: '', // changed from lastName
     surname: '',
     email: '',
     idNumber: ''
@@ -278,10 +278,10 @@ const CareGiverBeneficiary = () => {
 
   // Update the validation function
   const validateStep1 = () => {
-    const { firstName, lastName, surname, email, idNumber } = formData;
+    const { firstName, surname, email, idNumber } = formData;
     
-    // Check all required fields including lastName
-    if (!firstName || !lastName || !surname || !email || !idNumber) {
+    // Remove middleName from required fields check
+    if (!firstName || !surname || !email || !idNumber) {
       setFeedback({
         success: false,
         message: 'Please fill in all required fields before proceeding'
@@ -358,7 +358,7 @@ const CareGiverBeneficiary = () => {
       // Format data according to the expected API structure
       const dependentData = {
         firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
+        middleName: formData.middleName.trim(), // changed from lastName
         surname: formData.surname.trim(),
         email: formData.email.trim().toLowerCase(),
         password: password,
@@ -383,7 +383,7 @@ const CareGiverBeneficiary = () => {
       // Update UI after successful registration
       const newBeneficiary = {
         id: beneficiaries.length + 1,
-        name: `${dependentData.firstName} ${dependentData.lastName} ${dependentData.surname}`.trim(),
+        name: `${dependentData.firstName} ${dependentData.middleName} ${dependentData.surname}`.trim(),
         idNumber: dependentData.Idnumber,
         relation: dependentData.relation
       };
@@ -394,7 +394,7 @@ const CareGiverBeneficiary = () => {
       // Reset form
       setFormData({
         firstName: '',
-        lastName: '',
+        middleName: '', // changed from lastName
         surname: '',
         email: '',
         idNumber: ''
@@ -439,13 +439,12 @@ const CareGiverBeneficiary = () => {
                 />
               </FormGroup>
               <FormGroup>
-                <Label>Middle Name: <span style={{ color: '#ff4444', fontSize: 11 }}>*</span></Label>
+                <Label>Middle Name:</Label> {/* Removed required indicator */}
                 <Input 
                   type="text"
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                  required
-                  placeholder="Enter middle name"
+                  value={formData.middleName}
+                  onChange={(e) => setFormData({...formData, middleName: e.target.value})}
+                  placeholder="Enter middle name (optional)"
                 />
               </FormGroup>
               <FormGroup>
