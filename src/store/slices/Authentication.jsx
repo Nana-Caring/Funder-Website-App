@@ -159,6 +159,15 @@ const authenticationSlice = createSlice({
           localStorage.setItem('relation', action.payload.user.relation || '');
           localStorage.setItem('createdAt', action.payload.user.createdAt || '');
           localStorage.setItem('updatedAt', action.payload.user.updatedAt || '');
+          // Store the account object as JSON string
+          if (action.payload.user.account) {
+            localStorage.setItem('account', JSON.stringify(action.payload.user.account));
+            localStorage.setItem('accountId', action.payload.user.account.id || '');
+            localStorage.setItem('accountType', action.payload.user.account.accountType || '');
+            localStorage.setItem('accountBalance', action.payload.user.account.balance?.toString() || '0');
+            localStorage.setItem('accountNumber', action.payload.user.account.accountNumber || '');
+            localStorage.setItem('parentAccountId', action.payload.user.account.parentAccountId || '');
+          }
           // Optionally store the whole user object as JSON
           localStorage.setItem('user', JSON.stringify(action.payload.user));
         }
