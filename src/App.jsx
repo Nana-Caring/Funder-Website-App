@@ -226,6 +226,7 @@ function App() {
               <Route path="profile" element={<FunderProfile />} />
               <Route path="settings" element={<FunderSettings />} />
               <Route path="notifications" element={<Notifications />} />
+              <Route path="payment" element={<StripePaymentPage />} />
             </Route>
           </Routes>
         );
