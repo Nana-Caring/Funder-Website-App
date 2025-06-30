@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 
 const Container = styled.div`
@@ -111,6 +111,24 @@ const SendMoney = () => {
   const [beneficiary, setBeneficiary] = useState('');
   const [account, setAccount] = useState('');
   const [amount, setAmount] = useState('5000');
+  const [accounts, setAccounts] = useState([
+    { name: 'Nana Account', id: 'nana' }
+  ]);
+  const [showAddAccount, setShowAddAccount] = useState(false);
+  const [newAccountName, setNewAccountName] = useState('');
+
+  // Optionally, load accounts from backend here
+  useEffect(() => {
+    // fetchAccounts().then(setAccounts);
+  }, []);
+
+  const handleAddAccount = () => {
+    if (newAccountName.trim()) {
+      setAccounts([...accounts, { name: newAccountName, id: Date.now().toString() }]);
+      setNewAccountName('');
+      setShowAddAccount(false);
+    }
+  };
 
   return (
     <Container>
@@ -124,17 +142,85 @@ const SendMoney = () => {
           </select>
         </FormGroup>
 
-        <FormGroup>
+        <FormGroup style={{ position: 'relative' }}>
           <label>From</label>
-          <input type="text" value="Nana Account" readOnly />
+          <div style={{ position: 'relative' }}>
+            <select
+              value={account}
+              onChange={(e) => setAccount(e.target.value)}
+              style={{ paddingLeft: 40 }}
+            >
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.name}>{acc.name}</option>
+              ))}
+              <option value="" disabled>──────────</option>
+              <option value="add_new">+ Add New Account</option>
+            </select>
+            {/* Mastercard SVG Icon */}
+            <span style={{
+              position: 'absolute',
+              left: 10,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              pointerEvents: 'none'
+            }}>
+              <svg width="28" height="18" viewBox="0 0 28 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="10" cy="9" r="7" fill="#EB001B"/>
+                <circle cx="18" cy="9" r="7" fill="#F79E1B"/>
+                <circle cx="14" cy="9" r="7" fill="#FF5F00"/>
+              </svg>
+            </span>
+          </div>
+          {account === 'add_new' && (
+            <div style={{ marginTop: 8 }}>
+              <input
+                type="text"
+                placeholder="Account Name"
+                value={newAccountName}
+                onChange={e => setNewAccountName(e.target.value)}
+                style={{ marginBottom: 6, width: '100%' }}
+              />
+              <button
+                type="button"
+                onClick={handleAddAccount}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: 6,
+                  border: 'none',
+                  background: '#185c37',
+                  color: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Save Account
+              </button>
+            </div>
+          )}
         </FormGroup>
 
         <FormGroup>
           <label>To</label>
           <select value={account} onChange={(e) => setAccount(e.target.value)}>
             <option value="">Select</option>
-            <option value="Baby Care Account">Baby Care Account</option>
-            <option value="Savings Account">Savings Account</option>
+            <option value="Main Account">Main Account</option>
+            <option value="Education" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+              Education
+            </option>
+            <option value="Healthcare" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+              Healthcare
+            </option>
+            <option value="Clothing" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+              Clothing
+            </option>
+            <option value="Entertainment" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+              Entertainment
+            </option>
+            <option value="Baby Care" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+              Baby Care
+            </option>
+            <option value="Pregnancy" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+              Pregnancy
+            </option>
           </select>
         </FormGroup>
 

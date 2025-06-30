@@ -11,14 +11,19 @@ export const loginUser = createAsyncThunk(
         credentials
       );
 
-      if (!response.data || !response.data.token) {
+      // Accept accessToken instead of token
+      if (!response.data || !response.data.accessToken) {
         return rejectWithValue('Invalid response from server');
       }
 
-      return response.data;
+      // Return a normalized object for your reducer
+      return {
+        token: response.data.accessToken,
+        user: response.data.user
+      };
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || 
+        error.response?.data?.message ||
         'Failed to connect to server'
       );
     }
@@ -140,6 +145,32 @@ const authenticationSlice = createSlice({
         state.isAuthenticated = true;
         state.user = action.payload.user;
         state.token = action.payload.token;
+
+        // Store all user details in localStorage
+        if (action.payload.user && action.payload.token) {
+          localStorage.setItem('token', action.payload.token);
+          localStorage.setItem('userId', action.payload.user.id);
+          localStorage.setItem('firstName', action.payload.user.firstName || '');
+          localStorage.setItem('middleName', action.payload.user.middleName || '');
+          localStorage.setItem('surname', action.payload.user.surname || '');
+          localStorage.setItem('email', action.payload.user.email || '');
+          localStorage.setItem('role', action.payload.user.role || '');
+          localStorage.setItem('Idnumber', action.payload.user.Idnumber || '');
+          localStorage.setItem('relation', action.payload.user.relation || '');
+          localStorage.setItem('createdAt', action.payload.user.createdAt || '');
+          localStorage.setItem('updatedAt', action.payload.user.updatedAt || '');
+          // Store the account object as JSON string
+          if (action.payload.user.account) {
+            localStorage.setItem('account', JSON.stringify(action.payload.user.account));
+            localStorage.setItem('accountId', action.payload.user.account.id || '');
+            localStorage.setItem('accountType', action.payload.user.account.accountType || '');
+            localStorage.setItem('accountBalance', action.payload.user.account.balance?.toString() || '0');
+            localStorage.setItem('accountNumber', action.payload.user.account.accountNumber || '');
+            localStorage.setItem('parentAccountId', action.payload.user.account.parentAccountId || '');
+          }
+          // Optionally store the whole user object as JSON
+          localStorage.setItem('user', JSON.stringify(action.payload.user));
+        }
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
