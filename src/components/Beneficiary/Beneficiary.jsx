@@ -1,26 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import editIcon from '../../assets/icons/edit.png';
 import deleteIcon from '../../assets/icons/delete.png';
+import { useSelector } from 'react-redux';
+import { funderService } from '../../services/funderService';
 
 const BeneficiaryContainer = styled.div`
   position: relative;
-  margin-top: 40px; // Increased to account for header
+  margin-top: 40px;
   width: calc(100% - 250px);
   margin-left: auto;
   padding: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  height: calc(100vh - 100px); // Adjust for viewport height
-  // overflow-y: auto;
+  height: calc(100vh - 100px);
 `;
 
-// Update FormContainer
 const FormContainer = styled.form`
   margin-bottom: 15px;
-  width: 70%; // Reduced from 90%
-  max-width: 600px; // Reduced from 1000px
+  width: 70%;
+  max-width: 600px;
   background-color: white;
   padding: 20px;
   border-radius: 8px;
@@ -29,23 +29,21 @@ const FormContainer = styled.form`
   min-height: fit-content;
 `;
 
-// Update TableContainer
 const TableContainer = styled.div`
-  width: 60%; // Reduced from 90%
-  max-width: 600px; // Reduced from 1000px
+  width: 60%;
+  max-width: 600px;
   background-color: white;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   padding: 20px;
   margin-top: 16px;
-  height: 100%; // Adjust height to fit viewport
+  height: 100%;
 
   .table-wrapper {
-    height: calc(100% - 100px); // Adjust for header and search
+    height: calc(100% - 100px);
     overflow-y: auto;
     margin-top: 16px;
 
-    /* Custom scrollbar styling */
     &::-webkit-scrollbar {
       width: 6px;
     }
@@ -79,7 +77,6 @@ const TableContainer = styled.div`
   }
 `;
 
-// Update SearchBox margins
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
@@ -102,7 +99,6 @@ const SearchBox = styled.div`
   }
 `;
 
-// Add this new styled component after your existing styled components
 const Avatar = styled.div`
   width: 32px;
   height: 32px;
@@ -117,13 +113,6 @@ const Avatar = styled.div`
   text-transform: uppercase;
 `;
 
-// Add this function to generate random pastel colors for avatars
-const getRandomPastelColor = () => {
-  const hue = Math.floor(Math.random() * 360);
-  return `hsl(${hue}, 70%, 75%)`;
-};
-
-// Add these styled components after your existing styled components
 const PopupOverlay = styled.div`
   position: fixed;
   top: 0;
@@ -172,22 +161,66 @@ const PopupMessage = styled.div`
   }
 `;
 
+const getRandomPastelColor = () => {
+  const hue = Math.floor(Math.random() * 360);
+  return `hsl(${hue}, 70%, 75%)`;
+};
+
 const BeneficiaryForm = () => {
-  const [beneficiaries, setBeneficiaries] = useState([
-    { name: 'Son', accountNumber: '1213 2322 4353 3421' },
-    { name: 'Daughter', accountNumber: '1213 2322 4353 3421' }
-  ]);
+  const { token } = useSelector(state => state.authentication);
+  const [beneficiaries, setBeneficiaries] = useState([]);
   
   const [formData, setFormData] = useState({
     name: '',
     accountNumber: '',
-  
   });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchBeneficiaries = async () => {
+      if (!token) {
+        setError('Please log in to view beneficiaries');
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const data = await funderService.getDependents(token);
+        
+        if (data && data.length > 0) {
+          setBeneficiaries(data);
+        } else {
+          setBeneficiaries([]);
+        }
+      } catch (error) {
+        console.error('Error fetching beneficiaries:', error);
+        
+        // Handle the improved error messages from the service
+        if (error.message === 'No dependents found.') {
+          setBeneficiaries([]);
+          // Don't set error for no dependents, just show empty table
+        } else {
+          setError(error.message || 'Failed to load beneficiaries. Please try again.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token) {
+      fetchBeneficiaries();
+    } else {
+      setError('Please log in to access this feature');
+    }
+  }, [token]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -201,7 +234,6 @@ const BeneficiaryForm = () => {
     e.preventDefault();
     if (formData.name && formData.accountNumber) {
       if (isEditing && editingIndex !== null) {
-        // Update existing beneficiary
         setBeneficiaries(prev => prev.map((item, index) => 
           index === editingIndex 
             ? { name: formData.name, accountNumber: formData.accountNumber }
@@ -210,13 +242,11 @@ const BeneficiaryForm = () => {
         setIsEditing(false);
         setEditingIndex(null);
       } else {
-        // Add new beneficiary
         setBeneficiaries(prev => [
           ...prev,
           { name: formData.name, accountNumber: formData.accountNumber }
         ]);
       }
-      // Reset form
       setFormData({
         name: '',
         accountNumber: '',
@@ -260,12 +290,25 @@ const BeneficiaryForm = () => {
         }}>
           {isEditing ? 'Edit Beneficiary' : 'Add New Beneficiary'}
         </h3>
+        
+        {error && (
+          <div style={{
+            background: error.includes('No beneficiaries') ? '#e3f2fd' : '#ffebee',
+            color: error.includes('No beneficiaries') ? '#1976d2' : '#c62828',
+            padding: '8px 12px',
+            borderRadius: '4px',
+            marginBottom: '16px',
+            fontSize: '14px'
+          }}>
+            {error}
+          </div>
+        )}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {/* Form fields */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', maxWidth: '400px', margin: '0 auto' }}>
             <label style={{ 
-              minWidth: '120px', // Reduced from 140px
-              maxWidth: '120px', // Reduced from 140px
+              minWidth: '120px',
+              maxWidth: '120px',
               color: '#333', 
               fontSize: '14px',
               whiteSpace: 'nowrap',
@@ -280,7 +323,7 @@ const BeneficiaryForm = () => {
               value={formData.name}
               onChange={handleInputChange}
               style={{ 
-                width: '200px', // Set fixed width instead of flex: 1
+                width: '200px',
                 padding: '1px 6px',
                 border: '1px solid #ddd',
                 borderRadius: '4px',
@@ -291,8 +334,8 @@ const BeneficiaryForm = () => {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', maxWidth: '400px', margin: '0 auto' }}>
             <label style={{ 
-              minWidth: '120px', // Reduced from 140px
-              maxWidth: '120px', // Reduced from 140px
+              minWidth: '120px',
+              maxWidth: '120px',
               color: '#333', 
               fontSize: '14px',
               whiteSpace: 'nowrap',
@@ -307,7 +350,7 @@ const BeneficiaryForm = () => {
               value={formData.accountNumber}
               onChange={handleInputChange}
               style={{ 
-                width: '200px', // Set fixed width instead of flex: 1
+                width: '200px',
                 padding: '1px 6px',
                 border: '1px solid #ddd',
                 borderRadius: '4px',
@@ -315,7 +358,6 @@ const BeneficiaryForm = () => {
               }}
             />
           </div>
-
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '15px', gap: '12px' }}>
@@ -384,57 +426,73 @@ const BeneficiaryForm = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredBeneficiaries.map((beneficiary, index) => (
-                <tr key={index} style={{ borderBottom: '1px solid #ddd' }}>
-                  <td style={{ 
-                    padding: '8px 10px', 
-                    border: '1px solid #ddd',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}>
-                    <Avatar color={getRandomPastelColor()}>
-                      {beneficiary.name.charAt(0)}
-                    </Avatar>
-                    {beneficiary.name}
-                  </td>
-                  <td style={{ padding: '8px 10px', border: '1px solid #ddd' }}>
-                    {beneficiary.accountNumber}
-                  </td>
-                  <td style={{ padding: '8px 10px', border: '1px solid #ddd' }}>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <button
-                        onClick={() => handleEdit(beneficiary, index)}
-                        style={{
-                          padding: '4px',
-                          border: 'none',
-                          background: 'none',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <img src={editIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
-                      </button>
-                      <button
-                        onClick={handleDeleteAttempt}
-                        style={{
-                          padding: '4px',
-                          border: 'none',
-                          background: 'none',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <img src={deleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
-                      </button>
-                    </div>
+              {filteredBeneficiaries.length === 0 ? (
+                <tr>
+                  <td 
+                    colSpan="3" 
+                    style={{ 
+                      textAlign: 'center', 
+                      padding: '40px 20px', 
+                      color: '#666', 
+                      fontStyle: 'italic',
+                      border: '1px solid #ddd'
+                    }}
+                  >
+                    {loading ? 'Loading...' : 'No dependents added yet'}
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredBeneficiaries.map((beneficiary, index) => (
+                  <tr key={index} style={{ borderBottom: '1px solid #ddd' }}>
+                    <td style={{ 
+                      padding: '8px 10px', 
+                      border: '1px solid #ddd',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}>
+                      <Avatar color={getRandomPastelColor()}>
+                        {beneficiary.name.charAt(0)}
+                      </Avatar>
+                      {beneficiary.name}
+                    </td>
+                    <td style={{ padding: '8px 10px', border: '1px solid #ddd' }}>
+                      {beneficiary.accountNumber}
+                    </td>
+                    <td style={{ padding: '8px 10px', border: '1px solid #ddd' }}>
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <button
+                          onClick={() => handleEdit(beneficiary, index)}
+                          style={{
+                            padding: '4px',
+                            border: 'none',
+                            background: 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <img src={editIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
+                        </button>
+                        <button
+                          onClick={handleDeleteAttempt}
+                          style={{
+                            padding: '4px',
+                            border: 'none',
+                            background: 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <img src={deleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </TableContainer>
 
-      {/* Add Popup Message */}
       {showPopup && (
         <PopupOverlay>
           <PopupMessage>
