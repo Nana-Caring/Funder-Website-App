@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import {
@@ -15,6 +15,7 @@ import {
   ArrowBack
 } from '@mui/icons-material';
 import PaymentModal from '../PaymentModal/PaymentModal';
+import ProfileCompletionPopup from '../common/ProfileCompletionPopup';
 import { Avatar, Modal, IconButton } from '@mui/material';
 /* 
   Outer container that holds the main dashboard area.
@@ -786,7 +787,93 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [showProfilePopup, setShowProfilePopup] = useState(false);
   const userName = localStorage.getItem('userName') || 'User';
+
+  useEffect(() => {
+    // Check if we should show the profile completion popup
+    const checkShowPopup = () => {
+      const dismissed = localStorage.getItem('profileCompletionDismissed');
+      const reminderTime = localStorage.getItem('profileCompletionReminder');
+      const currentTime = Date.now();
+
+      console.log('Profile popup check:', {
+        dismissed,
+        reminderTime,
+        currentTime,
+        stillInReminderPeriod: reminderTime && currentTime < parseInt(reminderTime)
+      });
+
+      // Don't show if user has dismissed it permanently
+      if (dismissed === 'true') {
+        console.log('Popup dismissed permanently');
+        return false;
+      }
+
+      // Don't show if we're still in the reminder period
+      if (reminderTime && currentTime < parseInt(reminderTime)) {
+        console.log('Still in reminder period');
+        return false;
+      }
+
+      // Check if profile is complete by looking at required fields
+      const storedUser = localStorage.getItem('user');
+      console.log('Stored user data:', storedUser);
+      
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          const requiredFields = [
+            'firstName', 'surname', 'email', 'phoneNumber', 'Idnumber',
+            'postalAddressLine1', 'postalCity', 'postalProvince', 'postalCode',
+            'homeAddressLine1', 'homeCity', 'homeProvince', 'homeCode'
+          ];
+          
+          const missingFields = requiredFields.filter(field => 
+            !userData[field] || userData[field].toString().trim() === ''
+          );
+          
+          console.log('Profile completion check:', {
+            userData,
+            requiredFields,
+            missingFields,
+            shouldShowPopup: missingFields.length > 0
+          });
+          
+          // Show popup if there are missing fields
+          return missingFields.length > 0;
+        } catch (error) {
+          console.error('Failed to parse stored user data:', error);
+          return false;
+        }
+      }
+
+      console.log('No stored user data found');
+      return false;
+    };
+
+    // Show popup after a short delay to let the dashboard load
+    const timer = setTimeout(() => {
+      const shouldShow = checkShowPopup();
+      console.log('Should show profile popup:', shouldShow);
+      if (shouldShow) {
+        setShowProfilePopup(true);
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleCompleteProfile = () => {
+    setShowProfilePopup(false);
+    // Navigate to profile page (all roles use /profile route)
+    navigate('/profile');
+  };
+
+  const handleClosePopup = () => {
+    setShowProfilePopup(false);
+  };
+
   return (
     <ResponsiveStyles>
       <Container>
@@ -997,6 +1084,14 @@ const Dashboard = () => {
           </RightPanel>
         </MainContent>
       </DashboardContainer>
+      
+      {/* Profile Completion Popup */}
+      {showProfilePopup && (
+        <ProfileCompletionPopup
+          onClose={handleClosePopup}
+          onCompleteProfile={handleCompleteProfile}
+        />
+      )}
     </Container>
     </ResponsiveStyles>
   );

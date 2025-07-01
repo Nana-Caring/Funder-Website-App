@@ -110,3 +110,31 @@ export const InfoItem = styled.div`
     }
   }
 `;
+
+export const FileUpload = styled.div`
+  padding: 20px;
+  border: 2px dashed #ddd;
+  border-radius: 8px;
+  text-align: center;
+  background: #fafafa;
+`;
+
+export const UploadButton = styled.button`
+  background: #185c37;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #0f3e24;
+  }
+
+  &:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+`;

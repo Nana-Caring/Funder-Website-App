@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import expensesIcon from '../assets/icons/expenses.png';
 import arrowIcon from '../assets/icons/arrow.png';
+import ProfileCompletionPopup from './common/ProfileCompletionPopup';
 
 // Mock data
 const accounts = [
@@ -281,8 +283,75 @@ const ResponsiveWrapper = styled.div`
 
 // Update the component return statement
 const CareGiverHome = () => {
+  const navigate = useNavigate();
+  const [showProfilePopup, setShowProfilePopup] = useState(false);
+
+  useEffect(() => {
+    // Check if we should show the profile completion popup
+    const checkShowPopup = () => {
+      const dismissed = localStorage.getItem('profileCompletionDismissed');
+      const reminderTime = localStorage.getItem('profileCompletionReminder');
+      const currentTime = Date.now();
+
+      // Don't show if user has dismissed it permanently
+      if (dismissed === 'true') {
+        return false;
+      }
+
+      // Don't show if we're still in the reminder period
+      if (reminderTime && currentTime < parseInt(reminderTime)) {
+        return false;
+      }
+
+      // Check if profile is complete by looking at required fields
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          const requiredFields = [
+            'firstName', 'surname', 'email', 'phoneNumber', 'Idnumber',
+            'postalAddressLine1', 'postalCity', 'postalProvince', 'postalCode',
+            'homeAddressLine1', 'homeCity', 'homeProvince', 'homeCode'
+          ];
+          
+          const missingFields = requiredFields.filter(field => 
+            !userData[field] || userData[field].toString().trim() === ''
+          );
+          
+          // Show popup if there are missing fields
+          return missingFields.length > 0;
+        } catch (error) {
+          console.error('Failed to parse stored user data:', error);
+          return false;
+        }
+      }
+
+      return false;
+    };
+
+    // Show popup after a short delay to let the dashboard load
+    const timer = setTimeout(() => {
+      if (checkShowPopup()) {
+        setShowProfilePopup(true);
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleCompleteProfile = () => {
+    setShowProfilePopup(false);
+    // Navigate to profile page (all roles use /profile route)
+    navigate('/profile');
+  };
+
+  const handleClosePopup = () => {
+    setShowProfilePopup(false);
+  };
+
   return (
-    <MainContent>
+    <>
+      <MainContent>
       <ResponsiveWrapper>
         <Grid>
           {/* Left: Monthly expenses and bar chart */}
@@ -361,7 +430,16 @@ const CareGiverHome = () => {
           </RequestsTable>
         </RequestsCard>
       </ResponsiveWrapper>
+      
+      {/* Profile Completion Popup */}
+      {showProfilePopup && (
+        <ProfileCompletionPopup
+          onClose={handleClosePopup}
+          onCompleteProfile={handleCompleteProfile}
+        />
+      )}
     </MainContent>
+    </>
   );
 };
 
