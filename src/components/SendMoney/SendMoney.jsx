@@ -165,7 +165,7 @@ const selectedBeneficiary = beneficiaries.find(b => b.id === beneficiary);
 
       // Create PaymentIntent
       const res = await axios.post(
-        '/api/funder/create-payment-intent',
+        'http://localhost:5000/api/stripe/create-payment-intent',
         {
           amount: Number(amount),
           accountNumber: selectedBeneficiary.accountNumber,

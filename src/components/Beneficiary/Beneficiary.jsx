@@ -189,7 +189,7 @@ const BeneficiaryForm = () => {
       setError('');
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('/api/funder/get-beneficiaries', {
+        const response = await axios.get('http://localhost:5000/api/funder/get-beneficiaries', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
           setBeneficiaries(response.data.beneficiaries || []);
@@ -227,7 +227,7 @@ const BeneficiaryForm = () => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('/api/funder/link-dependent', {
+      const response = await axios.post('http://localhost:5000/api/funder/link-dependent', {
         dependentName: formData.name,
         accountNumber: formData.accountNumber
 
