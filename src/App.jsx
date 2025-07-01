@@ -46,6 +46,10 @@ import DependentProfile from './components/Profile/DependentProfile';
 import CaregiverProfile from './components/Profile/CaregiverProfile';
 import FunderProfile from './components/Profile/FunderProfile';
 
+import { Elements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
+const stripePromise = loadStripe('pk_test_51REGFbROeQRel9O58mOSulLZR25JiDCo0FqwlrhopxEUuFh68lZXNTKYDer8334RrTFGBvlsKdkPMFbvzLbaoA4X00OLIDpVtW');
+
 const AppContainer = styled.div`
   display: flex;
   height: 100vh;
@@ -219,14 +223,17 @@ function App() {
             }>
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="my-accounts" element={<MyAccounts />} />
-              <Route path="send-money" element={<SendMoney />} />
+               <Route path="send-money" element={
+                <Elements stripe={stripePromise}>
+                  <SendMoney />
+                </Elements>
+              } />
               <Route path="beneficiary" element={<BeneficiaryForm />} />
               <Route path="messages" element={<Messages />} />
               <Route path="statements" element={<Statements />} />
               <Route path="profile" element={<FunderProfile />} />
               <Route path="settings" element={<FunderSettings />} />
               <Route path="notifications" element={<Notifications />} />
-              <Route path="payment" element={<StripePaymentPage />} />
             </Route>
           </Routes>
         );

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import axios from 'axios';
 import editIcon from '../../assets/icons/edit.png';
 import deleteIcon from '../../assets/icons/delete.png';
 
@@ -173,21 +174,36 @@ const PopupMessage = styled.div`
 `;
 
 const BeneficiaryForm = () => {
-  const [beneficiaries, setBeneficiaries] = useState([
-    { name: 'Son', accountNumber: '1213 2322 4353 3421' },
-    { name: 'Daughter', accountNumber: '1213 2322 4353 3421' }
-  ]);
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    accountNumber: '',
-  
-  });
-
+  const [beneficiaries, setBeneficiaries] = useState([]);
+  const [formData, setFormData] = useState({name: '', accountNumber: ''});
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+ // Fetch beneficiaries from backend
+    const fetchBeneficiaries = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get('/api/funder/get-beneficiaries', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+          setBeneficiaries(response.data.beneficiaries || []);
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to fetch beneficiaries');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    useEffect(() => {
+    fetchBeneficiaries();
+  }, []);
+
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -197,30 +213,44 @@ const BeneficiaryForm = () => {
     }));
   };
 
-  const handleAddBeneficiary = (e) => {
+  // Add beneficiary via backend
+  const handleAddBeneficiary = async (e) => {
     e.preventDefault();
-    if (formData.name && formData.accountNumber) {
-      if (isEditing && editingIndex !== null) {
-        // Update existing beneficiary
-        setBeneficiaries(prev => prev.map((item, index) => 
-          index === editingIndex 
-            ? { name: formData.name, accountNumber: formData.accountNumber }
-            : item
-        ));
-        setIsEditing(false);
-        setEditingIndex(null);
+    setError('');
+
+    if (!formData.name || !formData.accountNumber){
+      setError('Please fill in all fields');
+      return;
+    }
+
+    console.log('Sending data to backend:', formData);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post('/api/funder/link-dependent', {
+        dependentName: formData.name,
+        accountNumber: formData.accountNumber
+
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }  
+      );
+
+      
+      if (response.status === 200 || response.status === 201) {
+        setFormData({ name: '', accountNumber: '' });
+        setError('✅ Beneficiary added successfully.');
+        await fetchBeneficiaries(); // Refresh beneficiaries list
       } else {
-        // Add new beneficiary
-        setBeneficiaries(prev => [
-          ...prev,
-          { name: formData.name, accountNumber: formData.accountNumber }
-        ]);
+        setError(response.data.message || 'Failed to add beneficiary');
       }
-      // Reset form
-      setFormData({
-        name: '',
-        accountNumber: '',
-      });
+    } catch (err) {
+      console.error('Error adding beneficiary:', err);
+      setError(err.response?.data?.message || 'Server error');
     }
   };
 
@@ -228,7 +258,7 @@ const BeneficiaryForm = () => {
     setIsEditing(true);
     setEditingIndex(index);
     setFormData({
-      name: beneficiary.name,
+      name: beneficiary.name || beneficiary.firstName,
       accountNumber: beneficiary.accountNumber,
     });
   };
@@ -247,7 +277,9 @@ const BeneficiaryForm = () => {
   };
 
   const filteredBeneficiaries = beneficiaries.filter(beneficiary =>
-    beneficiary.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (beneficiary.name || beneficiary.firstName || '')
+    .toLowerCase()
+    .includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -353,6 +385,16 @@ const BeneficiaryForm = () => {
             {isEditing ? 'Update Beneficiary' : 'Add Beneficiary'}
           </button>
         </div>
+
+        {error && (
+          <div style={{
+            color: error.startsWith('✅') ? 'green' : 'red',
+            marginBottom: '10px',
+            fontWeight: 500
+          }}>
+            {error}
+          </div>
+        )}
       </FormContainer>
 
       <TableContainer>
