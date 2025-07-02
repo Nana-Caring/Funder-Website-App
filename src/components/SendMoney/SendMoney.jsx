@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { loadStripe} from '@stripe/stripe-js';
-import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
 import styled from 'styled-components';
 
 const stripePromise = loadStripe('pk_test_51REGFbROeQRel9O58mOSulLZR25JiDCo0FqwlrhopxEUuFh68lZXNTKYDer8334RrTFGBvlsKdkPMFbvzLbaoA4X00OLIDpVtW');
-
 
 const Container = styled.div`
   display: flex;
@@ -27,7 +26,6 @@ const FormSection = styled.div`
   display: flex;
   flex-direction: column;
   gap: 15px;
- 
 `;
 
 const FormGroup = styled.div`
@@ -119,43 +117,48 @@ const SendMoney = () => {
   const [accountType, setAccountType] = useState('Main Account');
   const [amount, setAmount] = useState('5000');
   const [account, setAccount] = useState('');
-  const [accounts, setAccounts] = useState([
-    { name: 'Nana Account', id: 'nana' }
-  ]);
+  const [accounts, setAccounts] = useState([]);
   const [newAccountName, setNewAccountName] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  
-  const stripe = useStripe();
-  const elements = useElements();
 
+  // Fetch beneficiaries from backend
+  const fetchBeneficiaries = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('https://nanacaring-backend.onrender.com/api/funder/get-beneficiaries', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setBeneficiaries(response.data.beneficiaries || []);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch beneficiaries');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    // Fetch beneficiaries from backend
- const fetchBeneficiaries = async () => {
-      setLoading(true);
-      setError('');
+  useEffect(() => {
+    const fetchAccounts = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('https://nanacaring-backend.onrender.com/api/funder/get-beneficiaries', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-          setBeneficiaries(response.data.beneficiaries || []);
+        const res = await axios.get(
+          'https://nanacaring-backend.onrender.com/api/stripe/payment-methods',
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setAccounts(res.data.paymentMethods || []);
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to fetch beneficiaries');
-      } finally {
-        setLoading(false);
+        setMessage('Failed to load payment methods.');
       }
     };
-
-     useEffect(() => {
-        fetchBeneficiaries();
-      }, []);
-    
+    fetchAccounts();
+    fetchBeneficiaries();
+  }, []);
 
   // Find selected beneficiary object
-const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary);
-
+  const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -167,55 +170,37 @@ const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary
       setLoading(false);
       return;
     }
+    if (!account) {
+      setMessage('Please select a card.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const token = localStorage.getItem('token');
-
-      // Create PaymentIntent
+      // Send paymentMethodId to backend
       const res = await axios.post(
         'https://nanacaring-backend.onrender.com/api/stripe/create-payment-intent',
         {
           amount: Number(amount),
           accountNumber: selectedBeneficiary.accountNumber,
-          accountType
+          accountType,
+          paymentMethodId: account // This is the Stripe payment method ID
         },
         {
           headers: { Authorization: `Bearer ${token}` }
         }
       );
 
-      const { clientSecret } = res.data;
-
-
-      // Confirm payment with Stripe
-      const cardElement = elements.getElement(CardElement);
-      const paymentResult = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: cardElement
-        }
-      });
-
-      if (paymentResult.error) {
-        setMessage(paymentResult.error.message || 'Payment failed.');
-      } else if (paymentResult.paymentIntent.status === 'succeeded') {
+      if (res.data.success) {
         setMessage('🎉 Payment successful!');
       } else {
-        setMessage('Payment status: ' + paymentResult.paymentIntent.status);
+        setMessage(res.data.message || 'Payment failed.');
       }
-
     } catch (err) {
-      console.error(err);
       setMessage(err.response?.data?.error || 'Payment failed.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleAddAccount = () => {
-    if (newAccountName.trim()) {
-      setAccounts([...accounts, { name: newAccountName, id: Date.now().toString() }]);
-      setNewAccountName('');
-      // setShowAddAccount(false);
     }
   };
 
@@ -223,134 +208,104 @@ const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary
     <Container>
       <FormSection>
         <form onSubmit={handleSubmit}>
-        <FormGroup>
-          <label htmlFor="beneficiary-select">Beneficiary name</label>
-          <select
-            id="beneficiary-select"
-            name="beneficiary"
-            value={beneficiary}
-            onChange={(e) => setBeneficiary(e.target.value)}
-            required
-          >
-            <option value="">Select</option>
-            {beneficiaries.map((b, idx) => (
-              <option key={`${b.id}-${idx}`} value={String(b.id)}>
-                {b.firstName} {b.middleName ? b.middleName :  ''}
-              </option>
-            ))}
-          </select>
-        </FormGroup>
-
-        <FormGroup style={{ position: 'relative' }}>
-          <label>From</label>
-          <div style={{ position: 'relative' }}>
+          <FormGroup>
+            <label htmlFor="beneficiary-select">Beneficiary name</label>
             <select
-              value={account}
-              onChange={(e) => setAccount(e.target.value)}
-              style={{ paddingLeft: 40 }}
+              id="beneficiary-select"
+              name="beneficiary"
+              value={beneficiary}
+              onChange={(e) => setBeneficiary(e.target.value)}
+              required
             >
-              {accounts.map(acc => (
-                <option key={acc.id} value={acc.name}>{acc.name}</option>
+              <option value="">Select</option>
+              {beneficiaries.map((b, idx) => (
+                <option key={`${b.id}-${idx}`} value={String(b.id)}>
+                  {b.firstName} {b.middleName ? b.middleName : ''}
+                </option>
               ))}
-              <option value="" disabled>──────────</option>
-              <option value="add_new">+ Add New Account</option>
             </select>
-            {/* Mastercard SVG Icon */}
-            <span style={{
-              position: 'absolute',
-              left: 10,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              pointerEvents: 'none'
-            }}>
-              <svg width="28" height="18" viewBox="0 0 28 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="10" cy="9" r="7" fill="#EB001B"/>
-                <circle cx="18" cy="9" r="7" fill="#F79E1B"/>
-                <circle cx="14" cy="9" r="7" fill="#FF5F00"/>
-              </svg>
-            </span>
-          </div>
-          {account === 'add_new' && (
-            <div style={{ marginTop: 8 }}>
-              <input
-                type="text"
-                placeholder="Account Name"
-                value={newAccountName}
-                onChange={e => setNewAccountName(e.target.value)}
-                style={{ marginBottom: 6, width: '100%' }}
-              />
-              <button
-                type="button"
-                onClick={handleAddAccount}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: 6,
-                  border: 'none',
-                  background: '#185c37',
-                  color: 'white',
-                  cursor: 'pointer'
-                }}
+          </FormGroup>
+
+          <FormGroup style={{ position: 'relative' }}>
+            <label>From</label>
+            <div style={{ position: 'relative' }}>
+              <select
+                value={account}
+                onChange={(e) => setAccount(e.target.value)}
+                required
+                style={{ paddingLeft: 40 }}
               >
-                Save Account
-              </button>
+                <option value="">Select a card</option>
+                {accounts.map(acc => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.card?.brand?.toUpperCase()} •••• {acc.card?.last4} (exp {acc.card?.exp_month}/{acc.card?.exp_year})
+                  </option>
+                ))}
+              </select>
+              {/* Mastercard SVG Icon (optional) */}
+              <span style={{
+                position: 'absolute',
+                left: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                pointerEvents: 'none'
+              }}>
+                <svg width="28" height="18" viewBox="0 0 28 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="10" cy="9" r="7" fill="#EB001B"/>
+                  <circle cx="18" cy="9" r="7" fill="#F79E1B"/>
+                  <circle cx="14" cy="9" r="7" fill="#FF5F00"/>
+                </svg>
+              </span>
             </div>
-          )}
-        </FormGroup>
+          </FormGroup>
 
-        <FormGroup>
-          <label>To</label>
-          <select 
-          value={accountType} 
-          onChange={(e) => setAccountType(e.target.value)}
-          required
-          >
-            <option value="">Select</option>
-            <option value="Main Account">Main Account</option>
-            <option value="Education" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
-              Education
-            </option>
-            <option value="Healthcare" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
-              Healthcare
-            </option>
-            <option value="Clothing" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
-              Clothing
-            </option>
-            <option value="Entertainment" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
-              Entertainment
-            </option>
-            <option value="Baby Care" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
-              Baby Care
-            </option>
-            <option value="Pregnancy" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
-              Pregnancy
-            </option>
-          </select>
-        </FormGroup>
+          <FormGroup>
+            <label>To</label>
+            <select
+              value={accountType}
+              onChange={(e) => setAccountType(e.target.value)}
+              required
+            >
+              <option value="">Select</option>
+              <option value="Main Account">Main Account</option>
+              <option value="Education" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+                Education
+              </option>
+              <option value="Healthcare" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+                Healthcare
+              </option>
+              <option value="Clothing" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+                Clothing
+              </option>
+              <option value="Entertainment" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+                Entertainment
+              </option>
+              <option value="Baby Care" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+                Baby Care
+              </option>
+              <option value="Pregnancy" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+                Pregnancy
+              </option>
+            </select>
+          </FormGroup>
 
-        <WarningText>
-          Please be advised that when you proceed now, you have made sure that the details are accurate.
-        </WarningText>
+          <WarningText>
+            Please be advised that when you proceed now, you have made sure that the details are accurate.
+          </WarningText>
 
-        <AmountContainer>
-          <label>Amount</label>
-          <AmountField>
-            <span>R</span>
-            <input type="text" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
-          </AmountField>
-        </AmountContainer>
+          <AmountContainer>
+            <label>Amount</label>
+            <AmountField>
+              <span>R</span>
+              <input type="text" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
+            </AmountField>
+          </AmountContainer>
 
-        <FormGroup>
-          <label>Card Details</label>
-          <CardElement />
-        </FormGroup>
+          <PayButton type="submit" disabled={loading}>
+            {loading ? 'Processing...' : 'Pay'}
+          </PayButton>
 
-
-        <PayButton type="submit" disabled={loading}>
-          {loading ? 'Processing...' : 'Pay'}
-        </PayButton>
-
-        {message && <WarningText>{message}</WarningText>}
-
+          {message && <WarningText>{message}</WarningText>}
         </form>
       </FormSection>
     </Container>

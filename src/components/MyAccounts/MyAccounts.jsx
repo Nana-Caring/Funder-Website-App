@@ -1,23 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import editIcon from '../../assets/icons/edit.png';
 import deleteIcon from '../../assets/icons/delete.png';
-import Header from '../Header/Header';
+import axios from 'axios';
 
 const Container = styled.div`
   display: flex;
-  width: calc(100% - 250px); /* Account for sidebar */
+  width: calc(100% - 250px);
   margin-left: auto;
   flex-direction: column;
-  height: calc(100vh - 80px); /* Account for header */
+  height: calc(100vh - 80px);
   overflow: hidden;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  margin-top: 80px; /* Add space for header */
+  margin-top: 80px;
 `;
-
-
 
 const Content = styled.div`
   padding: 20px;
@@ -25,7 +24,7 @@ const Content = styled.div`
   flex-direction: column;
   gap: 24px;
   width: 100%;
-  max-width: 800px; /* Reduced from 1200px for better readability */
+  max-width: 800px;
   margin: 0 auto;
 `;
 
@@ -113,7 +112,7 @@ const AccountsTable = styled.div`
   overflow: hidden;
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  height: 300px; /* Fixed height */
+  height: 300px;
   display: flex;
   flex-direction: column;
 
@@ -125,22 +124,17 @@ const AccountsTable = styled.div`
   .table-container {
     flex: 1;
     overflow-y: auto;
-    
-    /* Custom scrollbar styling */
     &::-webkit-scrollbar {
       width: 6px;
     }
-
     &::-webkit-scrollbar-track {
       background: #f1f1f1;
       border-radius: 3px;
     }
-
     &::-webkit-scrollbar-thumb {
       background: #ddd;
       border-radius: 3px;
     }
-
     &::-webkit-scrollbar-thumb:hover {
       background: #ccc;
     }
@@ -269,24 +263,41 @@ const ConfirmationPopup = styled.div`
 `;
 
 const MyAccounts = () => {
-  const [accounts, setAccounts] = useState([
-    { id: 1, bankName: 'FNB', accountNumber: '1213 2322 4353 3421' },
-    { id: 2, bankName: 'Capitec', accountNumber: '1213 2322 4353 3421' },
-    { id: 3, bankName: 'Standard Bank', accountNumber: '1213 2322 4353 3421' },
-    { id: 4, bankName: 'Nedbank', accountNumber: '1213 2322 4353 3421' },
-    { id: 5, bankName: 'ABSA', accountNumber: '1213 2322 4353 3421' },
-  ]);
+  const [accounts, setAccounts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [deletingAccount, setDeletingAccount] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  // Filter accounts based on search term
+  const stripe = useStripe();
+  const elements = useElements();
+
+  // Fetch saved Stripe payment methods (cards)
+  const fetchAccounts = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(
+        'https://nanacaring-backend.onrender.com/api/stripe/payment-methods',
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setAccounts(res.data.paymentMethods || []);
+    } catch (err) {
+      setFeedback({ type: 'error', message: 'Failed to load accounts.' });
+    }
+  };
+
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
+
+  // Filter accounts based on search term (by brand)
   const filteredAccounts = accounts.filter(account =>
-    account.bankName.toLowerCase().includes(searchTerm.toLowerCase())
+    (account.card?.brand || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Edit logic (only for metadata, not card details)
   const handleEdit = (account) => {
     setIsEditing(true);
     setEditingAccount(account);
@@ -294,12 +305,13 @@ const MyAccounts = () => {
 
   const handleUpdate = (e) => {
     e.preventDefault();
+    // Only allow editing metadata, not card details
     setAccounts(accounts.map(acc => 
-      acc.id === editingAccount.id ? editingAccount : acc
+      acc.id === editingAccount.id ? { ...acc, nickname: editingAccount.nickname } : acc
     ));
     setIsEditing(false);
     setEditingAccount(null);
-    handleFeedback('success', 'Account updated successfully');
+    handleFeedback('success', 'Card updated successfully');
   };
 
   const handleDeleteClick = (account) => {
@@ -308,7 +320,7 @@ const MyAccounts = () => {
 
   const handleConfirmDelete = () => {
     setAccounts(accounts.filter(acc => acc.id !== deletingAccount.id));
-    handleFeedback('error', 'Account deleted successfully');
+    handleFeedback('error', 'Card deleted successfully');
     setDeletingAccount(null);
   };
 
@@ -316,10 +328,38 @@ const MyAccounts = () => {
     setDeletingAccount(null);
   };
 
-  const handleAddAccount = (e) => {
+  // Stripe Save Card Flow for Add New Card
+  const handleAddAccount = async (e) => {
     e.preventDefault();
-    // Add your new account logic here
-    handleFeedback('success', 'Account added successfully');
+    setLoading(true);
+    setFeedback(null);
+    try {
+      const token = localStorage.getItem('token');
+      // 1. Create SetupIntent
+      const res = await axios.post(
+        'https://nanacaring-backend.onrender.com/api/stripe/create-setup-intent',
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const { clientSecret } = res.data;
+
+      // 2. Confirm card setup
+      const cardElement = elements.getElement(CardElement);
+      const setupResult = await stripe.confirmCardSetup(clientSecret, {
+        payment_method: { card: cardElement }
+      });
+
+      if (setupResult.error) {
+        setFeedback({ type: 'error', message: setupResult.error.message || 'Failed to save card.' });
+      } else {
+        setFeedback({ type: 'success', message: '✅ Card saved!' });
+        fetchAccounts(); // Refresh list
+      }
+    } catch (err) {
+      setFeedback({ type: 'error', message: 'Failed to save card.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -330,7 +370,7 @@ const MyAccounts = () => {
   // Add feedback handler
   const handleFeedback = (type, message) => {
     setFeedback({ type, message });
-    setTimeout(() => setFeedback(null), 3000); // Hide after 3 seconds
+    setTimeout(() => setFeedback(null), 3000);
   };
 
   return (
@@ -338,79 +378,57 @@ const MyAccounts = () => {
       <Content>
         <FormSection>
           <Form onSubmit={isEditing ? handleUpdate : handleAddAccount}>
-            <h4>{isEditing ? 'Edit Account' : 'Add New Account'}</h4>
-            <FormGroup>
-              <label>Name on card *</label>
-              <input 
-                type="text"
-                required
-                value={isEditing ? editingAccount.bankName : ''}
-                onChange={(e) => isEditing && setEditingAccount({
-                  ...editingAccount,
-                  bankName: e.target.value
-                })}
-              />
-            </FormGroup>
-            <FormGroup>
-              <label>Card number</label>
-              <input 
-                type="text"
-                value={isEditing ? editingAccount.accountNumber : ''}
-                onChange={(e) => isEditing && setEditingAccount({
-                  ...editingAccount,
-                  accountNumber: e.target.value
-                })}
-              />
-            </FormGroup>
-            <FormGroup>
-              <label>Account number *</label>
-              <input 
-                type="text"
-                required
-                pattern="\d{10,}"
-                title="Please enter at least 10 digits"
-              />
-            </FormGroup>
-            <FormGroup>
-              <label>Expiry date *</label>
-              <select required>
-                <option value="">Select expiry date</option>
-                {/* Add your date options here */}
-              </select>
-            </FormGroup>
-            <FormGroup>
-              <label>CCV *</label>
-              <input 
-                type="text"
-                required
-                pattern="\d{3,4}"
-                maxLength="4"
-                title="Please enter 3 or 4 digits"
-              />
-            </FormGroup>
+            <h4>{isEditing ? 'Edit Card' : 'Add New Card'}</h4>
+            {isEditing ? (
+              <>
+                {/* Only allow editing nickname/label, not card details */}
+                <FormGroup>
+                  <label>Nickname</label>
+                  <input 
+                    type="text"
+                    value={editingAccount?.nickname || ''}
+                    onChange={(e) => setEditingAccount({
+                      ...editingAccount,
+                      nickname: e.target.value
+                    })}
+                  />
+                </FormGroup>
+              </>
+            ) : (
+              <>
+                <FormGroup>
+                  <label htmlFor="card-element">Card details *</label>
+                  <div style={{ flex: 1, border: '1px solid #ddd', borderRadius: 4, padding: 8 }}>
+                    <CardElement id="card-element" options={{ style: { base: { fontSize: '16px' } } }} />
+                  </div>
+                </FormGroup>
+              </>
+            )}
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               {isEditing ? (
                 <>
                   <AddButton type="submit" style={{ background: '#4CAF50' }}>
-                    Update Account
+                    Update Card
                   </AddButton>
                   <AddButton type="button" onClick={handleCancel} style={{ background: '#f44336' }}>
                     Cancel
                   </AddButton>
                 </>
               ) : (
-                <AddButton type="submit">Add new account</AddButton>
+                <AddButton type="submit" disabled={loading}>
+                  {loading ? 'Saving...' : 'Add new card'}
+                </AddButton>
               )}
             </div>
           </Form>
         </FormSection>
 
         <AccountsTable>
-          <h4>My Accounts</h4>
+          <h4>My Cards</h4>
           <SearchBox>
             <input 
               type="text" 
-              placeholder="Search by bank name..."
+              placeholder="Search by card brand..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -419,16 +437,20 @@ const MyAccounts = () => {
             <Table>
               <thead>
                 <tr>
-                  <th>Bank name</th>
-                  <th>Account number</th>
+                  <th>Brand</th>
+                  <th>Last 4</th>
+                  <th>Expiry</th>
+                  <th>Nickname</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredAccounts.map(account => (
                   <tr key={account.id}>
-                    <td>{account.bankName}</td>
-                    <td>{account.accountNumber}</td>
+                    <td>{account.card?.brand?.toUpperCase()}</td>
+                    <td>{account.card?.last4}</td>
+                    <td>{account.card?.exp_month}/{account.card?.exp_year}</td>
+                    <td>{account.nickname || ''}</td>
                     <td>
                       <ActionButton onClick={() => handleEdit(account)}>
                         <img src={editIcon} alt="Edit" />
@@ -457,8 +479,8 @@ const MyAccounts = () => {
         <>
           <Overlay onClick={handleCancelDelete} />
           <ConfirmationPopup>
-            <h4>Delete Account</h4>
-            <p>Are you sure you want to delete the account from {deletingAccount.bankName}?</p>
+            <h4>Delete Card</h4>
+            <p>Are you sure you want to delete this card?</p>
             <p>This action cannot be undone.</p>
             <div className="buttons">
               <AddButton 
