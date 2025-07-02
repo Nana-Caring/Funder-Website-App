@@ -1068,6 +1068,7 @@ const Dashboard = () => {
                   onClose={() => setIsModalOpen(false)}
                   aria-labelledby="send-money-modal"
                 >
+                <div>
                   <SendMoneyModal>
                     <div className="modal-header">
                       <IconButton onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', left: '10px' }}>
@@ -1126,13 +1127,16 @@ const Dashboard = () => {
                       </button>
                     </div>
                   </SendMoneyModal>
+                </div>
                 </Modal>
                 <Modal
                   open={isPaymentModalOpen}
                   onClose={() => setIsPaymentModalOpen(false)}
                   aria-labelledby="payment-modal"
                 >
+                <div>
                   <PaymentModal onClose={() => setIsPaymentModalOpen(false)} />
+                </div>
                 </Modal>
               </div>
               <div className="action-card">

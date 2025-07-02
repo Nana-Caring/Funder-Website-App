@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import axios from 'axios';
 import editIcon from '../../assets/icons/edit.png';
 import deleteIcon from '../../assets/icons/delete.png';
 import { useSelector } from 'react-redux';
@@ -167,60 +168,36 @@ const getRandomPastelColor = () => {
 };
 
 const BeneficiaryForm = () => {
-  const { token } = useSelector(state => state.authentication);
   const [beneficiaries, setBeneficiaries] = useState([]);
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    accountNumber: '',
-  });
-
+  const [formData, setFormData] = useState({name: '', accountNumber: ''});
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+ // Fetch beneficiaries from backend
     const fetchBeneficiaries = async () => {
-      if (!token) {
-        setError('Please log in to view beneficiaries');
-        return;
-      }
-
+      setLoading(true);
+      setError('');
       try {
-        setLoading(true);
-        setError(null);
-        
-        const data = await funderService.getDependents(token);
-        
-        if (data && data.length > 0) {
-          setBeneficiaries(data);
-        } else {
-          setBeneficiaries([]);
-        }
-      } catch (error) {
-        console.error('Error fetching beneficiaries:', error);
-        
-        // Handle the improved error messages from the service
-        if (error.message === 'No dependents found.') {
-          setBeneficiaries([]);
-          // Don't set error for no dependents, just show empty table
-        } else {
-          setError(error.message || 'Failed to load beneficiaries. Please try again.');
-        }
+        const token = localStorage.getItem('token');
+        const response = await axios.get('http://localhost:5000/api/funder/get-beneficiaries', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+          setBeneficiaries(response.data.beneficiaries || []);
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to fetch beneficiaries');
       } finally {
         setLoading(false);
       }
     };
 
-    if (token) {
-      fetchBeneficiaries();
-    } else {
-      setError('Please log in to access this feature');
-    }
-  }, [token]);
+    useEffect(() => {
+    fetchBeneficiaries();
+  }, []);
+
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -230,27 +207,44 @@ const BeneficiaryForm = () => {
     }));
   };
 
-  const handleAddBeneficiary = (e) => {
+  // Add beneficiary via backend
+  const handleAddBeneficiary = async (e) => {
     e.preventDefault();
-    if (formData.name && formData.accountNumber) {
-      if (isEditing && editingIndex !== null) {
-        setBeneficiaries(prev => prev.map((item, index) => 
-          index === editingIndex 
-            ? { name: formData.name, accountNumber: formData.accountNumber }
-            : item
-        ));
-        setIsEditing(false);
-        setEditingIndex(null);
+    setError('');
+
+    if (!formData.name || !formData.accountNumber){
+      setError('Please fill in all fields');
+      return;
+    }
+
+    console.log('Sending data to backend:', formData);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post('http://localhost:5000/api/funder/link-dependent', {
+        dependentName: formData.name,
+        accountNumber: formData.accountNumber
+
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }  
+      );
+
+      
+      if (response.status === 200 || response.status === 201) {
+        setFormData({ name: '', accountNumber: '' });
+        setError('✅ Beneficiary added successfully.');
+        await fetchBeneficiaries(); // Refresh beneficiaries list
       } else {
-        setBeneficiaries(prev => [
-          ...prev,
-          { name: formData.name, accountNumber: formData.accountNumber }
-        ]);
+        setError(response.data.message || 'Failed to add beneficiary');
       }
-      setFormData({
-        name: '',
-        accountNumber: '',
-      });
+    } catch (err) {
+      console.error('Error adding beneficiary:', err);
+      setError(err.response?.data?.message || 'Server error');
     }
   };
 
@@ -258,7 +252,7 @@ const BeneficiaryForm = () => {
     setIsEditing(true);
     setEditingIndex(index);
     setFormData({
-      name: beneficiary.name,
+      name: beneficiary.name || beneficiary.firstName,
       accountNumber: beneficiary.accountNumber,
     });
   };
@@ -277,7 +271,9 @@ const BeneficiaryForm = () => {
   };
 
   const filteredBeneficiaries = beneficiaries.filter(beneficiary =>
-    beneficiary.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (beneficiary.name || beneficiary.firstName || '')
+    .toLowerCase()
+    .includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -395,6 +391,16 @@ const BeneficiaryForm = () => {
             {isEditing ? 'Update Beneficiary' : 'Add Beneficiary'}
           </button>
         </div>
+
+        {error && (
+          <div style={{
+            color: error.startsWith('✅') ? 'green' : 'red',
+            marginBottom: '10px',
+            fontWeight: 500
+          }}>
+            {error}
+          </div>
+        )}
       </FormContainer>
 
       <TableContainer>
@@ -426,68 +432,51 @@ const BeneficiaryForm = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredBeneficiaries.length === 0 ? (
-                <tr>
-                  <td 
-                    colSpan="3" 
-                    style={{ 
-                      textAlign: 'center', 
-                      padding: '40px 20px', 
-                      color: '#666', 
-                      fontStyle: 'italic',
-                      border: '1px solid #ddd'
-                    }}
-                  >
-                    {loading ? 'Loading...' : 'No dependents added yet'}
+              {filteredBeneficiaries.map((beneficiary, index) => (
+                <tr key={index} style={{ borderBottom: '1px solid #ddd' }}>
+                  <td style={{ 
+                    padding: '8px 10px', 
+                    border: '1px solid #ddd',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    <Avatar color={getRandomPastelColor()}>
+                      {(beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '?').charAt(0)}
+                    </Avatar>
+                    {beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '?'}
+                  </td>
+                  <td style={{ padding: '8px 10px', border: '1px solid #ddd' }}>
+                    {beneficiary.accountNumber}
+                  </td>
+                  <td style={{ padding: '8px 10px', border: '1px solid #ddd' }}>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button
+                        onClick={() => handleEdit(beneficiary, index)}
+                        style={{
+                          padding: '4px',
+                          border: 'none',
+                          background: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <img src={editIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
+                      </button>
+                      <button
+                        onClick={handleDeleteAttempt}
+                        style={{
+                          padding: '4px',
+                          border: 'none',
+                          background: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <img src={deleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                filteredBeneficiaries.map((beneficiary, index) => (
-                  <tr key={index} style={{ borderBottom: '1px solid #ddd' }}>
-                    <td style={{ 
-                      padding: '8px 10px', 
-                      border: '1px solid #ddd',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px'
-                    }}>
-                      <Avatar color={getRandomPastelColor()}>
-                        {beneficiary.name.charAt(0)}
-                      </Avatar>
-                      {beneficiary.name}
-                    </td>
-                    <td style={{ padding: '8px 10px', border: '1px solid #ddd' }}>
-                      {beneficiary.accountNumber}
-                    </td>
-                    <td style={{ padding: '8px 10px', border: '1px solid #ddd' }}>
-                      <div style={{ display: 'flex', gap: '12px' }}>
-                        <button
-                          onClick={() => handleEdit(beneficiary, index)}
-                          style={{
-                            padding: '4px',
-                            border: 'none',
-                            background: 'none',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <img src={editIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
-                        </button>
-                        <button
-                          onClick={handleDeleteAttempt}
-                          style={{
-                            padding: '4px',
-                            border: 'none',
-                            background: 'none',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <img src={deleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>

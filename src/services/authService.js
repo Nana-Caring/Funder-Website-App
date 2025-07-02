@@ -5,7 +5,8 @@ const API_URL = 'https://nanacaring-backend.onrender.com/api/auth';
 const authService = {
   login: async (credentials) => {
     try {
-      const response = await axios.post(`${API_URL}/login`, credentials);
+      const response = await axios.post(
+        `${API_URL}/login`, credentials);
       const { token, user } = response.data;
       
       // Store token in localStorage

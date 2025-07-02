@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { loadStripe} from '@stripe/stripe-js';
+import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import styled from 'styled-components';
+
+const stripePromise = loadStripe('pk_test_51REGFbROeQRel9O58mOSulLZR25JiDCo0FqwlrhopxEUuFh68lZXNTKYDer8334RrTFGBvlsKdkPMFbvzLbaoA4X00OLIDpVtW');
+
 
 const Container = styled.div`
   display: flex;
@@ -109,36 +115,129 @@ const PayButton = styled.button`
 
 const SendMoney = () => {
   const [beneficiary, setBeneficiary] = useState('');
-  const [account, setAccount] = useState('');
+  const [beneficiaries, setBeneficiaries] = useState([]);
+  const [accountType, setAccountType] = useState('Main Account');
   const [amount, setAmount] = useState('5000');
+  const [account, setAccount] = useState('');
   const [accounts, setAccounts] = useState([
     { name: 'Nana Account', id: 'nana' }
   ]);
-  const [showAddAccount, setShowAddAccount] = useState(false);
   const [newAccountName, setNewAccountName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  
+  const stripe = useStripe();
+  const elements = useElements();
 
-  // Optionally, load accounts from backend here
-  useEffect(() => {
-    // fetchAccounts().then(setAccounts);
-  }, []);
+
+    // Fetch beneficiaries from backend
+ const fetchBeneficiaries = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get('http://localhost:5000/api/funder/get-beneficiaries', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+          setBeneficiaries(response.data.beneficiaries || []);
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to fetch beneficiaries');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+     useEffect(() => {
+        fetchBeneficiaries();
+      }, []);
+    
+
+  // Find selected beneficiary object
+const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary);
+
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMessage('');
+    setLoading(true);
+
+    if (!selectedBeneficiary || !selectedBeneficiary.accountNumber) {
+      setMessage('Please select a valid beneficiary.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+
+      // Create PaymentIntent
+      const res = await axios.post(
+        'http://localhost:5000/api/stripe/create-payment-intent',
+        {
+          amount: Number(amount),
+          accountNumber: selectedBeneficiary.accountNumber,
+          accountType
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      const { clientSecret } = res.data;
+
+
+      // Confirm payment with Stripe
+      const cardElement = elements.getElement(CardElement);
+      const paymentResult = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: cardElement
+        }
+      });
+
+      if (paymentResult.error) {
+        setMessage(paymentResult.error.message || 'Payment failed.');
+      } else if (paymentResult.paymentIntent.status === 'succeeded') {
+        setMessage('🎉 Payment successful!');
+      } else {
+        setMessage('Payment status: ' + paymentResult.paymentIntent.status);
+      }
+
+    } catch (err) {
+      console.error(err);
+      setMessage(err.response?.data?.error || 'Payment failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddAccount = () => {
     if (newAccountName.trim()) {
       setAccounts([...accounts, { name: newAccountName, id: Date.now().toString() }]);
       setNewAccountName('');
-      setShowAddAccount(false);
+      // setShowAddAccount(false);
     }
   };
 
   return (
     <Container>
       <FormSection>
+        <form onSubmit={handleSubmit}>
         <FormGroup>
-          <label>Beneficiary name</label>
-          <select value={beneficiary} onChange={(e) => setBeneficiary(e.target.value)}>
+          <label htmlFor="beneficiary-select">Beneficiary name</label>
+          <select
+            id="beneficiary-select"
+            name="beneficiary"
+            value={beneficiary}
+            onChange={(e) => setBeneficiary(e.target.value)}
+            required
+          >
             <option value="">Select</option>
-            <option value="John Doe">John Doe</option>
-            <option value="Jane Smith">Jane Smith</option>
+            {beneficiaries.map((b, idx) => (
+              <option key={`${b.id}-${idx}`} value={String(b.id)}>
+                {b.firstName} {b.middleName ? b.middleName :  ''}
+              </option>
+            ))}
           </select>
         </FormGroup>
 
@@ -200,7 +299,11 @@ const SendMoney = () => {
 
         <FormGroup>
           <label>To</label>
-          <select value={account} onChange={(e) => setAccount(e.target.value)}>
+          <select 
+          value={accountType} 
+          onChange={(e) => setAccountType(e.target.value)}
+          required
+          >
             <option value="">Select</option>
             <option value="Main Account">Main Account</option>
             <option value="Education" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
@@ -236,7 +339,19 @@ const SendMoney = () => {
           </AmountField>
         </AmountContainer>
 
-        <PayButton type="submit">Pay</PayButton>
+        <FormGroup>
+          <label>Card Details</label>
+          <CardElement />
+        </FormGroup>
+
+
+        <PayButton type="submit" disabled={loading}>
+          {loading ? 'Processing...' : 'Pay'}
+        </PayButton>
+
+        {message && <WarningText>{message}</WarningText>}
+
+        </form>
       </FormSection>
     </Container>
   );
