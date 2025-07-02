@@ -137,7 +137,7 @@ const SendMoney = () => {
       setError('');
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://localhost:5000/api/funder/get-beneficiaries', {
+        const response = await axios.get('https://nanacaring-backend.onrender.com/api/funder/get-beneficiaries', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
           setBeneficiaries(response.data.beneficiaries || []);
@@ -173,7 +173,7 @@ const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary
 
       // Create PaymentIntent
       const res = await axios.post(
-        'http://localhost:5000/api/stripe/create-payment-intent',
+        'https://nanacaring-backend.onrender.com/api/stripe/create-payment-intent',
         {
           amount: Number(amount),
           accountNumber: selectedBeneficiary.accountNumber,
