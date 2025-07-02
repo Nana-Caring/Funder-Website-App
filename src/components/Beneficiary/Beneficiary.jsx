@@ -436,9 +436,9 @@ const BeneficiaryForm = () => {
                     gap: '12px'
                   }}>
                     <Avatar color={getRandomPastelColor()}>
-                      {beneficiary.name.charAt(0)}
+                      {(beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '?').charAt(0)}
                     </Avatar>
-                    {beneficiary.name}
+                    {beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '?'}
                   </td>
                   <td style={{ padding: '8px 10px', border: '1px solid #ddd' }}>
                     {beneficiary.accountNumber}

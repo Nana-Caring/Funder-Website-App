@@ -6,6 +6,7 @@ import styled from 'styled-components';
 
 const stripePromise = loadStripe('pk_test_51REGFbROeQRel9O58mOSulLZR25JiDCo0FqwlrhopxEUuFh68lZXNTKYDer8334RrTFGBvlsKdkPMFbvzLbaoA4X00OLIDpVtW');
 
+
 const Container = styled.div`
   display: flex;
   width: 100%;
@@ -124,29 +125,36 @@ const SendMoney = () => {
   const [newAccountName, setNewAccountName] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
   
   const stripe = useStripe();
   const elements = useElements();
 
 
     // Fetch beneficiaries from backend
-  useEffect(() => {
-    const fetchBeneficiaries = async () => {
+ const fetchBeneficiaries = async () => {
+      setLoading(true);
+      setError('');
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('/api/funder/get-beneficiaries', {
-          headers: { Authorization: `Bearer ${token}` }
+        const response = await axios.get('http://localhost:5000/api/funder/get-beneficiaries', {
+          headers: { 'Authorization': `Bearer ${token}` }
         });
-        setBeneficiaries(res.data.beneficiaries || []);
+          setBeneficiaries(response.data.beneficiaries || []);
       } catch (err) {
-        setMessage('Failed to load beneficiaries');
+        setError(err.response?.data?.message || 'Failed to fetch beneficiaries');
+      } finally {
+        setLoading(false);
       }
     };
-    fetchBeneficiaries();
-  }, []);
+
+     useEffect(() => {
+        fetchBeneficiaries();
+      }, []);
+    
 
   // Find selected beneficiary object
-const selectedBeneficiary = beneficiaries.find(b => b.id === beneficiary);
+const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary);
 
 
   const handleSubmit = async (e) => {
@@ -216,13 +224,19 @@ const selectedBeneficiary = beneficiaries.find(b => b.id === beneficiary);
       <FormSection>
         <form onSubmit={handleSubmit}>
         <FormGroup>
-          <label>Beneficiary name</label>
-          <select value={beneficiary} onChange={(e) => setBeneficiary(e.target.value)} required>
+          <label htmlFor="beneficiary-select">Beneficiary name</label>
+          <select
+            id="beneficiary-select"
+            name="beneficiary"
+            value={beneficiary}
+            onChange={(e) => setBeneficiary(e.target.value)}
+            required
+          >
             <option value="">Select</option>
-            {beneficiaries.map(b => (
-              <option key={b.id} value={b.id}>
-                {b.firstName} - {b.lastName || ''}
-            </option>
+            {beneficiaries.map((b, idx) => (
+              <option key={`${b.id}-${idx}`} value={String(b.id)}>
+                {b.firstName} {b.middleName ? b.middleName :  ''}
+              </option>
             ))}
           </select>
         </FormGroup>
