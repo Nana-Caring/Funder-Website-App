@@ -16,6 +16,7 @@ import {
 } from '@mui/icons-material';
 import PaymentModal from '../PaymentModal/PaymentModal';
 import ProfileCompletionPopup from '../common/ProfileCompletionPopup';
+import { accountService } from '../../services/accountService';
 import { Avatar, Modal, IconButton } from '@mui/material';
 /* 
   Outer container that holds the main dashboard area.
@@ -788,7 +789,41 @@ const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
+  const [accountData, setAccountData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [recentTransactions, setRecentTransactions] = useState([]);
   const userName = localStorage.getItem('userName') || 'User';
+
+  useEffect(() => {
+    // Fetch account data
+    const fetchAccountData = async () => {
+      try {
+        setLoading(true);
+        const accountsData = await accountService.getMyAccounts();
+        setAccountData(accountsData);
+        
+        // Fetch recent transactions from main account if available
+        if (accountsData.accounts?.main?.[0]?.id) {
+          const summaryData = await accountService.getAccountSummary(accountsData.accounts.main[0].id);
+          setRecentTransactions(summaryData.account?.transactions || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch account data:', error);
+        setError('Failed to load account information');
+        // Keep mock data as fallback
+        setAccountData({
+          totalBalance: "0.00",
+          currency: "ZAR",
+          accounts: { main: [], sub: [] }
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAccountData();
+  }, []);
 
   useEffect(() => {
     // Check if we should show the profile completion popup
@@ -797,28 +832,18 @@ const Dashboard = () => {
       const reminderTime = localStorage.getItem('profileCompletionReminder');
       const currentTime = Date.now();
 
-      console.log('Profile popup check:', {
-        dismissed,
-        reminderTime,
-        currentTime,
-        stillInReminderPeriod: reminderTime && currentTime < parseInt(reminderTime)
-      });
-
       // Don't show if user has dismissed it permanently
       if (dismissed === 'true') {
-        console.log('Popup dismissed permanently');
         return false;
       }
 
       // Don't show if we're still in the reminder period
       if (reminderTime && currentTime < parseInt(reminderTime)) {
-        console.log('Still in reminder period');
         return false;
       }
 
       // Check if profile is complete by looking at required fields
       const storedUser = localStorage.getItem('user');
-      console.log('Stored user data:', storedUser);
       
       if (storedUser) {
         try {
@@ -833,13 +858,6 @@ const Dashboard = () => {
             !userData[field] || userData[field].toString().trim() === ''
           );
           
-          console.log('Profile completion check:', {
-            userData,
-            requiredFields,
-            missingFields,
-            shouldShowPopup: missingFields.length > 0
-          });
-          
           // Show popup if there are missing fields
           return missingFields.length > 0;
         } catch (error) {
@@ -848,14 +866,12 @@ const Dashboard = () => {
         }
       }
 
-      console.log('No stored user data found');
       return false;
     };
 
     // Show popup after a short delay to let the dashboard load
     const timer = setTimeout(() => {
       const shouldShow = checkShowPopup();
-      console.log('Should show profile popup:', shouldShow);
       if (shouldShow) {
         setShowProfilePopup(true);
       }
@@ -874,6 +890,72 @@ const Dashboard = () => {
     setShowProfilePopup(false);
   };
 
+  // Function to refresh account data
+  const refreshAccountData = async () => {
+    try {
+      setLoading(true);
+      const accountsData = await accountService.getMyAccounts();
+      setAccountData(accountsData);
+      
+      // Fetch recent transactions from main account if available
+      if (accountsData.accounts?.main?.[0]?.id) {
+        const summaryData = await accountService.getAccountSummary(accountsData.accounts.main[0].id);
+        setRecentTransactions(summaryData.account?.transactions || []);
+      }
+      setError(''); // Clear any previous errors
+    } catch (error) {
+      console.error('Failed to refresh account data:', error);
+      setError('Failed to refresh account information');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate account statistics
+  const getAccountStats = () => {
+    if (!accountData || !accountData.accounts) {
+      return {
+        totalBalance: '0.00',
+        totalSpent: '0.00',
+        accountTypeStats: [],
+        mainAccount: null
+      };
+    }
+
+    const allAccounts = [
+      ...(accountData.accounts.main || []),
+      ...(accountData.accounts.sub || [])
+    ];
+
+    const mainAccount = accountData.accounts.main?.[0] || null;
+    const totalBalance = parseFloat(accountData.totalBalance || 0);
+    
+    // Calculate spent amount (this could come from transactions or be calculated differently)
+    const totalSpent = recentTransactions.reduce((sum, transaction) => {
+      if (transaction.type === 'Debit') {
+        return sum + parseFloat(transaction.amount || 0);
+      }
+      return sum;
+    }, 0);
+
+    // Calculate account type statistics
+    const accountTypeStats = accountData.accounts.sub?.map(account => ({
+      type: account.accountType,
+      balance: parseFloat(account.balance || 0),
+      percentage: accountService.getAccountTypePercentage(account.balance, totalBalance),
+      color: accountService.getAccountTypeColor(account.accountType)
+    })) || [];
+
+    return {
+      totalBalance: accountService.formatCurrency(totalBalance),
+      totalSpent: accountService.formatCurrency(totalSpent),
+      accountTypeStats,
+      mainAccount
+    };
+  };
+
+  const stats = getAccountStats();
+
   return (
     <ResponsiveStyles>
       <Container>
@@ -884,19 +966,67 @@ const Dashboard = () => {
             <BalanceCard>
               <div className="balance-row">
                 <div className="balance-item">
-                  <p>Money Out:</p>
-                  <p>-R10 000</p>
+                  <p>Total Balance:</p>
+                  <p style={{ color: '#185c37', fontWeight: 'bold' }}>
+                    {loading ? 'Loading...' : stats.totalBalance}
+                  </p>
                 </div>
-                
+                <div className="balance-item">
+                  <p>Money Out:</p>
+                  <p style={{ color: '#e74c3c', fontWeight: 'bold' }}>
+                    {loading ? 'Loading...' : `-${stats.totalSpent}`}
+                  </p>
+                </div>
+                <button
+                  onClick={refreshAccountData}
+                  disabled={loading}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: '#185c37',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    opacity: loading ? 0.6 : 1,
+                    alignSelf: 'flex-end'
+                  }}
+                >
+                  {loading ? 'Refreshing...' : 'Refresh'}
+                </button>
               </div>
+              {error && (
+                <div style={{ 
+                  padding: '8px', 
+                  backgroundColor: '#fff3cd', 
+                  border: '1px solid #ffeaa7', 
+                  borderRadius: '4px', 
+                  fontSize: '12px',
+                  color: '#856404',
+                  marginTop: '8px'
+                }}>
+                  {error}
+                </div>
+              )}
             </BalanceCard>
 
             <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
               <NanaCardWrapper>
                 <NanaCardShadow />
                 <NanaCard>
-                  <div className="card-name">MR PRINCE MASHUNU</div>
-                 
+                  <div className="card-name">
+                    {loading ? 'LOADING...' : (userName?.toUpperCase() || 'USER')}
+                  </div>
+                  {stats.mainAccount && (
+                    <div style={{ 
+                      fontSize: '12px', 
+                      color: '#CAC8C8', 
+                      marginTop: '8px',
+                      marginLeft: '9px'
+                    }}>
+                      Account: {stats.mainAccount.accountNumber}
+                    </div>
+                  )}
                 </NanaCard>
               </NanaCardWrapper>
             </div>
@@ -921,8 +1051,16 @@ const Dashboard = () => {
                 </div>
                 <select className="transfer-select">
                   <option>Select Account</option>
-                  <option>Savings Account</option>
-                  <option>Checking Account</option>
+                  {accountData?.accounts?.main?.map(account => (
+                    <option key={account.id} value={account.id}>
+                      {account.accountType} - {accountService.formatCurrency(account.balance)}
+                    </option>
+                  ))}
+                  {accountData?.accounts?.sub?.map(account => (
+                    <option key={account.id} value={account.id}>
+                      {account.accountType} - {accountService.formatCurrency(account.balance)}
+                    </option>
+                  ))}
                 </select>
                 <button onClick={() => setIsModalOpen(true)}>Send Money</button>
                 <Modal
@@ -950,13 +1088,23 @@ const Dashboard = () => {
                     <div className="form-group">
                       <label>From</label>
                       <select>
-                        <option>Capitec Account</option>
+                        <option value="">Select Source Account</option>
+                        {accountData?.accounts?.main?.map(account => (
+                          <option key={account.id} value={account.id}>
+                            {account.accountType} - {accountService.formatCurrency(account.balance)}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div className="form-group">
                       <label>To</label>
                       <select>
-                        <option>Baby Care Account</option>
+                        <option value="">Select Destination Account</option>
+                        {accountData?.accounts?.sub?.map(account => (
+                          <option key={account.id} value={account.id}>
+                            {account.accountType} - {accountService.formatCurrency(account.balance)}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div className="form-group">
@@ -1028,57 +1176,96 @@ const Dashboard = () => {
                   <div className="dot inactive"></div>
                 </div>
               </div>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>Monthly expenses <img src="/src/assets/icons/expenses.png" alt="arrow" className="arrow-icon" style={{ width: '16px', height: '16px' }} /></h3>
-            <p className="total" style={{ fontFamily: 'Inter', fontSize: '30px', fontWeight: '400', marginTop: '4px', marginBottom: '4px', color: '#333333' }}>00</p>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Monthly expenses 
+                <img src="/src/assets/icons/expenses.png" alt="arrow" className="arrow-icon" style={{ width: '16px', height: '16px' }} />
+              </h3>
+              <p className="total" style={{ 
+                fontFamily: 'Inter', 
+                fontSize: '30px', 
+                fontWeight: '400', 
+                marginTop: '4px', 
+                marginBottom: '4px', 
+                color: '#333333' 
+              }}>
+                {loading ? 'Loading...' : stats.totalSpent}
+              </p>
               <AccountProgress>
                 <div className="label">
-                  <span>Baby Care Account</span>
-                  <span>00%</span>
+                  <span>Account Distribution</span>
+                  <span>{loading ? '0%' : '100%'}</span>
                 </div>
                 <div className="progress-bar">
-                  <div className="fill baby"></div>
-                  <div className="fill entertainment"></div>
-                  <div className="fill healthcare"></div>
-                  <div className="fill education"></div>
+                  {stats.accountTypeStats.map((account, index) => (
+                    <div 
+                      key={index}
+                      className="fill" 
+                      style={{ 
+                        backgroundColor: account.color,
+                        flex: account.percentage / 100 || 0.1
+                      }}
+                    />
+                  ))}
                 </div>
               </AccountProgress>
               <div className="account-list">
-                <div className="account-item">
-                  <div className="dot baby"></div>
-                  <span>Baby Care Account</span>
-                  <span style={{ marginLeft: 'auto' }}>20%</span>
-                </div>
-                <div className="account-item">
-                  <div className="dot entertainment"></div>
-                  <span>Entertainment Account</span>
-                  <span style={{ marginLeft: 'auto' }}>40%</span>
-                </div>
-                <div className="account-item">
-                  <div className="dot healthcare"></div>
-                  <span>Healthcare Account</span>
-                  <span style={{ marginLeft: 'auto' }}>20%</span>
-                </div>
+                {loading ? (
+                  <div className="account-item">
+                    <div className="dot" style={{ backgroundColor: '#ccc' }}></div>
+                    <span>Loading accounts...</span>
+                  </div>
+                ) : (
+                  stats.accountTypeStats.map((account, index) => (
+                    <div className="account-item" key={index}>
+                      <div className="dot" style={{ backgroundColor: account.color }}></div>
+                      <span>{account.type} Account</span>
+                      <span style={{ marginLeft: 'auto' }}>
+                        {account.percentage}% ({accountService.formatCurrency(account.balance)})
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </TrackingSection>
 
             <TransactionHistory>
-              <h3>
-               Latest Transactions
-               
-              </h3>
+              <h3>Latest Transactions</h3>
               <div className="transactions-container">
-                {mockTransactions.map((transaction) => (
-                  <div className="transaction" key={transaction.id}>
-                    <LetterAvatar>
-                      {transaction.type.charAt(0)}
-                    </LetterAvatar>
-                    <div className="details">
-                      <span>{transaction.type}</span>
-                      <span>{transaction.date}</span>
-                      <span className="amount">{transaction.amount}</span>
-                    </div>
+                {loading ? (
+                  <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                    Loading transactions...
                   </div>
-                ))}
+                ) : recentTransactions.length > 0 ? (
+                  recentTransactions.slice(0, 8).map((transaction) => (
+                    <div className="transaction" key={transaction.id}>
+                      <LetterAvatar color={transaction.type === 'Credit' ? '#185c37' : '#e74c3c'}>
+                        {transaction.type === 'Credit' ? '+' : '-'}
+                      </LetterAvatar>
+                      <div className="details">
+                        <span>{transaction.type}</span>
+                        <span>{new Date(transaction.createdAt).toLocaleDateString()} {new Date(transaction.createdAt).toLocaleTimeString()}</span>
+                        <span className="amount" style={{ 
+                          color: transaction.type === 'Credit' ? '#185c37' : '#e74c3c' 
+                        }}>
+                          {transaction.type === 'Credit' ? '+' : '-'}{accountService.formatCurrency(transaction.amount)}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  mockTransactions.map((transaction) => (
+                    <div className="transaction" key={transaction.id}>
+                      <LetterAvatar>
+                        {transaction.type.charAt(0)}
+                      </LetterAvatar>
+                      <div className="details">
+                        <span>{transaction.type}</span>
+                        <span>{transaction.date}</span>
+                        <span className="amount">{transaction.amount}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </TransactionHistory>
           </RightPanel>
