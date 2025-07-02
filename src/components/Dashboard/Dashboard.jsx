@@ -790,16 +790,14 @@ const Dashboard = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [accountData, setAccountData] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [recentTransactions, setRecentTransactions] = useState([]);
   const userName = localStorage.getItem('userName') || 'User';
 
   useEffect(() => {
-    // Fetch account data
+    // Fetch account data immediately without loading state
     const fetchAccountData = async () => {
       try {
-        setLoading(true);
         const accountsData = await accountService.getMyAccounts();
         setAccountData(accountsData);
         
@@ -817,8 +815,6 @@ const Dashboard = () => {
           currency: "ZAR",
           accounts: { main: [], sub: [] }
         });
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -890,27 +886,6 @@ const Dashboard = () => {
     setShowProfilePopup(false);
   };
 
-  // Function to refresh account data
-  const refreshAccountData = async () => {
-    try {
-      setLoading(true);
-      const accountsData = await accountService.getMyAccounts();
-      setAccountData(accountsData);
-      
-      // Fetch recent transactions from main account if available
-      if (accountsData.accounts?.main?.[0]?.id) {
-        const summaryData = await accountService.getAccountSummary(accountsData.accounts.main[0].id);
-        setRecentTransactions(summaryData.account?.transactions || []);
-      }
-      setError(''); // Clear any previous errors
-    } catch (error) {
-      console.error('Failed to refresh account data:', error);
-      setError('Failed to refresh account information');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Calculate account statistics
   const getAccountStats = () => {
     if (!accountData || !accountData.accounts) {
@@ -968,32 +943,15 @@ const Dashboard = () => {
                 <div className="balance-item">
                   <p>Total Balance:</p>
                   <p style={{ color: '#185c37', fontWeight: 'bold' }}>
-                    {loading ? 'Loading...' : stats.totalBalance}
+                    {stats.totalBalance}
                   </p>
                 </div>
                 <div className="balance-item">
                   <p>Money Out:</p>
                   <p style={{ color: '#e74c3c', fontWeight: 'bold' }}>
-                    {loading ? 'Loading...' : `-${stats.totalSpent}`}
+                    -{stats.totalSpent}
                   </p>
                 </div>
-                <button
-                  onClick={refreshAccountData}
-                  disabled={loading}
-                  style={{
-                    padding: '6px 12px',
-                    backgroundColor: '#185c37',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    fontSize: '12px',
-                    opacity: loading ? 0.6 : 1,
-                    alignSelf: 'flex-end'
-                  }}
-                >
-                  {loading ? 'Refreshing...' : 'Refresh'}
-                </button>
               </div>
               {error && (
                 <div style={{ 
@@ -1015,7 +973,7 @@ const Dashboard = () => {
                 <NanaCardShadow />
                 <NanaCard>
                   <div className="card-name">
-                    {loading ? 'LOADING...' : (userName?.toUpperCase() || 'USER')}
+                    {userName?.toUpperCase() || 'USER'}
                   </div>
                   {stats.mainAccount && (
                     <div style={{ 
@@ -1192,12 +1150,12 @@ const Dashboard = () => {
                 marginBottom: '4px', 
                 color: '#333333' 
               }}>
-                {loading ? 'Loading...' : stats.totalSpent}
+                {stats.totalSpent}
               </p>
               <AccountProgress>
                 <div className="label">
                   <span>Account Distribution</span>
-                  <span>{loading ? '0%' : '100%'}</span>
+                  <span>100%</span>
                 </div>
                 <div className="progress-bar">
                   {stats.accountTypeStats.map((account, index) => (
@@ -1213,33 +1171,22 @@ const Dashboard = () => {
                 </div>
               </AccountProgress>
               <div className="account-list">
-                {loading ? (
-                  <div className="account-item">
-                    <div className="dot" style={{ backgroundColor: '#ccc' }}></div>
-                    <span>Loading accounts...</span>
+                {stats.accountTypeStats.map((account, index) => (
+                  <div className="account-item" key={index}>
+                    <div className="dot" style={{ backgroundColor: account.color }}></div>
+                    <span>{account.type} Account</span>
+                    <span style={{ marginLeft: 'auto' }}>
+                      {account.percentage}% ({accountService.formatCurrency(account.balance)})
+                    </span>
                   </div>
-                ) : (
-                  stats.accountTypeStats.map((account, index) => (
-                    <div className="account-item" key={index}>
-                      <div className="dot" style={{ backgroundColor: account.color }}></div>
-                      <span>{account.type} Account</span>
-                      <span style={{ marginLeft: 'auto' }}>
-                        {account.percentage}% ({accountService.formatCurrency(account.balance)})
-                      </span>
-                    </div>
-                  ))
-                )}
+                ))}
               </div>
             </TrackingSection>
 
             <TransactionHistory>
               <h3>Latest Transactions</h3>
               <div className="transactions-container">
-                {loading ? (
-                  <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
-                    Loading transactions...
-                  </div>
-                ) : recentTransactions.length > 0 ? (
+                {recentTransactions.length > 0 ? (
                   recentTransactions.slice(0, 8).map((transaction) => (
                     <div className="transaction" key={transaction.id}>
                       <LetterAvatar color={transaction.type === 'Credit' ? '#185c37' : '#e74c3c'}>
