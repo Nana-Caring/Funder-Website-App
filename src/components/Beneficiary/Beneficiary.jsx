@@ -183,7 +183,7 @@ const BeneficiaryForm = () => {
       setError('');
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('https://nanacaring-backend.onrender.com/api/funder/get-beneficiaries', {
+        const response = await axios.get('http://localhost:5000/api/funder/get-beneficiaries', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
           setBeneficiaries(response.data.beneficiaries || []);
@@ -221,7 +221,7 @@ const BeneficiaryForm = () => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('https://nanacaring-backend.onrender.com/api/funder/link-dependent', {
+      const response = await axios.post('http://localhost:5000/api/funder/link-dependent', {
         dependentName: formData.name,
         accountNumber: formData.accountNumber
 

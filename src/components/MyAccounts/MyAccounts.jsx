@@ -279,7 +279,7 @@ const MyAccounts = () => {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(
-        'https://nanacaring-backend.onrender.com/api/stripe/payment-methods',
+        'http://localhost:5000/api/stripe/payment-methods',
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setAccounts(res.data.paymentMethods || []);
@@ -337,7 +337,7 @@ const MyAccounts = () => {
       const token = localStorage.getItem('token');
       // 1. Create SetupIntent
       const res = await axios.post(
-        'https://nanacaring-backend.onrender.com/api/stripe/create-setup-intent',
+        'http://localhost:5000/api/stripe/create-setup-intent',
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

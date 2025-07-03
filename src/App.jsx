@@ -222,12 +222,16 @@ function App() {
               </ProtectedRoute>
             }>
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="my-accounts" element={<MyAccounts />} />
-               <Route path="send-money" element={
+              <Route path="my-accounts" element={
                 <Elements stripe={stripePromise}>
-                  <SendMoney />
+                  <MyAccounts />
                 </Elements>
-              } />
+                } />
+                <Route path="send-money" element={
+                  <Elements stripe={stripePromise}>
+                    <SendMoney />
+                  </Elements>
+                } />
               <Route path="beneficiary" element={<BeneficiaryForm />} />
               <Route path="messages" element={<Messages />} />
               <Route path="statements" element={<Statements />} />
