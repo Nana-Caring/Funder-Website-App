@@ -63,9 +63,16 @@ const LoginPage = () => {
         user: response.user,
         accounts: response.accounts
       }));
+      
+      // Store the complete raw response in localStorage for funders
+      // This ensures we have all the data received from the backend
+      if (response.rawResponse) {
+        localStorage.setItem('loginResponse', JSON.stringify(response.rawResponse));
+      }
 
       // Store comprehensive user data in localStorage (redundant but ensures consistency)
       localStorage.setItem('token', response.token);
+      localStorage.setItem('jwt', response.jwt || ''); // Store JWT if present
       localStorage.setItem('user', JSON.stringify(response.user));
       localStorage.setItem('userRole', response.user.role);
       localStorage.setItem('userId', response.user.id);
@@ -105,6 +112,24 @@ const LoginPage = () => {
           localStorage.setItem('mainAccountNumber', mainAccount.accountNumber || '');
           localStorage.setItem('mainAccountBalance', mainAccount.balance?.toString() || '0');
         }
+      }
+      
+      // For funder login specifically - store main account balance in one place
+      if (response.user.role === 'funder') {
+        const rawResponse = response.rawResponse;
+        let mainBalance = '0';
+        
+        // Try to extract balance from various possible locations in the response
+        if (rawResponse?.balance) {
+          mainBalance = rawResponse.balance.toString();
+        } else if (rawResponse?.accounts?.length > 0) {
+          // Use the first account balance as main balance
+          mainBalance = rawResponse.accounts[0].balance?.toString() || '0';
+        } else if (response.accounts?.length > 0) {
+          mainBalance = response.accounts[0].balance?.toString() || '0';
+        }
+        
+        localStorage.setItem('funderMainBalance', mainBalance);
       }
 
       // Setup axios interceptors

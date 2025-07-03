@@ -104,10 +104,10 @@ const Container = styled.div`
 
 const Card = styled.div`
   width: 100%;
-  max-width: 400px;
+  max-width: 800px; /* Increased from 400px to 800px */
   background: white;
   border-radius: 12px;
-  padding: 16px;
+  padding: 24px; /* Increased padding for better spacing */
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
   font-family: sans-serif;
   display: flex;

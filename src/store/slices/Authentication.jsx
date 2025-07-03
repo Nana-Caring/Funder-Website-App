@@ -15,13 +15,17 @@ export const loginUser = createAsyncThunk(
       if (!response.data || !response.data.accessToken) {
         return rejectWithValue('Invalid response from server');
       }
+      
+      // For debugging purposes
+      console.log('Login response received:', JSON.stringify(response.data));
 
       // Return a normalized object for your reducer
       return {
         token: response.data.accessToken, // Use accessToken as the main token
         jwt: response.data.jwt, // Store JWT separately if needed
         user: response.data.user,
-        accounts: response.data.accounts // Include accounts array
+        accounts: response.data.accounts, // Include accounts array
+        rawResponse: response.data // Store the full raw response
       };
     } catch (error) {
       return rejectWithValue(
@@ -122,6 +126,11 @@ const authenticationSlice = createSlice({
       // Store accounts if provided
       if (action.payload.accounts) {
         state.accounts = action.payload.accounts;
+      }
+      
+      // Store the raw response if available
+      if (action.payload.rawResponse) {
+        state.rawResponse = action.payload.rawResponse;
       }
     },
     loginFailure: (state, action) => {

@@ -84,11 +84,10 @@ const BalanceCard = styled.div`
   .balance-item {
     display: flex;
     flex-direction: row;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
     padding: 10px;
 
-    
     p {
       font-size: 16px;
       margin: 0;
@@ -873,6 +872,44 @@ const Dashboard = () => {
     // Load account data from localStorage immediately
     const loadInitialAccountData = () => {
       try {
+        // Check if this is a funder login by checking userRole
+        const userRole = localStorage.getItem('userRole');
+        
+        if (userRole === 'funder') {
+          // For funders, try to load from the complete login response first
+          const loginResponseStr = localStorage.getItem('loginResponse');
+          if (loginResponseStr) {
+            try {
+              const loginResponse = JSON.parse(loginResponseStr);
+              
+              // Transform to match expected API structure
+              const transformedData = {
+                totalBalance: loginResponse.balance?.toString() || "0",
+                currency: "ZAR",
+                accounts: {
+                  main: Array.isArray(loginResponse.accounts) ? 
+                    loginResponse.accounts.slice(0, 1) : [], // First account as main
+                  sub: Array.isArray(loginResponse.accounts) ? 
+                    loginResponse.accounts.slice(1) : [] // Rest as sub-accounts
+                }
+              };
+              setAccountData(transformedData);
+              console.log('Loaded funder account data from login response:', transformedData);
+              
+              // Load transactions if available
+              if (Array.isArray(loginResponse.transactions)) {
+                setRecentTransactions(loginResponse.transactions);
+              }
+              
+              // If data loaded successfully from login response, return early
+              return;
+            } catch (err) {
+              console.warn('Error parsing funder login response:', err);
+            }
+          }
+        }
+        
+        // Standard account loading for all user types
         const userAccounts = localStorage.getItem('userAccounts');
         if (userAccounts) {
           const accounts = JSON.parse(userAccounts);
@@ -887,7 +924,7 @@ const Dashboard = () => {
               }
             };
             setAccountData(transformedData);
-            console.log('Loaded account data from localStorage:', transformedData);
+            console.log('Loaded account data from userAccounts:', transformedData);
           }
         }
       } catch (error) {
@@ -898,7 +935,14 @@ const Dashboard = () => {
     // Load initial data immediately
     loadInitialAccountData();
 
-    // Fetch fresh account data from API
+    // Skip API call for funder role - use stored data
+    const userRole = localStorage.getItem('userRole');
+    if (userRole === 'funder') {
+      // Funders use cached data only
+      return;
+    }
+    
+    // Fetch fresh account data from API for non-funder roles
     const fetchAccountData = async () => {
       try {
         const accountsData = await accountService.getMyAccounts();
@@ -995,6 +1039,55 @@ const Dashboard = () => {
 
   // Calculate account statistics
   const getAccountStats = () => {
+    const userRole = localStorage.getItem('userRole');
+    
+    // Special handling for funder role
+    if (userRole === 'funder') {
+      // Try to get balance from various sources
+      let mainBalance = '0';
+      let mainAccount = null;
+      
+      // Try funder-specific stored balance first
+      const funderMainBalance = localStorage.getItem('funderMainBalance');
+      if (funderMainBalance) {
+        mainBalance = funderMainBalance;
+      }
+      
+      // Try to get from the raw login response next
+      try {
+        const loginResponse = JSON.parse(localStorage.getItem('loginResponse') || '{}');
+        if (loginResponse.balance) {
+          mainBalance = loginResponse.balance.toString();
+        } else if (loginResponse.accounts?.length > 0) {
+          mainBalance = loginResponse.accounts[0].balance?.toString() || '0';
+          mainAccount = loginResponse.accounts[0];
+        }
+        
+        // Use transactions from login response if available
+        if (!recentTransactions.length && Array.isArray(loginResponse.transactions)) {
+          setRecentTransactions(loginResponse.transactions);
+        }
+      } catch (e) {
+        console.warn('Error parsing funder login response for stats', e);
+      }
+      
+      // Calculate spent amount from transactions
+      const totalSpent = recentTransactions.reduce((sum, transaction) => {
+        if (transaction.type === 'Debit') {
+          return sum + parseFloat(transaction.amount || 0);
+        }
+        return sum;
+      }, 0);
+      
+      return {
+        totalBalance: accountService.formatCurrency(mainBalance),
+        totalSpent: accountService.formatCurrency(totalSpent),
+        accountTypeStats: [], // Funders don't have sub-accounts in the same way
+        mainAccount
+      };
+    }
+    
+    // Standard handling for non-funder roles
     let currentAccountData = accountData;
     
     // If no account data from API, try to get from localStorage
@@ -1072,16 +1165,35 @@ const Dashboard = () => {
           <div>
             <BalanceCard>
               <div className="balance-row">
-                <div className="balance-item">
-                  <p>Total Balance:</p>
-                  <p style={{ color: '#185c37', fontWeight: 'bold' }}>
-                    {stats.totalBalance}
-                  </p>
-                </div>
-                <div className="balance-item">
-                  <p>Money Out:</p>
-                  <p style={{ color: '#e74c3c', fontWeight: 'bold' }}>
-                    -{stats.totalSpent}
+                <div className="balance-item" style={{ justifyContent: 'center', width: '100%' }}>
+                  <p>Main Account Balance:</p>
+                  <p style={{ color: '#185c37', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                    {(() => {
+                      // For funder role, display only one balance from localStorage
+                      const userRole = localStorage.getItem('userRole');
+                      if (userRole === 'funder') {
+                        // Try to get the funder main balance first
+                        const funderMainBalance = localStorage.getItem('funderMainBalance');
+                        if (funderMainBalance) {
+                          return accountService.formatCurrency(funderMainBalance);
+                        }
+                        
+                        // Try to get from the raw login response
+                        try {
+                          const loginResponse = JSON.parse(localStorage.getItem('loginResponse') || '{}');
+                          if (loginResponse.balance) {
+                            return accountService.formatCurrency(loginResponse.balance);
+                          } else if (loginResponse.accounts?.length > 0) {
+                            return accountService.formatCurrency(loginResponse.accounts[0].balance);
+                          }
+                        } catch (e) {
+                          console.warn('Error parsing login response', e);
+                        }
+                      }
+                      
+                      // Fall back to the stats value for non-funders or if no specific funder balance found
+                      return stats.totalBalance;
+                    })()}
                   </p>
                 </div>
               </div>

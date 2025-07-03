@@ -18,63 +18,183 @@ const BeneficiaryContainer = styled.div`
   height: calc(100vh - 100px);
 `;
 
-const FormContainer = styled.form`
-  margin-bottom: 15px;
-  width: 70%;
-  max-width: 600px;
-  background-color: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  height: auto;
-  min-height: fit-content;
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 `;
 
+const ModalContent = styled.div`
+  background: white;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+  max-width: 450px;
+  width: 90%;
+  max-height: fit-content;
+`;
+
+const FormContainer = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+`;
+
+const AddButton = styled.button`
+  background: linear-gradient(135deg, #185c37, #1e6b42);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-self: flex-start;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(24, 92, 55, 0.2);
+
+  &:hover {
+    background: linear-gradient(135deg, #1e6b42, #185c37);
+    box-shadow: 0 4px 12px rgba(24, 92, 55, 0.3);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
 const TableContainer = styled.div`
-  width: 60%;
-  max-width: 600px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  padding: 20px;
-  margin-top: 16px;
-  height: 100%;
+  width: 90%;
+  max-width: 800px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+  padding: 32px 24px 24px 24px;
+  margin-top: 24px;
+  margin-bottom: 32px;
+  height: 480px; /* Fixed height for scroll effect */
+  transition: box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
 
   .table-wrapper {
-    height: calc(100% - 100px);
+    flex: 1 1 auto;
+    height: 100%;
+    max-height: 100%;
     overflow-y: auto;
     margin-top: 16px;
-
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    background: #fafbfc;
     &::-webkit-scrollbar {
-      width: 6px;
+      width: 8px;
     }
-
     &::-webkit-scrollbar-track {
       background: #f1f1f1;
-      border-radius: 3px;
+      border-radius: 4px;
     }
-
     &::-webkit-scrollbar-thumb {
-      background: #ddd;
-      border-radius: 3px;
+      background: #e0e0e0;
+      border-radius: 4px;
     }
-
     &::-webkit-scrollbar-thumb:hover {
-      background: #ccc;
+      background: #bdbdbd;
     }
   }
 
   table {
     width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 11.5px; /* Further decreased font size for more rows */
+    background: transparent;
+    color: #222;
+    letter-spacing: 0.01em;
   }
 
   thead {
     position: sticky;
     top: 0;
-    background-color: white;
-    z-index: 1;
+    background: #f5f7fa;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  }
+
+  th {
+    padding: 7px 6px;
+    color: #444;
+    font-weight: 700;
+    background: #f5f7fa;
+    border-bottom: 2px solid #e0e0e0;
+    text-align: left;
+    font-size: 11.5px;
+    letter-spacing: 0.02em;
+  }
+
+  td {
+    padding: 7px 6px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fff;
+    font-size: 11.5px;
+    color: #333;
+    vertical-align: middle;
+    transition: background 0.15s;
+  }
+
+  tr {
+    transition: background 0.15s;
+    &:hover td {
+      background: #f5f7fa;
+    }
+  }
+    }
+  }
+
+  .action-btns button {
+    background: none;
+    border: none;
+    padding: 4px;
+    margin: 0 2px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.15s;
+    &:hover {
+      background: #f0f0f0;
+    }
+  }
+
+  .action-btns img {
+    width: 22px;
+    height: 22px;
+    filter: grayscale(0.2) brightness(0.95);
+    transition: filter 0.15s;
+  }
+
+  .action-btns button:hover img {
+    filter: grayscale(0) brightness(1.2);
+  }
+
+  @media (max-width: 700px) {
+    width: 100%;
+    padding: 12px 2px 12px 2px;
+    .table-wrapper {
+      padding: 0;
+    }
+    th, td {
+      padding: 10px 4px;
+      font-size: 13px;
+    }
   }
 `;
 
@@ -174,6 +294,7 @@ const BeneficiaryForm = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
+  const [showFormModal, setShowFormModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -194,8 +315,15 @@ const BeneficiaryForm = () => {
       }
     };
 
-    useEffect(() => {
+
+  // Load beneficiaries in the background (silent refresh)
+  useEffect(() => {
     fetchBeneficiaries();
+    // Optionally, set up a silent interval refresh (e.g., every 60s)
+    const interval = setInterval(() => {
+      fetchBeneficiaries();
+    }, 60000);
+    return () => clearInterval(interval);
   }, []);
 
 
@@ -238,6 +366,7 @@ const BeneficiaryForm = () => {
       if (response.status === 200 || response.status === 201) {
         setFormData({ name: '', accountNumber: '' });
         setError('✅ Beneficiary added successfully.');
+        setShowFormModal(false);
         await fetchBeneficiaries(); // Refresh beneficiaries list
       } else {
         setError(response.data.message || 'Failed to add beneficiary');
@@ -255,6 +384,8 @@ const BeneficiaryForm = () => {
       name: beneficiary.name || beneficiary.firstName,
       accountNumber: beneficiary.accountNumber,
     });
+    setShowFormModal(true);
+    setError('');
   };
 
   const handleCancel = () => {
@@ -264,6 +395,16 @@ const BeneficiaryForm = () => {
       name: '',
       accountNumber: '',
     });
+    setShowFormModal(false);
+    setError('');
+  };
+
+  const handleOpenModal = () => {
+    setShowFormModal(true);
+    setIsEditing(false);
+    setEditingIndex(null);
+    setFormData({ name: '', accountNumber: '' });
+    setError('');
   };
 
   const handleDeleteAttempt = () => {
@@ -278,140 +419,21 @@ const BeneficiaryForm = () => {
 
   return (
     <BeneficiaryContainer>
-      <FormContainer onSubmit={handleAddBeneficiary}>
-        <h3 style={{ 
-          marginBottom: '20px', 
-          fontSize: '16px', 
-          fontWeight: '800'
-        }}>
-          {isEditing ? 'Edit Beneficiary' : 'Add New Beneficiary'}
-        </h3>
-        
-        {error && (
-          <div style={{
-            background: error.includes('No beneficiaries') ? '#e3f2fd' : '#ffebee',
-            color: error.includes('No beneficiaries') ? '#1976d2' : '#c62828',
-            padding: '8px 12px',
-            borderRadius: '4px',
-            marginBottom: '16px',
-            fontSize: '14px'
-          }}>
-            {error}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', maxWidth: '400px', margin: '0 auto' }}>
-            <label style={{ 
-              minWidth: '120px',
-              maxWidth: '120px',
-              color: '#333', 
-              fontSize: '14px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis' 
-            }}>
-              Name:
-            </label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              style={{ 
-                width: '200px',
-                padding: '1px 6px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                height: '24px'
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', maxWidth: '400px', margin: '0 auto' }}>
-            <label style={{ 
-              minWidth: '120px',
-              maxWidth: '120px',
-              color: '#333', 
-              fontSize: '14px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis' 
-            }}>
-              Acc No:
-            </label>
-            <input
-              type="text"
-              name="accountNumber"
-              value={formData.accountNumber}
-              onChange={handleInputChange}
-              style={{ 
-                width: '200px',
-                padding: '1px 6px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                height: '24px'
-              }}
-            />
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '15px', gap: '12px' }}>
-          {isEditing && (
-            <button
-              type="button"
-              onClick={handleCancel}
-              style={{
-                backgroundColor: '#f44336',
-                color: 'white',
-                padding: '12px 24px',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              Cancel
-            </button>
-          )}
-          <button
-            type="submit"
-            style={{
-              backgroundColor: isEditing ? '#4CAF50' : 'black',
-              color: 'white',
-              padding: '12px 24px',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
-          >
-            {isEditing ? 'Update Beneficiary' : 'Add Beneficiary'}
-          </button>
-        </div>
-
-        {error && (
-          <div style={{
-            color: error.startsWith('✅') ? 'green' : 'red',
-            marginBottom: '10px',
-            fontWeight: 500
-          }}>
-            {error}
-          </div>
-        )}
-      </FormContainer>
-
       <TableContainer>
-        <h3 style={{ 
-          marginBottom: '20px', 
-          fontSize: '16px', 
-          fontWeight: '800',
-          textAlign: 'left'
-        }}>
-          Beneficiaries
-        </h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h3 style={{ 
+            fontSize: '18px', 
+            fontWeight: '800',
+            color: '#222',
+            margin: 0
+          }}>
+            Beneficiaries
+          </h3>
+          <AddButton onClick={handleOpenModal}>
+            <span style={{ fontSize: '16px' }}>+</span>
+            Add Beneficiary
+          </AddButton>
+        </div>
         
         <SearchBox>
           <input 
@@ -426,54 +448,48 @@ const BeneficiaryForm = () => {
           <table>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', padding: '4px 10px', color: '#666', fontWeight: '500', borderBottom: '1px solid #ddd' }}>Name</th>
-                <th style={{ textAlign: 'left', padding: '4px 10px', color: '#666', fontWeight: '500', borderBottom: '1px solid #ddd' }}>Account number</th>
-                <th style={{ textAlign: 'left', padding: '4px 10px', color: '#666', fontWeight: '500', borderBottom: '1px solid #ddd' }}>Action</th>
+                <th>Name</th>
+                <th>Account number</th>
               </tr>
             </thead>
             <tbody>
               {filteredBeneficiaries.map((beneficiary, index) => (
-                <tr key={index} style={{ borderBottom: '1px solid #ddd' }}>
-                  <td style={{ 
-                    padding: '8px 10px', 
-                    border: '1px solid #ddd',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}>
+                <tr key={index}>
+                  <td 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      background: 'inherit', 
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      padding: '10px 6px',
+                      borderRadius: '6px'
+                    }}
+                    onClick={() => handleEdit(beneficiary, index)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f0f8ff';
+                      e.currentTarget.style.transform = 'scale(1.02)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(24, 92, 55, 0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'inherit';
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
                     <Avatar color={getRandomPastelColor()}>
                       {(beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '?').charAt(0)}
                     </Avatar>
-                    {beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '?'}
+                    <span style={{ fontWeight: 600, fontSize: '11.5px', color: '#222' }}>
+                      {beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '?'}
+                    </span>
                   </td>
-                  <td style={{ padding: '8px 10px', border: '1px solid #ddd' }}>
-                    {beneficiary.accountNumber}
-                  </td>
-                  <td style={{ padding: '8px 10px', border: '1px solid #ddd' }}>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <button
-                        onClick={() => handleEdit(beneficiary, index)}
-                        style={{
-                          padding: '4px',
-                          border: 'none',
-                          background: 'none',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <img src={editIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
-                      </button>
-                      <button
-                        onClick={handleDeleteAttempt}
-                        style={{
-                          padding: '4px',
-                          border: 'none',
-                          background: 'none',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <img src={deleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
-                      </button>
-                    </div>
+                  <td>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 500, letterSpacing: '0.03em', color: '#185c37', fontSize: '11.5px' }}>
+                      {beneficiary.accountNumber}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -481,6 +497,136 @@ const BeneficiaryForm = () => {
           </table>
         </div>
       </TableContainer>
+
+      {/* Form Modal */}
+      {showFormModal && (
+        <ModalOverlay onClick={() => setShowFormModal(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <FormContainer onSubmit={handleAddBeneficiary}>
+              <h3 style={{ 
+                marginBottom: '20px', 
+                fontSize: '18px', 
+                fontWeight: '700',
+                color: '#222',
+                textAlign: 'center'
+              }}>
+                {isEditing ? 'Edit Beneficiary' : 'Add New Beneficiary'}
+              </h3>
+              
+              {error && (
+                <div style={{
+                  background: error.includes('✅') ? '#e8f5e8' : error.includes('No beneficiaries') ? '#e3f2fd' : '#ffebee',
+                  color: error.includes('✅') ? '#2e7d32' : error.includes('No beneficiaries') ? '#1976d2' : '#c62828',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  marginBottom: '16px',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}>
+                  {error}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label style={{ 
+                    display: 'block',
+                    color: '#333', 
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    marginBottom: '8px'
+                  }}>
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="Enter beneficiary name"
+                    style={{ 
+                      width: '280px',
+                      padding: '12px 16px',
+                      border: '2px solid #e0e0e0',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.2s',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ 
+                    display: 'block',
+                    color: '#333', 
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    marginBottom: '8px'
+                  }}>
+                    Account Number
+                  </label>
+                  <input
+                    type="text"
+                    name="accountNumber"
+                    value={formData.accountNumber}
+                    onChange={handleInputChange}
+                    placeholder="Enter account number"
+                    style={{ 
+                      width: '280px',
+                      padding: '12px 16px',
+                      border: '2px solid #e0e0e0',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.2s',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  style={{
+                    backgroundColor: '#f5f5f5',
+                    color: '#666',
+                    padding: '12px 24px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    background: isEditing ? 'linear-gradient(135deg, #4CAF50, #45a049)' : 'linear-gradient(135deg, #185c37, #1e6b42)',
+                    color: 'white',
+                    padding: '12px 24px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  {isEditing ? 'Update Beneficiary' : 'Add Beneficiary'}
+                </button>
+              </div>
+            </FormContainer>
+          </ModalContent>
+        </ModalOverlay>
+      )}
 
       {showPopup && (
         <PopupOverlay>
