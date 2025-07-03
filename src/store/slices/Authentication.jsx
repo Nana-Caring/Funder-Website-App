@@ -11,15 +11,17 @@ export const loginUser = createAsyncThunk(
         credentials
       );
 
-      // Accept accessToken instead of token
+      // Handle the new response structure with accessToken, jwt, user, and accounts
       if (!response.data || !response.data.accessToken) {
         return rejectWithValue('Invalid response from server');
       }
 
       // Return a normalized object for your reducer
       return {
-        token: response.data.accessToken,
-        user: response.data.user
+        token: response.data.accessToken, // Use accessToken as the main token
+        jwt: response.data.jwt, // Store JWT separately if needed
+        user: response.data.user,
+        accounts: response.data.accounts // Include accounts array
       };
     } catch (error) {
       return rejectWithValue(
@@ -104,6 +106,7 @@ const authenticationSlice = createSlice({
   initialState: {
     user: JSON.parse(localStorage.getItem('user')),
     token: localStorage.getItem('token'),
+    accounts: JSON.parse(localStorage.getItem('userAccounts') || 'null'),
     isAuthenticated: !!localStorage.getItem('token'),
     loading: false,
     error: null
@@ -115,11 +118,17 @@ const authenticationSlice = createSlice({
       state.token = action.payload.token;
       state.loading = false;
       state.error = null;
+      
+      // Store accounts if provided
+      if (action.payload.accounts) {
+        state.accounts = action.payload.accounts;
+      }
     },
     loginFailure: (state, action) => {
       state.isAuthenticated = false;
       state.user = null;
       state.token = null;
+      state.accounts = null;
       state.loading = false;
       state.error = action.payload;
       // Clear localStorage on failure
@@ -129,6 +138,7 @@ const authenticationSlice = createSlice({
       state.isAuthenticated = false;
       state.user = null;
       state.token = null;
+      state.accounts = null;
       state.loading = false;
       // Clear localStorage on logout
       localStorage.clear();
@@ -145,21 +155,32 @@ const authenticationSlice = createSlice({
         state.isAuthenticated = true;
         state.user = action.payload.user;
         state.token = action.payload.token;
+        state.accounts = action.payload.accounts; // Store accounts in state
 
-        // Store all user details in localStorage
+        // Store comprehensive user and account details in localStorage
         if (action.payload.user && action.payload.token) {
+          // Store authentication tokens
           localStorage.setItem('token', action.payload.token);
+          localStorage.setItem('jwt', action.payload.jwt || action.payload.token);
+          
+          // Store all user details
           localStorage.setItem('userId', action.payload.user.id);
           localStorage.setItem('firstName', action.payload.user.firstName || '');
           localStorage.setItem('middleName', action.payload.user.middleName || '');
           localStorage.setItem('surname', action.payload.user.surname || '');
           localStorage.setItem('email', action.payload.user.email || '');
           localStorage.setItem('role', action.payload.user.role || '');
+          localStorage.setItem('userRole', action.payload.user.role || '');
+          localStorage.setItem('userName', action.payload.user.firstName || action.payload.user.email || 'User');
           localStorage.setItem('Idnumber', action.payload.user.Idnumber || '');
           localStorage.setItem('relation', action.payload.user.relation || '');
           localStorage.setItem('createdAt', action.payload.user.createdAt || '');
           localStorage.setItem('updatedAt', action.payload.user.updatedAt || '');
-          // Store the account object as JSON string
+          
+          // Store user object as JSON string
+          localStorage.setItem('user', JSON.stringify(action.payload.user));
+          
+          // Store account information if available in user object
           if (action.payload.user.account) {
             localStorage.setItem('account', JSON.stringify(action.payload.user.account));
             localStorage.setItem('accountId', action.payload.user.account.id || '');
@@ -168,8 +189,22 @@ const authenticationSlice = createSlice({
             localStorage.setItem('accountNumber', action.payload.user.account.accountNumber || '');
             localStorage.setItem('parentAccountId', action.payload.user.account.parentAccountId || '');
           }
-          // Optionally store the whole user object as JSON
-          localStorage.setItem('user', JSON.stringify(action.payload.user));
+          
+          // Store accounts array if available
+          if (action.payload.accounts && Array.isArray(action.payload.accounts)) {
+            localStorage.setItem('userAccounts', JSON.stringify(action.payload.accounts));
+            
+            // Also store individual account details for quick access
+            const mainAccount = action.payload.accounts.find(acc => 
+              acc.accountType?.toLowerCase() === 'main' || 
+              acc.accountType?.toLowerCase() === 'primary'
+            );
+            if (mainAccount) {
+              localStorage.setItem('mainAccountId', mainAccount.id || '');
+              localStorage.setItem('mainAccountNumber', mainAccount.accountNumber || '');
+              localStorage.setItem('mainAccountBalance', mainAccount.balance?.toString() || '0');
+            }
+          }
         }
       })
       .addCase(loginUser.rejected, (state, action) => {
@@ -178,6 +213,7 @@ const authenticationSlice = createSlice({
         state.isAuthenticated = false;
         state.user = null;
         state.token = null;
+        state.accounts = null;
       });
   }
 });

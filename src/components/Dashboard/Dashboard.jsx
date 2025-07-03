@@ -792,14 +792,118 @@ const Dashboard = () => {
   const [accountData, setAccountData] = useState(null);
   const [error, setError] = useState('');
   const [recentTransactions, setRecentTransactions] = useState([]);
-  const userName = localStorage.getItem('userName') || 'User';
+  
+  // Get user information from localStorage
+  const userName = localStorage.getItem('userName') || 
+                   localStorage.getItem('firstName') || 
+                   JSON.parse(localStorage.getItem('user') || '{}').firstName || 
+                   'User';
+  const userEmail = localStorage.getItem('email') || JSON.parse(localStorage.getItem('user') || '{}').email || '';
+  const userRole = localStorage.getItem('userRole') || JSON.parse(localStorage.getItem('user') || '{}').role || '';
+  const userId = localStorage.getItem('userId') || JSON.parse(localStorage.getItem('user') || '{}').id || '';
+  const userSurname = localStorage.getItem('surname') || JSON.parse(localStorage.getItem('user') || '{}').surname || '';
+  const userMiddleName = localStorage.getItem('middleName') || JSON.parse(localStorage.getItem('user') || '{}').middleName || '';
+  
+  // Get full user display name
+  const fullUserName = [localStorage.getItem('firstName'), userMiddleName, userSurname]
+    .filter(Boolean)
+    .join(' ') || userName;
+
+  // Helper function to get user's initials and surname
+  const getUserInitialsAndSurname = () => {
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        const firstName = userData.firstName || '';
+        const surname = userData.surname || '';
+        
+        // Get first letter of first name
+        const firstInitial = firstName.charAt(0).toUpperCase();
+        
+        // Return initials and surname
+        if (firstInitial && surname) {
+          return `${firstInitial}. ${surname}`;
+        } else if (surname) {
+          return surname;
+        } else if (firstName) {
+          return firstName;
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+    }
+    return '';
+  };
+
+  // Helper function to get main account number
+  const getMainAccountNumber = () => {
+    // First check for quick access main account number from localStorage (stored during login)
+    const mainAccountNumber = localStorage.getItem('mainAccountNumber');
+    if (mainAccountNumber) {
+      return mainAccountNumber;
+    }
+    
+    // Check current account data
+    if (accountData?.accounts?.main?.[0]?.accountNumber) {
+      return accountData.accounts.main[0].accountNumber;
+    }
+    
+    // Try to get from localStorage userAccounts
+    try {
+      const userAccounts = localStorage.getItem('userAccounts');
+      if (userAccounts) {
+        const accounts = JSON.parse(userAccounts);
+        const mainAccount = accounts.find(account => 
+          account.accountType?.toLowerCase() === 'main' || 
+          account.accountType?.toLowerCase() === 'primary'
+        );
+        if (mainAccount?.accountNumber) {
+          return mainAccount.accountNumber;
+        }
+      }
+    } catch (error) {
+      console.warn('Error parsing userAccounts from localStorage:', error);
+    }
+    
+    return '';
+  };
 
   useEffect(() => {
-    // Fetch account data immediately without loading state
+    // Load account data from localStorage immediately
+    const loadInitialAccountData = () => {
+      try {
+        const userAccounts = localStorage.getItem('userAccounts');
+        if (userAccounts) {
+          const accounts = JSON.parse(userAccounts);
+          if (Array.isArray(accounts)) {
+            // Transform to match expected API structure
+            const transformedData = {
+              totalBalance: accounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0).toString(),
+              currency: accounts[0]?.currency || "ZAR",
+              accounts: {
+                main: accounts.filter(acc => acc.accountType?.toLowerCase() === 'main'),
+                sub: accounts.filter(acc => acc.accountType?.toLowerCase() !== 'main')
+              }
+            };
+            setAccountData(transformedData);
+            console.log('Loaded account data from localStorage:', transformedData);
+          }
+        }
+      } catch (error) {
+        console.warn('Error loading initial account data from localStorage:', error);
+      }
+    };
+
+    // Load initial data immediately
+    loadInitialAccountData();
+
+    // Fetch fresh account data from API
     const fetchAccountData = async () => {
       try {
         const accountsData = await accountService.getMyAccounts();
         setAccountData(accountsData);
+        console.log('Fresh account data received:', accountsData);
         
         // Fetch recent transactions from main account if available
         if (accountsData.accounts?.main?.[0]?.id) {
@@ -809,12 +913,15 @@ const Dashboard = () => {
       } catch (error) {
         console.error('Failed to fetch account data:', error);
         setError('Failed to load account information');
-        // Keep mock data as fallback
-        setAccountData({
-          totalBalance: "0.00",
-          currency: "ZAR",
-          accounts: { main: [], sub: [] }
-        });
+        
+        // If API fails and we don't have localStorage data, use empty state
+        if (!accountData) {
+          setAccountData({
+            totalBalance: "0.00",
+            currency: "ZAR",
+            accounts: { main: [], sub: [] }
+          });
+        }
       }
     };
 
@@ -888,7 +995,32 @@ const Dashboard = () => {
 
   // Calculate account statistics
   const getAccountStats = () => {
-    if (!accountData || !accountData.accounts) {
+    let currentAccountData = accountData;
+    
+    // If no account data from API, try to get from localStorage
+    if (!currentAccountData || !currentAccountData.accounts) {
+      try {
+        const userAccounts = localStorage.getItem('userAccounts');
+        if (userAccounts) {
+          const accounts = JSON.parse(userAccounts);
+          if (Array.isArray(accounts)) {
+            // Transform to match expected API structure
+            currentAccountData = {
+              totalBalance: accounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0).toString(),
+              currency: accounts[0]?.currency || "ZAR",
+              accounts: {
+                main: accounts.filter(acc => acc.accountType?.toLowerCase() === 'main'),
+                sub: accounts.filter(acc => acc.accountType?.toLowerCase() !== 'main')
+              }
+            };
+          }
+        }
+      } catch (error) {
+        console.warn('Error parsing userAccounts from localStorage:', error);
+      }
+    }
+
+    if (!currentAccountData || !currentAccountData.accounts) {
       return {
         totalBalance: '0.00',
         totalSpent: '0.00',
@@ -898,12 +1030,12 @@ const Dashboard = () => {
     }
 
     const allAccounts = [
-      ...(accountData.accounts.main || []),
-      ...(accountData.accounts.sub || [])
+      ...(currentAccountData.accounts.main || []),
+      ...(currentAccountData.accounts.sub || [])
     ];
 
-    const mainAccount = accountData.accounts.main?.[0] || null;
-    const totalBalance = parseFloat(accountData.totalBalance || 0);
+    const mainAccount = currentAccountData.accounts.main?.[0] || null;
+    const totalBalance = parseFloat(currentAccountData.totalBalance || 0);
     
     // Calculate spent amount (this could come from transactions or be calculated differently)
     const totalSpent = recentTransactions.reduce((sum, transaction) => {
@@ -914,7 +1046,7 @@ const Dashboard = () => {
     }, 0);
 
     // Calculate account type statistics
-    const accountTypeStats = accountData.accounts.sub?.map(account => ({
+    const accountTypeStats = currentAccountData.accounts.sub?.map(account => ({
       type: account.accountType,
       balance: parseFloat(account.balance || 0),
       percentage: accountService.getAccountTypePercentage(account.balance, totalBalance),
@@ -973,16 +1105,16 @@ const Dashboard = () => {
                 <NanaCardShadow />
                 <NanaCard>
                   <div className="card-name">
-                    {userName?.toUpperCase() || 'USER'}
+                    {getUserInitialsAndSurname()?.toUpperCase() || fullUserName?.toUpperCase() || userName?.toUpperCase() || 'USER'}
                   </div>
-                  {stats.mainAccount && (
+                  {getMainAccountNumber() && (
                     <div style={{ 
                       fontSize: '12px', 
                       color: '#CAC8C8', 
                       marginTop: '8px',
                       marginLeft: '9px'
                     }}>
-                      Account: {stats.mainAccount.accountNumber}
+                      {getMainAccountNumber()}
                     </div>
                   )}
                 </NanaCard>
@@ -1009,16 +1141,36 @@ const Dashboard = () => {
                 </div>
                 <select className="transfer-select">
                   <option>Select Account</option>
-                  {accountData?.accounts?.main?.map(account => (
-                    <option key={account.id} value={account.id}>
-                      {account.accountType} - {accountService.formatCurrency(account.balance)}
-                    </option>
-                  ))}
-                  {accountData?.accounts?.sub?.map(account => (
-                    <option key={account.id} value={account.id}>
-                      {account.accountType} - {accountService.formatCurrency(account.balance)}
-                    </option>
-                  ))}
+                  {(() => {
+                    // Get all available accounts from current data or localStorage
+                    let allAccounts = [];
+                    
+                    if (accountData?.accounts) {
+                      allAccounts = [
+                        ...(accountData.accounts.main || []),
+                        ...(accountData.accounts.sub || [])
+                      ];
+                    } else {
+                      // Fallback to localStorage userAccounts
+                      try {
+                        const userAccounts = localStorage.getItem('userAccounts');
+                        if (userAccounts) {
+                          const accounts = JSON.parse(userAccounts);
+                          if (Array.isArray(accounts)) {
+                            allAccounts = accounts;
+                          }
+                        }
+                      } catch (error) {
+                        console.warn('Error parsing userAccounts from localStorage:', error);
+                      }
+                    }
+                    
+                    return allAccounts.map(account => (
+                      <option key={account.id} value={account.id}>
+                        {account.accountType} - {accountService.formatCurrency(account.balance)}
+                      </option>
+                    ));
+                  })()}
                 </select>
                 <button onClick={() => setIsModalOpen(true)}>Send Money</button>
                 <Modal
@@ -1048,22 +1200,70 @@ const Dashboard = () => {
                       <label>From</label>
                       <select>
                         <option value="">Select Source Account</option>
-                        {accountData?.accounts?.main?.map(account => (
-                          <option key={account.id} value={account.id}>
-                            {account.accountType} - {accountService.formatCurrency(account.balance)}
-                          </option>
-                        ))}
+                        {(() => {
+                          // Get all available accounts
+                          let allAccounts = [];
+                          
+                          if (accountData?.accounts) {
+                            allAccounts = [
+                              ...(accountData.accounts.main || []),
+                              ...(accountData.accounts.sub || [])
+                            ];
+                          } else {
+                            try {
+                              const userAccounts = localStorage.getItem('userAccounts');
+                              if (userAccounts) {
+                                const accounts = JSON.parse(userAccounts);
+                                if (Array.isArray(accounts)) {
+                                  allAccounts = accounts;
+                                }
+                              }
+                            } catch (error) {
+                              console.warn('Error parsing userAccounts:', error);
+                            }
+                          }
+                          
+                          return allAccounts.map(account => (
+                            <option key={account.id} value={account.id}>
+                              {account.accountType} - {accountService.formatCurrency(account.balance)}
+                            </option>
+                          ));
+                        })()}
                       </select>
                     </div>
                     <div className="form-group">
                       <label>To</label>
                       <select>
                         <option value="">Select Destination Account</option>
-                        {accountData?.accounts?.sub?.map(account => (
-                          <option key={account.id} value={account.id}>
-                            {account.accountType} - {accountService.formatCurrency(account.balance)}
-                          </option>
-                        ))}
+                        {(() => {
+                          // Get all available accounts
+                          let allAccounts = [];
+                          
+                          if (accountData?.accounts) {
+                            allAccounts = [
+                              ...(accountData.accounts.main || []),
+                              ...(accountData.accounts.sub || [])
+                            ];
+                          } else {
+                            try {
+                              const userAccounts = localStorage.getItem('userAccounts');
+                              if (userAccounts) {
+                                const accounts = JSON.parse(userAccounts);
+                                if (Array.isArray(accounts)) {
+                                  allAccounts = accounts;
+                                }
+                              }
+                            } catch (error) {
+                              console.warn('Error parsing userAccounts:', error);
+                            }
+                          }
+                          
+                          return allAccounts.map(account => (
+                            <option key={account.id} value={account.id}>
+                              {account.accountType} - {accountService.formatCurrency(account.balance)}
+                            </option>
+                          ));
+                        })()}
                       </select>
                     </div>
                     <div className="form-group">

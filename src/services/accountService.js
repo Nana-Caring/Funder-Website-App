@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://nanacaring-backend.onrender.com';
 
 class AccountService {
   constructor() {
@@ -89,6 +89,20 @@ class AccountService {
       return await this.handleResponse(response);
     } catch (error) {
       console.error('Error fetching account summary:', error);
+      throw error;
+    }
+  }
+
+  // Get dependent's own accounts (for dependent users)
+  async getDependentMyAccounts() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/dependent/my-accounts`, {
+        method: 'GET',
+        headers: this.getAuthHeaders()
+      });
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('Error fetching dependent accounts:', error);
       throw error;
     }
   }

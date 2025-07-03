@@ -60,15 +60,52 @@ const LoginPage = () => {
       // Explicitly dispatch login success to update Redux state
       dispatch(loginSuccess({ 
         token: response.token, 
-        user: response.user 
+        user: response.user,
+        accounts: response.accounts
       }));
 
-      // Store auth data in localStorage
+      // Store comprehensive user data in localStorage (redundant but ensures consistency)
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
       localStorage.setItem('userRole', response.user.role);
       localStorage.setItem('userId', response.user.id);
+      
+      // Store all user details
+      localStorage.setItem('firstName', response.user.firstName || '');
+      localStorage.setItem('middleName', response.user.middleName || '');
       localStorage.setItem('surname', response.user.surname || '');
+      localStorage.setItem('email', response.user.email || '');
+      localStorage.setItem('userName', response.user.firstName || response.user.email || 'User');
+      localStorage.setItem('Idnumber', response.user.Idnumber || '');
+      localStorage.setItem('relation', response.user.relation || '');
+      localStorage.setItem('createdAt', response.user.createdAt || '');
+      localStorage.setItem('updatedAt', response.user.updatedAt || '');
+      
+      // Store account information if available
+      if (response.user.account) {
+        localStorage.setItem('account', JSON.stringify(response.user.account));
+        localStorage.setItem('accountId', response.user.account.id || '');
+        localStorage.setItem('accountType', response.user.account.accountType || '');
+        localStorage.setItem('accountBalance', response.user.account.balance?.toString() || '0');
+        localStorage.setItem('accountNumber', response.user.account.accountNumber || '');
+        localStorage.setItem('parentAccountId', response.user.account.parentAccountId || '');
+      }
+      
+      // Store accounts array if available in the response
+      if (response.accounts && Array.isArray(response.accounts)) {
+        localStorage.setItem('userAccounts', JSON.stringify(response.accounts));
+        
+        // Also store main account details for quick access
+        const mainAccount = response.accounts.find(acc => 
+          acc.accountType?.toLowerCase() === 'main' || 
+          acc.accountType?.toLowerCase() === 'primary'
+        );
+        if (mainAccount) {
+          localStorage.setItem('mainAccountId', mainAccount.id || '');
+          localStorage.setItem('mainAccountNumber', mainAccount.accountNumber || '');
+          localStorage.setItem('mainAccountBalance', mainAccount.balance?.toString() || '0');
+        }
+      }
 
       // Setup axios interceptors
       authService.setupAxiosInterceptors(response.token);
