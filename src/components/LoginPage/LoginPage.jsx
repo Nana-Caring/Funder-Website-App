@@ -60,15 +60,77 @@ const LoginPage = () => {
       // Explicitly dispatch login success to update Redux state
       dispatch(loginSuccess({ 
         token: response.token, 
-        user: response.user 
+        user: response.user,
+        accounts: response.accounts
       }));
+      
+      // Store the complete raw response in localStorage for funders
+      // This ensures we have all the data received from the backend
+      if (response.rawResponse) {
+        localStorage.setItem('loginResponse', JSON.stringify(response.rawResponse));
+      }
 
-      // Store auth data in localStorage
+      // Store comprehensive user data in localStorage (redundant but ensures consistency)
       localStorage.setItem('token', response.token);
+      localStorage.setItem('jwt', response.jwt || ''); // Store JWT if present
       localStorage.setItem('user', JSON.stringify(response.user));
       localStorage.setItem('userRole', response.user.role);
       localStorage.setItem('userId', response.user.id);
+      
+      // Store all user details
+      localStorage.setItem('firstName', response.user.firstName || '');
+      localStorage.setItem('middleName', response.user.middleName || '');
       localStorage.setItem('surname', response.user.surname || '');
+      localStorage.setItem('email', response.user.email || '');
+      localStorage.setItem('userName', response.user.firstName || response.user.email || 'User');
+      localStorage.setItem('Idnumber', response.user.Idnumber || '');
+      localStorage.setItem('relation', response.user.relation || '');
+      localStorage.setItem('createdAt', response.user.createdAt || '');
+      localStorage.setItem('updatedAt', response.user.updatedAt || '');
+      
+      // Store account information if available
+      if (response.user.account) {
+        localStorage.setItem('account', JSON.stringify(response.user.account));
+        localStorage.setItem('accountId', response.user.account.id || '');
+        localStorage.setItem('accountType', response.user.account.accountType || '');
+        localStorage.setItem('accountBalance', response.user.account.balance?.toString() || '0');
+        localStorage.setItem('accountNumber', response.user.account.accountNumber || '');
+        localStorage.setItem('parentAccountId', response.user.account.parentAccountId || '');
+      }
+      
+      // Store accounts array if available in the response
+      if (response.accounts && Array.isArray(response.accounts)) {
+        localStorage.setItem('userAccounts', JSON.stringify(response.accounts));
+        
+        // Also store main account details for quick access
+        const mainAccount = response.accounts.find(acc => 
+          acc.accountType?.toLowerCase() === 'main' || 
+          acc.accountType?.toLowerCase() === 'primary'
+        );
+        if (mainAccount) {
+          localStorage.setItem('mainAccountId', mainAccount.id || '');
+          localStorage.setItem('mainAccountNumber', mainAccount.accountNumber || '');
+          localStorage.setItem('mainAccountBalance', mainAccount.balance?.toString() || '0');
+        }
+      }
+      
+      // For funder login specifically - store main account balance in one place
+      if (response.user.role === 'funder') {
+        const rawResponse = response.rawResponse;
+        let mainBalance = '0';
+        
+        // Try to extract balance from various possible locations in the response
+        if (rawResponse?.balance) {
+          mainBalance = rawResponse.balance.toString();
+        } else if (rawResponse?.accounts?.length > 0) {
+          // Use the first account balance as main balance
+          mainBalance = rawResponse.accounts[0].balance?.toString() || '0';
+        } else if (response.accounts?.length > 0) {
+          mainBalance = response.accounts[0].balance?.toString() || '0';
+        }
+        
+        localStorage.setItem('funderMainBalance', mainBalance);
+      }
 
       // Setup axios interceptors
       authService.setupAxiosInterceptors(response.token);

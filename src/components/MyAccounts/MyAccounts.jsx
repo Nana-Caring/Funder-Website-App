@@ -6,16 +6,158 @@ import deleteIcon from '../../assets/icons/delete.png';
 import axios from 'axios';
 
 const Container = styled.div`
-  display: flex;
+  position: relative;
+  margin-top: 40px;
   width: calc(100% - 250px);
   margin-left: auto;
-  flex-direction: column;
-  height: calc(100vh - 80px);
-  overflow: hidden;
-  align-items: center;
-  justify-content: center;
   padding: 20px;
-  margin-top: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: calc(100vh - 100px);
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+  max-width: 450px;
+  width: 90%;
+  max-height: fit-content;
+`;
+
+const FormContainer = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+`;
+
+const AddButton = styled.button`
+  background: linear-gradient(135deg, #185c37, #1e6b42);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-self: flex-start;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(24, 92, 55, 0.2);
+
+  &:hover {
+    background: linear-gradient(135deg, #1e6b42, #185c37);
+    box-shadow: 0 4px 12px rgba(24, 92, 55, 0.3);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+const TableContainer = styled.div`
+  width: 90%;
+  max-width: 800px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+  padding: 32px 24px 24px 24px;
+  margin-top: 24px;
+  margin-bottom: 32px;
+  height: 480px;
+  transition: box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+
+  .table-wrapper {
+    flex: 1 1 auto;
+    height: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+    margin-top: 16px;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    background: #fafbfc;
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+    &::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: #e0e0e0;
+      border-radius: 4px;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+      background: #bdbdbd;
+    }
+  }
+
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 11.5px;
+    background: transparent;
+    color: #222;
+    letter-spacing: 0.01em;
+  }
+
+  thead {
+    position: sticky;
+    top: 0;
+    background: #f5f7fa;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  }
+
+  th {
+    padding: 7px 6px;
+    color: #444;
+    font-weight: 700;
+    background: #f5f7fa;
+    border-bottom: 2px solid #e0e0e0;
+    text-align: left;
+    font-size: 11.5px;
+    letter-spacing: 0.02em;
+  }
+
+  td {
+    padding: 7px 6px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fff;
+    font-size: 11.5px;
+    color: #333;
+    vertical-align: middle;
+    transition: background 0.15s;
+  }
+
+  tr {
+    transition: background 0.15s;
+    &:hover td {
+      background: #f5f7fa;
+    }
+  }
 `;
 
 const Content = styled.div`
@@ -68,20 +210,6 @@ const FormGroup = styled.div`
   }
 `;
 
-const AddButton = styled.button`
-  background: #000;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 20px;
-  cursor: pointer;
-  font-size: 14px;
-  align-self: flex-end;
-
-  &:hover {
-    background: #333;
-  }
-`;
 
 const SearchBox = styled.div`
   display: flex;
@@ -90,7 +218,7 @@ const SearchBox = styled.div`
   border: 1px solid #ddd;
   border-radius: 8px;
   padding: 8px 12px;
-  margin-bottom: 16px;
+  margin: 12px 0;
 
   input {
     border: none;
@@ -103,6 +231,20 @@ const SearchBox = styled.div`
       color: #999;
     }
   }
+`;
+
+const Avatar = styled.div`
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: ${props => props.color};
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  font-size: 14px;
+  text-transform: uppercase;
 `;
 
 const AccountsTable = styled.div`
@@ -269,30 +411,22 @@ const MyAccounts = () => {
   const [editingAccount, setEditingAccount] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [deletingAccount, setDeletingAccount] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [formData, setFormData] = useState({
+    bankName: '',
+    accountNumber: '',
+    cardNumber: '',
+    expiryDate: '',
+    ccv: ''
+  });
 
-  const stripe = useStripe();
-  const elements = useElements();
-
-  // Fetch saved Stripe payment methods (cards)
-  const fetchAccounts = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(
-        'http://localhost:5000/api/stripe/payment-methods',
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setAccounts(res.data.paymentMethods || []);
-    } catch (err) {
-      setFeedback({ type: 'error', message: 'Failed to load accounts.' });
-    }
+  // Helper function to get random pastel color
+  const getRandomPastelColor = () => {
+    const hue = Math.floor(Math.random() * 360);
+    return `hsl(${hue}, 70%, 75%)`;
   };
 
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
-
-  // Filter accounts based on search term (by brand)
+  // Filter accounts based on search term
   const filteredAccounts = accounts.filter(account =>
     (account.card?.brand || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -301,17 +435,79 @@ const MyAccounts = () => {
   const handleEdit = (account) => {
     setIsEditing(true);
     setEditingAccount(account);
+    setFormData({
+      bankName: account.bankName,
+      accountNumber: account.accountNumber,
+      cardNumber: '',
+      expiryDate: '',
+      ccv: ''
+    });
+    setShowFormModal(true);
+  };
+
+  const handleOpenModal = () => {
+    setShowFormModal(true);
+    setIsEditing(false);
+    setEditingAccount(null);
+    setFormData({
+      bankName: '',
+      accountNumber: '',
+      cardNumber: '',
+      expiryDate: '',
+      ccv: ''
+    });
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditingAccount(null);
+    setShowFormModal(false);
+    setFormData({
+      bankName: '',
+      accountNumber: '',
+      cardNumber: '',
+      expiryDate: '',
+      ccv: ''
+    });
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleUpdate = (e) => {
     e.preventDefault();
     // Only allow editing metadata, not card details
     setAccounts(accounts.map(acc => 
-      acc.id === editingAccount.id ? { ...acc, nickname: editingAccount.nickname } : acc
+      acc.id === editingAccount.id ? { ...editingAccount, ...formData } : acc
     ));
     setIsEditing(false);
     setEditingAccount(null);
-    handleFeedback('success', 'Card updated successfully');
+    setShowFormModal(false);
+    handleFeedback('success', 'Account updated successfully');
+  };
+
+  const handleAddAccount = (e) => {
+    e.preventDefault();
+    const newAccount = {
+      id: Date.now(),
+      bankName: formData.bankName,
+      accountNumber: formData.accountNumber
+    };
+    setAccounts([...accounts, newAccount]);
+    setShowFormModal(false);
+    setFormData({
+      bankName: '',
+      accountNumber: '',
+      cardNumber: '',
+      expiryDate: '',
+      ccv: ''
+    });
+    handleFeedback('success', 'Account added successfully');
   };
 
   const handleDeleteClick = (account) => {
@@ -328,45 +524,6 @@ const MyAccounts = () => {
     setDeletingAccount(null);
   };
 
-  // Stripe Save Card Flow for Add New Card
-  const handleAddAccount = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setFeedback(null);
-    try {
-      const token = localStorage.getItem('token');
-      // 1. Create SetupIntent
-      const res = await axios.post(
-        'http://localhost:5000/api/stripe/create-setup-intent',
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const { clientSecret } = res.data;
-
-      // 2. Confirm card setup
-      const cardElement = elements.getElement(CardElement);
-      const setupResult = await stripe.confirmCardSetup(clientSecret, {
-        payment_method: { card: cardElement }
-      });
-
-      if (setupResult.error) {
-        setFeedback({ type: 'error', message: setupResult.error.message || 'Failed to save card.' });
-      } else {
-        setFeedback({ type: 'success', message: '✅ Card saved!' });
-        fetchAccounts(); // Refresh list
-      }
-    } catch (err) {
-      setFeedback({ type: 'error', message: 'Failed to save card.' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    setEditingAccount(null);
-  };
-
   // Add feedback handler
   const handleFeedback = (type, message) => {
     setFeedback({ type, message });
@@ -375,97 +532,291 @@ const MyAccounts = () => {
 
   return (
     <Container>
-      <Content>
-        <FormSection>
-          <Form onSubmit={isEditing ? handleUpdate : handleAddAccount}>
-            <h4>{isEditing ? 'Edit Card' : 'Add New Card'}</h4>
-            {isEditing ? (
-              <>
-                {/* Only allow editing nickname/label, not card details */}
-                <FormGroup>
-                  <label>Nickname</label>
-                  <input 
-                    type="text"
-                    value={editingAccount?.nickname || ''}
-                    onChange={(e) => setEditingAccount({
-                      ...editingAccount,
-                      nickname: e.target.value
-                    })}
-                  />
-                </FormGroup>
-              </>
-            ) : (
-              <>
-                <FormGroup>
-                  <label htmlFor="card-element">Card details *</label>
-                  <div style={{ flex: 1, border: '1px solid #ddd', borderRadius: 4, padding: 8 }}>
-                    <CardElement id="card-element" options={{ style: { base: { fontSize: '16px' } } }} />
-                  </div>
-                </FormGroup>
-              </>
-            )}
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              {isEditing ? (
-                <>
-                  <AddButton type="submit" style={{ background: '#4CAF50' }}>
-                    Update Card
-                  </AddButton>
-                  <AddButton type="button" onClick={handleCancel} style={{ background: '#f44336' }}>
-                    Cancel
-                  </AddButton>
-                </>
-              ) : (
-                <AddButton type="submit" disabled={loading}>
-                  {loading ? 'Saving...' : 'Add new card'}
-                </AddButton>
-              )}
-            </div>
-          </Form>
-        </FormSection>
+      <TableContainer>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h3 style={{ 
+            fontSize: '18px', 
+            fontWeight: '800',
+            color: '#222',
+            margin: 0
+          }}>
+            My Accounts
+          </h3>
+          <AddButton onClick={handleOpenModal}>
+            <span style={{ fontSize: '16px' }}>+</span>
+            Add Account
+          </AddButton>
+        </div>
+        
+        <SearchBox>
+          <input 
+            type="text"
+            placeholder="Search by bank name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </SearchBox>
 
-        <AccountsTable>
-          <h4>My Cards</h4>
-          <SearchBox>
-            <input 
-              type="text" 
-              placeholder="Search by card brand..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </SearchBox>
-          <div className="table-container">
-            <Table>
-              <thead>
-                <tr>
-                  <th>Brand</th>
-                  <th>Last 4</th>
-                  <th>Expiry</th>
-                  <th>Nickname</th>
-                  <th>Action</th>
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Bank Name</th>
+                <th>Account Number</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAccounts.map((account) => (
+                <tr key={account.id}>
+                  <td 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      background: 'inherit', 
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      padding: '10px 6px',
+                      borderRadius: '6px'
+                    }}
+                    onClick={() => handleEdit(account)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f0f8ff';
+                      e.currentTarget.style.transform = 'scale(1.02)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(24, 92, 55, 0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'inherit';
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <Avatar color={getRandomPastelColor()}>
+                      {account.bankName.charAt(0)}
+                    </Avatar>
+                    <span style={{ fontWeight: 600, fontSize: '11.5px', color: '#222' }}>
+                      {account.bankName}
+                    </span>
+                  </td>
+                  <td>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 500, letterSpacing: '0.03em', color: '#185c37', fontSize: '11.5px' }}>
+                      {account.accountNumber}
+                    </span>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredAccounts.map(account => (
-                  <tr key={account.id}>
-                    <td>{account.card?.brand?.toUpperCase()}</td>
-                    <td>{account.card?.last4}</td>
-                    <td>{account.card?.exp_month}/{account.card?.exp_year}</td>
-                    <td>{account.nickname || ''}</td>
-                    <td>
-                      <ActionButton onClick={() => handleEdit(account)}>
-                        <img src={editIcon} alt="Edit" />
-                      </ActionButton>
-                      <ActionButton onClick={() => handleDeleteClick(account)}>
-                        <img src={deleteIcon} alt="Delete" />
-                      </ActionButton>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </div>
-        </AccountsTable>
-      </Content>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </TableContainer>
+
+      {/* Form Modal */}
+      {showFormModal && (
+        <ModalOverlay onClick={() => setShowFormModal(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <FormContainer onSubmit={isEditing ? handleUpdate : handleAddAccount}>
+              <h3 style={{ 
+                marginBottom: '20px', 
+                fontSize: '18px', 
+                fontWeight: '700',
+                color: '#222',
+                textAlign: 'center'
+              }}>
+                {isEditing ? 'Edit Account' : 'Add New Account'}
+              </h3>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label style={{ 
+                    display: 'block',
+                    color: '#333', 
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    marginBottom: '8px'
+                  }}>
+                    Bank Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="bankName"
+                    value={formData.bankName}
+                    onChange={handleInputChange}
+                    placeholder="Enter bank name"
+                    required
+                    style={{ 
+                      width: '280px',
+                      padding: '12px 16px',
+                      border: '2px solid #e0e0e0',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.2s',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ 
+                    display: 'block',
+                    color: '#333', 
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    marginBottom: '8px'
+                  }}>
+                    Account Number *
+                  </label>
+                  <input
+                    type="text"
+                    name="accountNumber"
+                    value={formData.accountNumber}
+                    onChange={handleInputChange}
+                    placeholder="Enter account number"
+                    required
+                    style={{ 
+                      width: '280px',
+                      padding: '12px 16px',
+                      border: '2px solid #e0e0e0',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.2s',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ 
+                    display: 'block',
+                    color: '#333', 
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    marginBottom: '8px'
+                  }}>
+                    Card Number
+                  </label>
+                  <input
+                    type="text"
+                    name="cardNumber"
+                    value={formData.cardNumber}
+                    onChange={handleInputChange}
+                    placeholder="Enter card number"
+                    style={{ 
+                      width: '280px',
+                      padding: '12px 16px',
+                      border: '2px solid #e0e0e0',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.2s',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ 
+                      display: 'block',
+                      color: '#333', 
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      marginBottom: '8px'
+                    }}>
+                      Expiry Date
+                    </label>
+                    <input
+                      type="text"
+                      name="expiryDate"
+                      value={formData.expiryDate}
+                      onChange={handleInputChange}
+                      placeholder="MM/YY"
+                      style={{ 
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '2px solid #e0e0e0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        transition: 'border-color 0.2s',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ 
+                      display: 'block',
+                      color: '#333', 
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      marginBottom: '8px'
+                    }}>
+                      CCV
+                    </label>
+                    <input
+                      type="text"
+                      name="ccv"
+                      value={formData.ccv}
+                      onChange={handleInputChange}
+                      placeholder="123"
+                      maxLength="4"
+                      style={{ 
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '2px solid #e0e0e0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        transition: 'border-color 0.2s',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  style={{
+                    backgroundColor: '#f5f5f5',
+                    color: '#666',
+                    padding: '12px 24px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    background: isEditing ? 'linear-gradient(135deg, #4CAF50, #45a049)' : 'linear-gradient(135deg, #185c37, #1e6b42)',
+                    color: 'white',
+                    padding: '12px 24px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  {isEditing ? 'Update Account' : 'Add Account'}
+                </button>
+              </div>
+            </FormContainer>
+          </ModalContent>
+        </ModalOverlay>
+      )}
 
       {/* Add Feedback Popup */}
       {feedback && (
