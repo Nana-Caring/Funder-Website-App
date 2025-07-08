@@ -355,8 +355,8 @@ const ProfileCompletionPopup = ({ onClose, onCompleteProfile }) => {
   }, []);
 
   const handleRemindLater = () => {
-    // Set a flag to remind later (e.g., after 24 hours)
-    localStorage.setItem('profileCompletionReminder', Date.now() + (24 * 60 * 60 * 1000));
+    // Set a flag to remind later after 10 minutes
+    localStorage.setItem('profileCompletionReminder', Date.now() + (10 * 60 * 1000));
     onClose();
   };
 
