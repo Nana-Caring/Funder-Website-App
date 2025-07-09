@@ -481,6 +481,8 @@ const SendMoney = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupType, setPopupType] = useState('success'); // 'success' or 'error'
 
   // Fetch beneficiaries from backend
   const fetchBeneficiaries = async () => {
@@ -519,6 +521,12 @@ const SendMoney = () => {
   // Find selected beneficiary object
   const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary);
 
+  const closePopup = () => {
+    setShowPopup(false);
+    setMessage('');
+  };
+
+  // Update your handleSubmit to show the popup
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
@@ -526,25 +534,28 @@ const SendMoney = () => {
 
     if (!selectedBeneficiary || !selectedBeneficiary.accountNumber) {
       setMessage('Please select a valid beneficiary.');
+      setPopupType('error');
+      setShowPopup(true);
       setLoading(false);
       return;
     }
     if (!account) {
       setMessage('Please select a card.');
+      setPopupType('error');
+      setShowPopup(true);
       setLoading(false);
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
-      // Send paymentMethodId to backend
       const res = await axios.post(
         'http://localhost:5000/api/stripe/create-payment-intent',
         {
           amount: Number(amount),
           accountNumber: selectedBeneficiary.accountNumber,
           accountType,
-          paymentMethodId: account // This is the Stripe payment method ID
+          paymentMethodId: account
         },
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -553,11 +564,17 @@ const SendMoney = () => {
 
       if (res.data.success) {
         setMessage('🎉 Payment successful!');
+        setPopupType('success');
+        setShowPopup(true);
       } else {
         setMessage(res.data.message || 'Payment failed.');
+        setPopupType('error');
+        setShowPopup(true);
       }
     } catch (err) {
       setMessage(err.response?.data?.error || 'Payment failed.');
+      setPopupType('error');
+      setShowPopup(true);
     } finally {
       setLoading(false);
     }
