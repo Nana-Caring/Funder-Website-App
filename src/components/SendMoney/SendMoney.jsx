@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
+import { paymentMethodService } from '../../services/paymentMethodService';
 
 
 const Container = styled.div`
@@ -475,9 +476,8 @@ const SendMoney = () => {
   const [accountType, setAccountType] = useState('Main Account');
   const [amount, setAmount] = useState('5000');
   const [selectedAccount, setSelectedAccount] = useState('');
-  const [accounts, setAccounts] = useState([
-    { id: 'nana_savings', name: 'Nana Savings Account', type: 'Savings Account', balance: 'R12,450.00' }
-  ]);
+  const [accounts, setAccounts] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -502,8 +502,34 @@ const SendMoney = () => {
       }
     };
 
+    // Fetch payment methods from backend
+    const fetchPaymentMethods = async () => {
+      try {
+        const response = await paymentMethodService.getPaymentMethods();
+        const methods = response.bankAccounts || [];
+        setPaymentMethods(methods);
+        
+        // Convert payment methods to accounts format for backward compatibility
+        const formattedAccounts = methods.map(method => ({
+          id: method.id,
+          name: method.accountName || method.bankName,
+          type: method.type === 'card' 
+            ? `${paymentMethodService.getCardType(method.cardNumber || method.accountNumber)} Card`
+            : method.accountType || 'Bank Account',
+          balance: 'Available', // We don't have balance info from payment methods
+          accountNumber: method.accountNumber,
+          isDefault: method.isDefault
+        }));
+        
+        setAccounts(formattedAccounts);
+      } catch (err) {
+        showAlert('Failed to fetch payment methods');
+      }
+    };
+
      useEffect(() => {
         fetchBeneficiaries();
+        fetchPaymentMethods();
       }, []);
     
 
@@ -651,23 +677,46 @@ const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary
 
         <FormGroup>
           <label>Payment Method</label>
-          <PaymentMethodSection>
-            <PaymentMethodTitle>Select Account to Transfer From</PaymentMethodTitle>
-            {accounts.map((acc) => (
-              <AccountCard
-                key={acc.id}
-                selected={selectedAccount === acc.id}
-                onClick={() => setSelectedAccount(acc.id)}
-              >
-                <AccountInfo>
-                  <div>
-                    <AccountName>{acc.name}</AccountName>
-                    <AccountType>{acc.type} • {acc.balance}</AccountType>
+          <PaymentMethodSection>                <PaymentMethodTitle>Select Account to Transfer From</PaymentMethodTitle>
+                {accounts.length === 0 ? (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '20px', 
+                    color: '#64748b',
+                    fontSize: '14px'
+                  }}>
+                    <p>No payment methods found.</p>
+                    <p>Please add a payment method in My Accounts first.</p>
                   </div>
-                  <SelectedIndicator selected={selectedAccount === acc.id} />
-                </AccountInfo>
-              </AccountCard>
-            ))}
+                ) : (
+                  accounts.map((acc) => (
+                    <AccountCard
+                      key={acc.id}
+                      selected={selectedAccount === acc.id}
+                      onClick={() => setSelectedAccount(acc.id)}
+                    >
+                      <AccountInfo>
+                        <div>
+                          <AccountName>
+                            {acc.name}
+                            {acc.isDefault && <span style={{ 
+                              marginLeft: '8px', 
+                              fontSize: '10px', 
+                              background: '#185c37', 
+                              color: 'white', 
+                              padding: '2px 6px', 
+                              borderRadius: '4px' 
+                            }}>DEFAULT</span>}
+                          </AccountName>
+                          <AccountType>
+                            {acc.type} • {paymentMethodService.formatAccountNumber(acc.accountNumber)}
+                          </AccountType>
+                        </div>
+                        <SelectedIndicator selected={selectedAccount === acc.id} />
+                      </AccountInfo>
+                    </AccountCard>
+                  ))
+                )}
           </PaymentMethodSection>
         </FormGroup>
 
