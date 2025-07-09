@@ -3,6 +3,7 @@ import axios from 'axios';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
 import styled from 'styled-components';
+import { paymentMethodService } from '../../services/paymentMethodService';
 
 const stripePromise = loadStripe('pk_test_51REGFbROeQRel9O58mOSulLZR25JiDCo0FqwlrhopxEUuFh68lZXNTKYDer8334RrTFGBvlsKdkPMFbvzLbaoA4X00OLIDpVtW');
 
@@ -475,48 +476,62 @@ const SendMoney = () => {
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [accountType, setAccountType] = useState('Main Account');
   const [amount, setAmount] = useState('5000');
-  const [account, setAccount] = useState('');
+  const [selectedAccount, setSelectedAccount] = useState('');
   const [accounts, setAccounts] = useState([]);
-  const [newAccountName, setNewAccountName] = useState('');
+  const [paymentMethods, setPaymentMethods] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [showPopup, setShowPopup] = useState(false);
   const [popupType, setPopupType] = useState('success'); // 'success' or 'error'
 
-  // Fetch beneficiaries from backend
-  const fetchBeneficiaries = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/funder/get-beneficiaries', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      setBeneficiaries(response.data.beneficiaries || []);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch beneficiaries');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const fetchAccounts = async () => {
+    // Fetch beneficiaries from backend
+ const fetchBeneficiaries = async () => {
+      setLoading(true);
+      setError('');
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(
-          'http://localhost:5000/api/stripe/payment-methods',
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setAccounts(res.data.paymentMethods || []);
+        const response = await axios.get('https://nanacaring-backend.onrender.com/api/funder/get-beneficiaries', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+          setBeneficiaries(response.data.beneficiaries || []);
       } catch (err) {
-        setMessage('Failed to load payment methods.');
+        showAlert(err.response?.data?.message || 'Failed to fetch beneficiaries');
+      } finally {
+        setLoading(false);
       }
     };
-    fetchAccounts();
-    fetchBeneficiaries();
-  }, []);
+
+    // Fetch payment methods from backend
+    const fetchPaymentMethods = async () => {
+      try {
+        const response = await paymentMethodService.getPaymentMethods();
+        const methods = response.bankAccounts || [];
+        setPaymentMethods(methods);
+        
+        // Convert payment methods to accounts format for backward compatibility
+        const formattedAccounts = methods.map(method => ({
+          id: method.id,
+          name: method.accountName || method.bankName,
+          type: method.type === 'card' 
+            ? `${paymentMethodService.getCardType(method.cardNumber || method.accountNumber)} Card`
+            : method.accountType || 'Bank Account',
+          balance: 'Available', // We don't have balance info from payment methods
+          accountNumber: method.accountNumber,
+          isDefault: method.isDefault
+        }));
+        
+        setAccounts(formattedAccounts);
+      } catch (err) {
+        showAlert('Failed to fetch payment methods');
+      }
+    };
+
+     useEffect(() => {
+        fetchBeneficiaries();
+        fetchPaymentMethods();
+      }, []);
+    
 
   // Find selected beneficiary object
   const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary);
@@ -682,9 +697,54 @@ const SendMoney = () => {
             </AmountField>
           </AmountContainer>
 
-          <PayButton type="submit" disabled={loading}>
-            {loading ? 'Processing...' : 'Pay'}
-          </PayButton>
+        <FormGroup>
+          <label>Payment Method</label>
+          <PaymentMethodSection>                <PaymentMethodTitle>Select Account to Transfer From</PaymentMethodTitle>
+                {accounts.length === 0 ? (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '20px', 
+                    color: '#64748b',
+                    fontSize: '14px'
+                  }}>
+                    <p>No payment methods found.</p>
+                    <p>Please add a payment method in My Accounts first.</p>
+                  </div>
+                ) : (
+                  accounts.map((acc) => (
+                    <AccountCard
+                      key={acc.id}
+                      selected={selectedAccount === acc.id}
+                      onClick={() => setSelectedAccount(acc.id)}
+                    >
+                      <AccountInfo>
+                        <div>
+                          <AccountName>
+                            {acc.name}
+                            {acc.isDefault && <span style={{ 
+                              marginLeft: '8px', 
+                              fontSize: '10px', 
+                              background: '#185c37', 
+                              color: 'white', 
+                              padding: '2px 6px', 
+                              borderRadius: '4px' 
+                            }}>DEFAULT</span>}
+                          </AccountName>
+                          <AccountType>
+                            {acc.type} • {paymentMethodService.formatAccountNumber(acc.accountNumber)}
+                          </AccountType>
+                        </div>
+                        <SelectedIndicator selected={selectedAccount === acc.id} />
+                      </AccountInfo>
+                    </AccountCard>
+                  ))
+                )}
+          </PaymentMethodSection>
+        </FormGroup>
+
+        <PayButton type="submit" disabled={loading || !selectedAccount}>
+          {loading ? 'Processing...' : 'Transfer Money'}
+        </PayButton>
 
           {message && <WarningText>{message}</WarningText>}
         </form>
