@@ -476,14 +476,21 @@ const SendMoney = () => {
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [accountType, setAccountType] = useState('Main Account');
   const [amount, setAmount] = useState('5000');
-  const [selectedAccount, setSelectedAccount] = useState('');
+  const [account, setAccount] = useState('');
+  const [selectedAccount, setSelectedAccount] = useState(''); // Add this line
   const [accounts, setAccounts] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [showPopup, setShowPopup] = useState(false);
-  const [popupType, setPopupType] = useState('success'); // 'success' or 'error'
+  const [popupType, setPopupType] = useState('success');
+
+  
+  const showAlert = (message) => {
+    setMessage(message);
+    setError(message);
+  };
 
     // Fetch beneficiaries from backend
  const fetchBeneficiaries = async () => {
@@ -565,7 +572,7 @@ const SendMoney = () => {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.post(
-        'http://localhost:5000/api/stripe/create-payment-intent',
+        'https://nanacaring-backend.onrender.com/api/stripe/create-payment-intent',
         {
           amount: Number(amount),
           accountNumber: selectedBeneficiary.accountNumber,
