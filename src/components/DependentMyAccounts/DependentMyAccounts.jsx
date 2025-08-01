@@ -244,13 +244,11 @@ const DependentMyAccounts = () => {
       try {
         // First try to get from cache
         const cachedData = getCachedAccountData();
-        
         if (cachedData) {
           const allAccounts = [
             ...(cachedData.accounts?.main || []),
             ...(cachedData.accounts?.sub || [])
           ];
-          
           if (allAccounts.length > 0) {
             setAccounts(allAccounts);
             setTotalBalance(accountService.formatCurrency(cachedData.totalBalance || 0));
@@ -282,14 +280,29 @@ const DependentMyAccounts = () => {
 
         // If no cached or storage data, try to fetch fresh data
         try {
-          const accountsData = await accountService.getDependentMyAccounts();
-          
+          // Use the new endpoint for dependent accounts
+          const response = await fetch('/api/accounts/dependent/my-accounts', {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              // Optionally add auth headers if needed
+            },
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          let accountsData;
+          try {
+            accountsData = await response.json();
+          } catch (jsonError) {
+            // If response is not JSON, show a clear error
+            throw new Error('Server returned invalid JSON. This may indicate a misconfigured endpoint or a server error.');
+          }
           if (accountsData && (accountsData.totalBalance !== undefined || accountsData.accounts)) {
             const allAccounts = [
               ...(accountsData.accounts?.main || []),
               ...(accountsData.accounts?.sub || [])
             ];
-            
             setAccounts(allAccounts);
             setTotalBalance(accountService.formatCurrency(accountsData.totalBalance || 0));
             // Set default selected account (main account or first account)
@@ -298,12 +311,25 @@ const DependentMyAccounts = () => {
               acc.accountType?.toLowerCase() === 'primary'
             );
             setSelectedAccountId(mainAccount?.id || allAccounts[0]?.id);
+            // Persist to localStorage for future instant loads
+            localStorage.setItem('userAccounts', JSON.stringify(allAccounts));
+            localStorage.setItem('cachedAccountData', JSON.stringify({
+              data: accountsData,
+              timestamp: Date.now()
+            }));
           } else {
             throw new Error('No account data received');
           }
         } catch (apiError) {
-          console.warn('Failed to fetch fresh account data:', apiError);
-          setError('Unable to load account data. Please try again later.');
+          // If 404, show a friendlier message
+          if (apiError.message && apiError.message.includes('404')) {
+            setError('No dependent accounts found.');
+          } else if (apiError.message && apiError.message.includes('invalid JSON')) {
+            setError('Server returned invalid JSON. Please check the backend endpoint or contact support.');
+          } else {
+            console.warn('Failed to fetch fresh account data:', apiError);
+            setError('Unable to load account data. Please try again later.');
+          }
         }
       } catch (error) {
         console.error('Error loading account data:', error);

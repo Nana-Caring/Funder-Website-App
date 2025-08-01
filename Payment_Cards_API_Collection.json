@@ -1,0 +1,435 @@
+{
+  "info": {
+    "name": "Payment Cards API - Complete Collection",
+    "description": "Comprehensive test collection for the Payment Cards API with authentication and CRUD operations",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "1. Login (Get Auth Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set(\"AUTH_TOKEN\", response.token);",
+                  "    console.log(\"Token saved:\", response.token);",
+                  "    pm.test(\"Login successful\", function () {",
+                  "        pm.expect(response.message).to.include(\"successful\");",
+                  "    });",
+                  "} else {",
+                  "    pm.test(\"Login failed\", function () {",
+                  "        pm.response.to.not.be.ok;",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"funder@example.com\",\n  \"password\": \"your_password_here\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/auth/login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment Cards - Production Endpoints",
+      "item": [
+        {
+          "name": "Add Standard Bank Visa (Production)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set(\"LAST_CARD_ID\", response.card.id);",
+                  "    pm.test(\"Card added successfully\", function () {",
+                  "        pm.expect(response.message).to.include(\"successfully\");",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bankName\": \"Standard Bank\",\n  \"cardNumber\": \"4111111111111111\",\n  \"expiryDate\": \"12/25\",\n  \"ccv\": \"123\",\n  \"nickname\": \"My Standard Bank Visa\",\n  \"isDefault\": true\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/payment-cards/add",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "payment-cards", "add"]
+            }
+          }
+        },
+        {
+          "name": "Get All Cards",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Cards retrieved successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.test(\"Response has cards array\", function () {",
+                  "        pm.expect(response.cards).to.be.an('array');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/payment-cards/my-cards",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "payment-cards", "my-cards"]
+            }
+          }
+        },
+        {
+          "name": "Set Default Card",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/payment-cards/set-default/{{LAST_CARD_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "payment-cards", "set-default", "{{LAST_CARD_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Payment Intent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100.00,\n  \"cardId\": \"{{LAST_CARD_ID}}\",\n  \"description\": \"Test payment for account funding\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/payment-cards/create-payment-intent",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "payment-cards", "create-payment-intent"]
+            }
+          }
+        },
+        {
+          "name": "Remove Card",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/payment-cards/remove/{{LAST_CARD_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "payment-cards", "remove", "{{LAST_CARD_ID}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment Cards - Test Endpoints",
+      "item": [
+        {
+          "name": "Add Standard Bank Visa (TEST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set(\"TEST_CARD_ID\", response.card.id);",
+                  "    pm.test(\"Test card added successfully\", function () {",
+                  "        pm.expect(response.message).to.include(\"successfully\");",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bankName\": \"Standard Bank\",\n  \"cardNumber\": \"4111111111111111\",\n  \"expiryDate\": \"12/25\",\n  \"ccv\": \"123\",\n  \"nickname\": \"My Standard Bank Visa\",\n  \"isDefault\": true\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/payment-cards/add-test",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "payment-cards", "add-test"]
+            }
+          }
+        },
+        {
+          "name": "Add FNB MasterCard (TEST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set(\"FNB_CARD_ID\", response.card.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bankName\": \"First National Bank (FNB)\",\n  \"cardNumber\": \"5555555555554444\",\n  \"expiryDate\": \"08/26\",\n  \"ccv\": \"456\",\n  \"nickname\": \"FNB Business Card\",\n  \"isDefault\": false\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/payment-cards/add-test",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "payment-cards", "add-test"]
+            }
+          }
+        },
+        {
+          "name": "Add Capitec Bank Card (TEST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bankName\": \"Capitec Bank\",\n  \"cardNumber\": \"4000000000000002\",\n  \"expiryDate\": \"03/27\",\n  \"ccv\": \"789\",\n  \"nickname\": \"Capitec Debit Card\",\n  \"isDefault\": false\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/payment-cards/add-test",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "payment-cards", "add-test"]
+            }
+          }
+        },
+        {
+          "name": "Add ABSA Credit Card (TEST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bankName\": \"Absa Bank\",\n  \"cardNumber\": \"4242424242424242\",\n  \"expiryDate\": \"11/25\",\n  \"ccv\": \"321\",\n  \"nickname\": \"ABSA Platinum\",\n  \"isDefault\": false\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/payment-cards/add-test",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "payment-cards", "add-test"]
+            }
+          }
+        },
+        {
+          "name": "Add Nedbank Card (TEST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bankName\": \"Nedbank\",\n  \"cardNumber\": \"4000000000000069\",\n  \"expiryDate\": \"06/28\",\n  \"ccv\": \"654\",\n  \"nickname\": \"Nedbank Gold Card\",\n  \"isDefault\": false\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/payment-cards/add-test",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "payment-cards", "add-test"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Error Testing",
+      "item": [
+        {
+          "name": "Add Invalid Card (Missing Fields)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bankName\": \"Standard Bank\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/payment-cards/add-test",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "payment-cards", "add-test"]
+            }
+          }
+        },
+        {
+          "name": "Add Invalid Card Number",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bankName\": \"Standard Bank\",\n  \"cardNumber\": \"1234567890123456\",\n  \"expiryDate\": \"12/25\",\n  \"ccv\": \"123\",\n  \"nickname\": \"Invalid Card\",\n  \"isDefault\": false\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/payment-cards/add-test",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "payment-cards", "add-test"]
+            }
+          }
+        },
+        {
+          "name": "Unauthorized Request (No Token)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/payment-cards/my-cards",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "payment-cards", "my-cards"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "PRODUCTION_URL",
+      "value": "https://nanacaring-backend.onrender.com",
+      "type": "string"
+    }
+  ]
+}

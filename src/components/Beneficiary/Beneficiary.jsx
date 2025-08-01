@@ -298,32 +298,40 @@ const BeneficiaryForm = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
- // Fetch beneficiaries from backend
-    const fetchBeneficiaries = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get('https://nanacaring-backend.onrender.com/api/funder/get-beneficiaries', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-          setBeneficiaries(response.data.beneficiaries || []);
-      } catch (err) {
-        setError(err.response?.data?.message || 'Failed to fetch beneficiaries');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Fetch beneficiaries from backend and persist to localStorage
+  const fetchBeneficiaries = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('https://nanacaring-backend.onrender.com/api/funder/get-beneficiaries', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const fetched = response.data.beneficiaries || [];
+      setBeneficiaries(fetched);
+      // Persist to localStorage
+      localStorage.setItem('funder_beneficiaries', JSON.stringify(fetched));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch beneficiaries');
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
-  // Load beneficiaries in the background (silent refresh)
+  // Load beneficiaries from localStorage once, then fetch from backend in background
   useEffect(() => {
+    // Try to load from localStorage first
+    const stored = localStorage.getItem('funder_beneficiaries');
+    if (stored) {
+      try {
+        setBeneficiaries(JSON.parse(stored));
+      } catch (e) {
+        // Ignore parse error, fallback to fetch
+      }
+    }
+    // Always fetch fresh in background (but only once)
     fetchBeneficiaries();
-    // Optionally, set up a silent interval refresh (e.g., every 60s)
-    const interval = setInterval(() => {
-      fetchBeneficiaries();
-    }, 60000);
-    return () => clearInterval(interval);
   }, []);
 
 

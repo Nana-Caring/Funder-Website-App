@@ -1163,7 +1163,7 @@ const Dashboard = () => {
         
         <MainContent>
           <div>
-            <BalanceCard>
+           <BalanceCard>
               <div className="balance-row">
                 <div className="balance-item" style={{ justifyContent: 'center', width: '100%' }}>
                   <p>Main Account Balance:</p>
