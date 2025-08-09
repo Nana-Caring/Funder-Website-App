@@ -614,7 +614,15 @@ const getRandomPastelColor = () => {
 };
 
 const MyAccounts = () => {
-  const [paymentMethods, setPaymentMethods] = useState([]);
+  // Load payment methods from localStorage first for instant UI
+  const [paymentMethods, setPaymentMethods] = useState(() => {
+    try {
+      const cached = localStorage.getItem('paymentMethods');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
@@ -636,8 +644,30 @@ const MyAccounts = () => {
   const [cardType, setCardType] = useState('');
   const [showModal, setShowModal] = useState(false);
 
+  // Only fetch from backend once per mount, but always show localStorage data instantly
   useEffect(() => {
-    fetchPaymentMethods();
+    let didCancel = false;
+    const fetchAndPersist = async () => {
+      setLoading(true);
+      try {
+        const response = await paymentMethodService.getPaymentMethods();
+        const cards = response.cards || [];
+        if (!didCancel) {
+          setPaymentMethods(cards);
+        }
+        // Persist to localStorage
+        localStorage.setItem('paymentMethods', JSON.stringify(cards));
+      } catch (error) {
+        // If localStorage has data, don't clear it on error
+        if (!error.message.includes('404') && !error.message.includes('Not Found')) {
+          setMessage({ text: error.message || 'Failed to fetch cards', type: 'error' });
+        }
+      } finally {
+        if (!didCancel) setLoading(false);
+      }
+    };
+    fetchAndPersist();
+    return () => { didCancel = true; };
   }, []);
 
   // Handle escape key to close modal
@@ -660,17 +690,20 @@ const MyAccounts = () => {
     };
   }, [showModal]);
 
+  // Helper to update state and persist to localStorage after add/delete/setDefault
+  const updatePaymentMethods = (cards) => {
+    setPaymentMethods(cards);
+    localStorage.setItem('paymentMethods', JSON.stringify(cards));
+  };
+
+  // Fetch from backend and update state + localStorage (used after add/delete/setDefault)
   const fetchPaymentMethods = async () => {
     setLoading(true);
     try {
       const response = await paymentMethodService.getPaymentMethods();
-      // Now using the cards array from API response
-      setPaymentMethods(response.cards || []);
+      const cards = response.cards || [];
+      updatePaymentMethods(cards);
     } catch (error) {
-      console.log('Payment methods endpoint not available, using empty state');
-      // For development - if the endpoint doesn't exist, just show empty state
-      setPaymentMethods([]);
-      // Don't show error message for 404 since it's expected during development
       if (!error.message.includes('404') && !error.message.includes('Not Found')) {
         setMessage({ text: error.message || 'Failed to fetch cards', type: 'error' });
       }
@@ -811,7 +844,10 @@ const MyAccounts = () => {
       setValidationErrors({});
       setCardType('');
       setShowModal(false); // Close modal on success
-      fetchPaymentMethods();
+      // Refetch and update localStorage, then update state instantly
+      const response = await paymentMethodService.getPaymentMethods();
+      const cards = response.cards || [];
+      updatePaymentMethods(cards);
     } catch (error) {
       if (error.message.includes('404') || error.message.includes('Not Found')) {
         setMessage({ text: 'Backend endpoint not configured. Card functionality will be available when the backend is set up.', type: 'error' });
@@ -852,7 +888,10 @@ const MyAccounts = () => {
     try {
       await paymentMethodService.deletePaymentMethod(id);
       setMessage({ text: 'Payment card deleted successfully!', type: 'success' });
-      fetchPaymentMethods();
+      // Refetch and update localStorage, then update state instantly
+      const response = await paymentMethodService.getPaymentMethods();
+      const cards = response.cards || [];
+      updatePaymentMethods(cards);
     } catch (error) {
       if (error.message.includes('404') || error.message.includes('Not Found')) {
         setMessage({ text: 'Backend endpoint not configured. Delete functionality will be available when the backend is set up.', type: 'error' });
@@ -866,7 +905,10 @@ const MyAccounts = () => {
     try {
       await paymentMethodService.setDefaultPaymentMethod(id);
       setMessage({ text: 'Default payment card updated!', type: 'success' });
-      fetchPaymentMethods();
+      // Refetch and update localStorage, then update state instantly
+      const response = await paymentMethodService.getPaymentMethods();
+      const cards = response.cards || [];
+      updatePaymentMethods(cards);
     } catch (error) {
       if (error.message.includes('404') || error.message.includes('Not Found')) {
         setMessage({ text: 'Backend endpoint not configured. Set default functionality will be available when the backend is set up.', type: 'error' });

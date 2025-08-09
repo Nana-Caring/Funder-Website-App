@@ -24,10 +24,7 @@ const CaregiverHeader = ({ title }) => {
         <div className="icon-container" onClick={() => navigate('/profile')}>
           <img src={personIcon} alt="Profile" />
         </div>
-        <div className="icon-container" onClick={() => navigate('/notifications')}>
-          <img src={notificationIcon} alt="Notifications" />
-          <img src={notificationIndicatorIcon} alt="Notification Indicator" className="notification-indicator" />
-        </div>
+        
         <div className="icon-container" onClick={() => navigate('/settings')}>
           <img src={settingsIcon} alt="Settings" />
         </div>

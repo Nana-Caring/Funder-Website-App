@@ -37,6 +37,11 @@ const LoginPage = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordData, setForgotPasswordData] = useState({
+    emailOrUsername: ''
+  });
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -178,6 +183,53 @@ const LoginPage = () => {
     });
   };
 
+  const handleForgotPasswordSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setForgotPasswordMessage('');
+    
+    try {
+      if (!forgotPasswordData.emailOrUsername) {
+        setError('Please enter your email or username');
+        return;
+      }
+
+      setLoading(true);
+
+      // TODO: Replace this with actual API call to your forgot password endpoint
+      // const response = await authService.forgotPassword(forgotPasswordData.emailOrUsername);
+      
+      // For now, simulate a successful request
+      setTimeout(() => {
+        setForgotPasswordMessage('Password reset instructions have been sent to your email address.');
+        setLoading(false);
+      }, 1500);
+
+    } catch (err) {
+      console.error('Forgot Password Error:', err);
+      setError(
+        err.response?.data?.message || 
+        err.message || 
+        'Failed to send reset instructions. Please try again.'
+      );
+      setLoading(false);
+    }
+  };
+
+  const toggleForgotPassword = () => {
+    setShowForgotPassword(!showForgotPassword);
+    setError('');
+    setForgotPasswordMessage('');
+    setForgotPasswordData({ emailOrUsername: '' });
+  };
+
+  const handleForgotPasswordInputChange = (e) => {
+    setForgotPasswordData({
+      ...forgotPasswordData,
+      [e.target.name]: e.target.value
+    });
+  };
+
   return (
     <div className="landing-page">
       <nav className="landing-nav">
@@ -207,73 +259,158 @@ const LoginPage = () => {
           <button className="download-btn">Download App</button>
         </div>
         <div className="login-form">
-          <form onSubmit={handleSubmit}>
-            <h2>Login</h2>
-            {error && (
-              <div className="error-message">
-                <p>{error}</p>
-                {(error.includes('download') || error.includes('mobile app')) && (
-                  <div className="app-download-options">
-                    <a 
-                      href="your-ios-app-link"
-                      className="download-link"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Download iOS App →
-                    </a>
-                    <a 
-                      href="your-android-app-link"
-                      className="download-link"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Download Android App →
-                    </a>
-                  </div>
-                )}
-              </div>
-            )}
-            <p className="form-description">Provide your email and password</p>
-            <div className="form-group">
-              <label>Email:</label>
-              <input 
-                type="email" 
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                required 
-              />
-            </div>
-            <div className="form-group">
-              <label>Password:</label>
-              <div className="password-input-container">
+          {!showForgotPassword ? (
+            // Login Form
+            <form onSubmit={handleSubmit}>
+              <h2>Login</h2>
+              {error && (
+                <div className="error-message">
+                  <p>{error}</p>
+                  {(error.includes('download') || error.includes('mobile app')) && (
+                    <div className="app-download-options">
+                      <a 
+                        href="your-ios-app-link"
+                        className="download-link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Download iOS App →
+                      </a>
+                      <a 
+                        href="your-android-app-link"
+                        className="download-link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Download Android App →
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+              <p className="form-description">Provide your email and password</p>
+              <div className="form-group">
+                <label>Email:</label>
                 <input 
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  value={formData.password}
+                  type="email" 
+                  name="email"
+                  value={formData.email}
                   onChange={handleInputChange}
                   required 
                 />
+              </div>
+              <div className="form-group">
+                <label>Password:</label>
+                <div className="password-input-container">
+                  <input 
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    required 
+                  />
+                  <button 
+                    type="button" 
+                    className="password-toggle-btn"
+                    onClick={togglePasswordVisibility}
+                  >
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
+              </div>
+              <div className="forgot-password-link">
                 <button 
                   type="button" 
-                  className="password-toggle-btn"
-                  onClick={togglePasswordVisibility}
+                  onClick={toggleForgotPassword}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#000',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    fontSize: '10px',
+                    padding: '0',
+                    margin: '10px 0',
+                  }}
+                  onMouseOver={e => e.currentTarget.style.color = '#FFD600'}
+                  onMouseOut={e => e.currentTarget.style.color = '#000'}
                 >
-                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  Forgot Password?
                 </button>
               </div>
-            </div>
-            <div className="form-navigation">
-              <button 
-                type="submit" 
-                className="login-submit-btn"
-                disabled={loading}
-              >
-                {loading ? 'Logging in...' : 'Login →'}
-              </button>
-            </div>
-          </form>
+              <div className="form-navigation">
+                <button 
+                  type="submit" 
+                  className="login-submit-btn"
+                  disabled={loading}
+                >
+                  {loading ? 'Logging in...' : 'Login →'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            // Forgot Password Form
+            <form onSubmit={handleForgotPasswordSubmit}>
+              <h2>Reset Password</h2>
+              {error && (
+                <div className="error-message">
+                  <p>{error}</p>
+                </div>
+              )}
+              {forgotPasswordMessage && (
+                <div className="success-message" style={{
+                  backgroundColor: '#d4edda',
+                  color: '#155724',
+                  border: '1px solid #c3e6cb',
+                  borderRadius: '5px',
+                  padding: '10px',
+                  marginBottom: '15px'
+                }}>
+                  <p>{forgotPasswordMessage}</p>
+                </div>
+              )}
+              <p className="form-description">Enter your email or username to receive password reset instructions</p>
+              <div className="form-group">
+                <label>Email or Username:</label>
+                <input 
+                  type="text" 
+                  name="emailOrUsername"
+                  value={forgotPasswordData.emailOrUsername}
+                  onChange={handleForgotPasswordInputChange}
+                  placeholder="Enter your email or username"
+                  required 
+                />
+              </div>
+              <div className="form-navigation">
+                <button 
+                  type="button" 
+                  onClick={toggleForgotPassword}
+                  style={{
+                    background: '#f8f9fa',
+                    color: '#6c757d',
+                    height: '30px',
+                    border: 'none',
+                    alignContent: 'center',
+                    padding: '0 10px',
+                   
+                    cursor: 'pointer',
+                    marginRight: '10px'
+                  }}
+                  onMouseOver={e => e.currentTarget.style.color = '#FFD600'}
+                  onMouseOut={e => e.currentTarget.style.color = '#000'}
+                >
+                  ← 
+                </button>
+                <button 
+                  type="submit" 
+                  className="login-submit-btn"
+                  disabled={loading}
+                >
+                  {loading ? 'Sending...' : 'Send Reset Instructions →'}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
 

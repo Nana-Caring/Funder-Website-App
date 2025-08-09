@@ -167,10 +167,10 @@ const authenticationSlice = createSlice({
         state.accounts = action.payload.accounts; // Store accounts in state
 
         // Store comprehensive user and account details in localStorage
-        if (action.payload.user && action.payload.token) {
-          // Store authentication tokens
-          localStorage.setItem('token', action.payload.token);
-          localStorage.setItem('jwt', action.payload.jwt || action.payload.token);
+        if (action.payload.user && action.payload.token) {        // Store authentication tokens
+        localStorage.setItem('token', action.payload.token);
+        localStorage.setItem('accessToken', action.payload.token); // Also store as accessToken for compatibility
+        localStorage.setItem('jwt', action.payload.jwt || action.payload.token);
           
           // Store all user details
           localStorage.setItem('userId', action.payload.user.id);

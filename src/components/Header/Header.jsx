@@ -14,77 +14,98 @@ const HeaderContainer = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0px 40px 0px 60px; /* Increased left padding from 30px to 60px */
-  width: calc(100% - 250px); /* Adjust width based on sidebar */
+  padding: 0px 40px 0px 60px;
+  width: calc(100% - 250px);
   margin-left: auto;
   box-sizing: border-box;
   background: white;
   border-bottom: 1px solid #eee;
   font-family: 'Poppins', sans-serif;
   height: 60px;
- 
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04); /* Subtle shadow for elevation */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  z-index: 2000;
 
   h2 {
-    font-size: 16px; /* Reduced font size */
+    font-size: 16px;
     color: #333;
     margin: 0;
   }
 
   .icons {
     display: flex;
-    gap: 12px; /* Reduced gap */
+    gap: 12px;
     align-items: center;
 
     .icon-container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 2px; /* Reduced gap */
+      gap: 2px;
       position: relative;
-      
       img {
         cursor: pointer;
-        width: 20px; /* Reduced icon size */
-        height: 20px; /* Reduced icon size */
+        width: 20px;
+        height: 20px;
         object-fit: contain;
       }
-
       .notification-indicator {
         position: absolute;
         top: -2px;
         right: -2px;
-        width: 8px; /* Reduced indicator size */
-        height: 8px; /* Reduced indicator size */
+        width: 8px;
+        height: 8px;
       }
-
       span {
-        font-size: 11px; /* Reduced font size */
+        font-size: 11px;
         color: #666;
       }
     }
   }
 
+  .hamburger {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    z-index: 2100;
+    margin-left: 12px;
+  }
+  .hamburger span {
+    display: block;
+    height: 4px;
+    width: 28px;
+    margin: 4px 0;
+    background: #333;
+    border-radius: 2px;
+    transition: 0.3s;
+  }
+
   @media (max-width: 1024px) {
-    width: calc(100% - 200px); /* Adjust for smaller screens */
-    padding: 8px 30px 8px 40px; /* Adjusted padding for smaller screens */
-    
+    width: 100vw;
+    min-width: 0;
+    padding: 8px 20px 8px 20px;
     h2 {
       font-size: 15px;
     }
   }
 
   @media (max-width: 768px) {
-    width: calc(100% - 180px); /* Further adjust for mobile */
-    padding: 8px 20px 8px 30px; /* Further adjusted for mobile */
-    
+    width: 100vw;
+    min-width: 0;
+    padding: 8px 10px 8px 10px;
     .icons {
       gap: 8px;
-      
       .icon-container img {
         width: 18px;
         height: 18px;
       }
+    }
+    .hamburger {
+      display: flex;
     }
   }
 `;
@@ -105,10 +126,15 @@ const MainContent = styled.div`
   }
 `;
 
+
+import { useState } from 'react';
+
 const Header = ({ title }) => {
   const navigate = useNavigate();
   const surname = localStorage.getItem('surname') || 'User';
+  const [menuOpen, setMenuOpen] = useState(false);
 
+  // Responsive: show icons as hamburger menu on mobile
   return (
     <HeaderContainer>
       {title ? (
@@ -119,18 +145,56 @@ const Header = ({ title }) => {
           <span style={{ fontWeight: 'bold' }}>Mr {surname}</span>
         </h2>
       )}
-      <div className="icons">
+      {/* Hamburger for mobile */}
+      <button
+        className="hamburger"
+        aria-label="Open menu"
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen((open) => !open)}
+        style={{ display: 'none' }}
+      >
+        <span style={{ background: menuOpen ? '#FFA500EE' : '#333', transform: menuOpen ? 'rotate(45deg) translate(5px, 5px)' : 'none' }} />
+        <span style={{ opacity: menuOpen ? 0 : 1 }} />
+        <span style={{ background: menuOpen ? '#FFA500EE' : '#333', transform: menuOpen ? 'rotate(-45deg) translate(7px, -7px)' : 'none' }} />
+      </button>
+      {/* Desktop icons */}
+      <div className="icons" style={{ display: menuOpen ? 'none' : 'flex' }}>
         <div className="icon-container" onClick={() => navigate('/profile')}>
           <img src={personIcon} alt="Profile" />
-        </div>
-        <div className="icon-container" onClick={() => navigate('/notifications')}>
-          <img src={notificationIcon} alt="Notifications" />
-          <img src={notificationIndicatorIcon} alt="Notification Indicator" className="notification-indicator" />
         </div>
         <div className="icon-container" onClick={() => navigate('/settings')}>
           <img src={settingsIcon} alt="Settings" />
         </div>
       </div>
+      {/* Mobile menu */}
+      {menuOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '60px',
+            right: 0,
+            background: 'white',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            borderRadius: '0 0 0 12px',
+            zIndex: 2200,
+            padding: '16px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '18px',
+            minWidth: '140px',
+            alignItems: 'flex-end',
+          }}
+        >
+          <div className="icon-container" onClick={() => { setMenuOpen(false); navigate('/profile'); }}>
+            <img src={personIcon} alt="Profile" />
+            <span>Profile</span>
+          </div>
+          <div className="icon-container" onClick={() => { setMenuOpen(false); navigate('/settings'); }}>
+            <img src={settingsIcon} alt="Settings" />
+            <span>Settings</span>
+          </div>
+        </div>
+      )}
     </HeaderContainer>
   );
 };

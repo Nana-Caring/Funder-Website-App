@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'https://nanacaring-backend.onrender.com';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -13,7 +13,10 @@ const api = axios.create({
 // Add request interceptor to include auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || 
+                  localStorage.getItem('accessToken') || 
+                  localStorage.getItem('authToken') ||
+                  localStorage.getItem('jwt');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

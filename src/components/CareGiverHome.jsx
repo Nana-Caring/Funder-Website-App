@@ -1,30 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import styled from 'styled-components';
 import expensesIcon from '../assets/icons/expenses.png';
 import arrowIcon from '../assets/icons/arrow.png';
 import ProfileCompletionPopup from './common/ProfileCompletionPopup';
-
-// Mock data
-const accounts = [
-  { color: '#a084ee', label: 'Baby Care Account', percent: 0 },
-  { color: '#3b82f6', label: 'Entertainment Account', percent: 0 },
-  { color: '#ffb84c', label: 'Healthcare Account', percent: 0 },
-  { color: '#4ade80', label: 'Key title goes here', percent: 0 },
-];
-
-const transactions = [
-  { name: 'School fees', date: '1-Feb-25 11:00 AM', amount: '-R10 000', avatar: '' },
-  { name: 'School fees', date: '1-Feb-25 11:00 AM', amount: '-R10 000', avatar: '' },
-  { name: 'School fees', date: '1-Feb-25 11:00 AM', amount: '-R10 000', avatar: '' },
-  { name: 'School fees', date: '1-Feb-25 11:00 AM', amount: '-R10 000', avatar: '' },
-];
-
-const requests = [
-  { name: 'Charity Matlopjo', reason: 'Healthcare', amount: 'R8 000' },
-  { name: 'Charity Matlopjo', reason: 'Healthcare', amount: 'R8 000' },
-  { name: 'Charity Matlopjo', reason: 'Healthcare', amount: 'R8 000' },
-];
+import { 
+  fetchDependents, 
+  fetchCaregiverStats, 
+  fetchRecentActivity 
+} from '../store/slices/beneficiaries';
 
 // Styled components
 const MainContent = styled.div`
@@ -37,6 +22,28 @@ const MainContent = styled.div`
   margin-left: auto;
   margin-top: 80px;
   box-sizing: border-box;
+  height: calc(100vh - 10px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  
+  /* Custom scrollbar styling */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
 `;
 
 const Grid = styled.div`
@@ -113,7 +120,7 @@ const BarChart = styled.div`
 const Bar = styled.div`
   height: 100%;
   background: ${props => props.color};
-  width: ${props => props.percent}%;
+  width: ${props => props.$percent}%;
 `;
 
 const Legend = styled.div`
@@ -284,7 +291,82 @@ const ResponsiveWrapper = styled.div`
 // Update the component return statement
 const CareGiverHome = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [showProfilePopup, setShowProfilePopup] = useState(false);
+  
+  // Get data from Redux store
+  const { 
+    list: dependents, 
+    isLoading, 
+    error,
+    stats,
+    recentActivity 
+  } = useSelector(state => state.beneficiaries);
+  const { user } = useSelector(state => state.authentication);
+  
+  const token = localStorage.getItem('token');
+
+  // Fetch data on component mount
+  useEffect(() => {
+    if (token) {
+      dispatch(fetchCaregiverStats(token));
+      dispatch(fetchDependents({ token, params: { limit: 5 } }));
+      dispatch(fetchRecentActivity({ token, params: { limit: 4, days: 30 } }));
+    }
+  }, [dispatch, token]);
+
+  // Calculate dynamic account data based on dependents
+  const getAccountsData = () => {
+    if (!dependents.length) {
+      return [
+        { color: '#a084ee', label: 'Baby Care Account', percent: 0, balance: 0 },
+        { color: '#3b82f6', label: 'Entertainment Account', percent: 0, balance: 0 },
+        { color: '#ffb84c', label: 'Healthcare Account', percent: 0, balance: 0 },
+        { color: '#4ade80', label: 'Education Account', percent: 0, balance: 0 },
+      ];
+    }
+
+    const totalBalance = stats?.totalAccountBalance || 0;
+    const accountCount = dependents.length;
+    const avgBalance = accountCount > 0 ? totalBalance / accountCount : 0;
+
+    return [
+      { 
+        color: '#a084ee', 
+        label: 'Baby Care Account', 
+        percent: totalBalance > 0 ? 25 : 0, 
+        balance: avgBalance * 0.3 
+      },
+      { 
+        color: '#3b82f6', 
+        label: 'Entertainment Account', 
+        percent: totalBalance > 0 ? 20 : 0, 
+        balance: avgBalance * 0.2 
+      },
+      { 
+        color: '#ffb84c', 
+        label: 'Healthcare Account', 
+        percent: totalBalance > 0 ? 35 : 0, 
+        balance: avgBalance * 0.35 
+      },
+      { 
+        color: '#4ade80', 
+        label: 'Education Account', 
+        percent: totalBalance > 0 ? 20 : 0, 
+        balance: avgBalance * 0.15 
+      },
+    ];
+  };
+
+  const accountsData = getAccountsData();
+  const recentTransactions = recentActivity?.transactions || [];
+  
+  // Mock requests data - replace with real API when available
+  const requests = [
+    { name: 'Healthcare Request', reason: 'Medical expenses', amount: `R${(stats?.totalAccountBalance * 0.1 || 1000).toFixed(0)}` },
+    { name: 'Education Request', reason: 'School fees', amount: `R${(stats?.totalAccountBalance * 0.15 || 1500).toFixed(0)}` },
+    { name: 'Emergency Request', reason: 'Urgent care', amount: `R${(stats?.totalAccountBalance * 0.05 || 500).toFixed(0)}` },
+  ];
 
   useEffect(() => {
     // Check if we should show the profile completion popup
@@ -353,14 +435,65 @@ const CareGiverHome = () => {
     <>
       <MainContent>
       <ResponsiveWrapper>
+        {/* Statistics Summary Card */}
+        <Card style={{ 
+          marginBottom: '16px', 
+          background: 'linear-gradient(135deg, #185c37, #1e6b42)',
+          color: 'white'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>
+              Caregiver Dashboard Overview
+            </h3>
+            {isLoading && (
+              <div style={{ fontSize: '12px', opacity: 0.8 }}>Loading...</div>
+            )}
+          </div>
+          
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+            gap: '16px' 
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '24px', fontWeight: '700', marginBottom: '4px' }}>
+                {stats?.totalDependents || dependents.length || 0}
+              </div>
+              <div style={{ fontSize: '12px', opacity: 0.8 }}>Total Dependents</div>
+            </div>
+            
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '24px', fontWeight: '700', marginBottom: '4px' }}>
+                {stats?.dependentsByStatus?.active || 0}
+              </div>
+              <div style={{ fontSize: '12px', opacity: 0.8 }}>Active Accounts</div>
+            </div>
+            
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '20px', fontWeight: '700', marginBottom: '4px' }}>
+                {stats?.currency || 'ZAR'} {stats?.totalAccountBalance?.toFixed(2) || '0.00'}
+              </div>
+              <div style={{ fontSize: '12px', opacity: 0.8 }}>Total Balance</div>
+            </div>
+            
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '24px', fontWeight: '700', marginBottom: '4px' }}>
+                {recentActivity?.totalTransactions || 0}
+              </div>
+              <div style={{ fontSize: '12px', opacity: 0.8 }}>Recent Transactions</div>
+            </div>
+          </div>
+        </Card>
+
         <Grid>
           {/* Left: Monthly expenses and bar chart */}
           <Card>
             {/* Avatars centered at the top */}
             <AvatarsRow>
-              <Avatar>P</Avatar>
-              
-              <Avatar style={{ background: '#ff4c60' }}>C</Avatar>
+              <Avatar>{user?.firstName?.charAt(0) || 'C'}</Avatar>
+              <Avatar style={{ background: '#ff4c60' }}>
+                {dependents.length > 0 ? dependents[0].name.charAt(0) : 'D'}
+              </Avatar>
               <img src={arrowIcon} alt="Arrow" style={{ width: 24, height: 24 }} />
             </AvatarsRow>
             {/* Dots below avatars */}
@@ -371,24 +504,28 @@ const CareGiverHome = () => {
             {/* Monthly expenses and rest of content */}
             <FlexRow style={{ justifyContent: 'space-between', marginBottom: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-               
-                <div style={{ color: '#222', fontWeight: 500, fontSize: 16 }}>Monthly expenses</div>
+                <div style={{ color: '#222', fontWeight: 500, fontSize: 16 }}>
+                  Total Balance: {stats?.currency || 'ZAR'} {stats?.totalAccountBalance?.toFixed(2) || '0.00'}
+                </div>
                 <img src={expensesIcon} alt="Expenses" style={{ width: 24, height: 24 }} />
               </div>
-              <div />
+              <div style={{ fontSize: '12px', color: '#666' }}>
+                {dependents.length} Dependents
+              </div>
             </FlexRow>
-           
             <BarChart style={{ margin: '10px 0 8px 0' }}>
-              {accounts.map((acc, i) => (
-                <Bar key={acc.label} color={acc.color} percent={25} />
+              {accountsData.map((acc, i) => (
+                <Bar key={acc.label} color={acc.color} $percent={acc.percent} />
               ))}
             </BarChart>
             <Legend>
-              {accounts.map(acc => (
+              {accountsData.map(acc => (
                 <LegendRow key={acc.label}>
                   <Dot color={acc.color} />
                   <span>{acc.label}</span>
-                  <span style={{ marginLeft: 'auto', color: '#888' }}>00%</span>
+                  <span style={{ marginLeft: 'auto', color: '#888' }}>
+                    {acc.percent}% ({stats?.currency || 'ZAR'} {acc.balance.toFixed(0)})
+                  </span>
                 </LegendRow>
               ))}
             </Legend>
@@ -396,19 +533,48 @@ const CareGiverHome = () => {
           {/* Right: Transaction History */}
           <Card>
             <SectionTitle>
-              Transaction History <SeeAll>see all &rarr;</SeeAll>
+              Recent Activity 
+              <SeeAll onClick={() => navigate('/caregiver/beneficiaries')}>
+                see all &rarr;
+              </SeeAll>
             </SectionTitle>
             <TransactionList>
-              {transactions.slice(0, 4).map((tx, i) => (
-                <TransactionItem key={i}>
-                  <TransactionAvatar>A</TransactionAvatar>
-                  <TransactionInfo>
-                    <TransactionName>{tx.name}</TransactionName>
-                    <TransactionDate>{tx.date}</TransactionDate>
-                  </TransactionInfo>
-                  <TransactionAmount>{tx.amount}</TransactionAmount>
-                </TransactionItem>
-              ))}
+              {isLoading ? (
+                <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+                  Loading transactions...
+                </div>
+              ) : recentTransactions.length > 0 ? (
+                recentTransactions.slice(0, 4).map((tx, i) => (
+                  <TransactionItem key={tx.id || i}>
+                    <TransactionAvatar>
+                      {tx.dependent?.name?.charAt(0) || 'D'}
+                    </TransactionAvatar>
+                    <TransactionInfo>
+                      <TransactionName>
+                        {tx.description || 'Transaction'}
+                      </TransactionName>
+                      <TransactionDate>
+                        {new Date(tx.timestamp || tx.createdAt).toLocaleDateString('en-ZA', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </TransactionDate>
+                    </TransactionInfo>
+                    <TransactionAmount style={{
+                      color: tx.type === 'Credit' ? '#4ade80' : '#ef4444'
+                    }}>
+                      {tx.type === 'Credit' ? '+' : '-'}R{tx.amount?.toFixed(2) || '0.00'}
+                    </TransactionAmount>
+                  </TransactionItem>
+                ))
+              ) : (
+                <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+                  No recent transactions
+                </div>
+              )}
             </TransactionList>
           </Card>
         </Grid>
