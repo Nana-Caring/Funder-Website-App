@@ -38,6 +38,39 @@ const authService = {
     localStorage.removeItem('user');
     localStorage.removeItem('userRole');
     localStorage.removeItem('userId');
+  },
+
+  // Forgot Password API call
+  forgotPassword: async (email) => {
+    try {
+      const response = await axios.post(`${API_URL}/forgot-password`, { email });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Reset Password API call
+  resetPassword: async (token, newPassword) => {
+    try {
+      const response = await axios.post(`${API_URL}/reset-password`, { 
+        token, 
+        newPassword 
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Verify Reset Token API call
+  verifyResetToken: async (token) => {
+    try {
+      const response = await axios.get(`${API_URL}/verify-reset-token/${token}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
   }
 };
 
