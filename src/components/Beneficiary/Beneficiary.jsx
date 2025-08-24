@@ -357,7 +357,7 @@ const BeneficiaryForm = () => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('https://nanacaring-backend.onrender.com/api/funder/link-dependent', {
+      const response = await axios.post('http://localhost:5000/api/funder/link-dependent', {
         dependentName: formData.name,
         accountNumber: formData.accountNumber
 

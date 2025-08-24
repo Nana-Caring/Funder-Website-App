@@ -196,14 +196,10 @@ const LoginPage = () => {
 
       setLoading(true);
 
-      // TODO: Replace this with actual API call to your forgot password endpoint
-      // const response = await authService.forgotPassword(forgotPasswordData.emailOrUsername);
+      // Call the actual forgot password API
+      await authService.forgotPassword(forgotPasswordData.emailOrUsername);
       
-      // For now, simulate a successful request
-      setTimeout(() => {
-        setForgotPasswordMessage('Password reset instructions have been sent to your email address.');
-        setLoading(false);
-      }, 1500);
+      setForgotPasswordMessage('Password reset instructions have been sent to your email address. Please check your inbox and follow the instructions to reset your password.');
 
     } catch (err) {
       console.error('Forgot Password Error:', err);
@@ -212,6 +208,7 @@ const LoginPage = () => {
         err.message || 
         'Failed to send reset instructions. Please try again.'
       );
+    } finally {
       setLoading(false);
     }
   };

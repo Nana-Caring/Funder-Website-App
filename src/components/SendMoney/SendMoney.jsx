@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
 import styled from 'styled-components';
 import { paymentMethodService } from '../../services/paymentMethodService';
+
+const stripePromise = loadStripe('pk_test_51REGFbROeQRel9O58mOSulLZR25JiDCo0FqwlrhopxEUuFh68lZXNTKYDer8334RrTFGBvlsKdkPMFbvzLbaoA4X00OLIDpVtW');
 
 const Container = styled.div`
   position: relative;
@@ -54,11 +58,7 @@ const FormSection = styled.div`
 const FormContainer = styled.form`
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  
-  @media (max-width: 768px) {
-    gap: 14px;
-  }
+  gap: 15px;
 `;
 
 const FormGroup = styled.div`
@@ -424,17 +424,22 @@ const SendMoney = () => {
   const [beneficiary, setBeneficiary] = useState('');
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [accountType, setAccountType] = useState('Main Account');
-  const [amount, setAmount] = useState('');
-  const [selectedAccount, setSelectedAccount] = useState('');
+  const [amount, setAmount] = useState('5000');
+  const [account, setAccount] = useState('');
+  const [selectedAccount, setSelectedAccount] = useState(''); // Add this line
   const [accounts, setAccounts] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [showPopup, setShowPopup] = useState(false);
-  const [popupType, setPopupType] = useState(''); // 'success' or 'error'
-  const [developmentMode, setDevelopmentMode] = useState(false);
+  const [popupType, setPopupType] = useState('success');
 
+  
+  const showAlert = (message) => {
+    setMessage(message);
+    setError(message);
+  };
 
     // Fetch beneficiaries from backend
  const fetchBeneficiaries = async () => {
@@ -499,67 +504,44 @@ const SendMoney = () => {
     
 
   // Find selected beneficiary object
-const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary);
-
-  const showAlert = (message, isSuccess = false) => {
-    setMessage(message);
-    setPopupType(isSuccess ? 'success' : 'error');
-    setShowPopup(true);
-  };
+  const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary);
 
   const closePopup = () => {
     setShowPopup(false);
     setMessage('');
   };
 
-
+  // Update your handleSubmit to show the popup
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
     setLoading(true);
 
     if (!selectedBeneficiary || !selectedBeneficiary.accountNumber) {
-      showAlert('Please select a valid beneficiary.');
+      setMessage('Please select a valid beneficiary.');
+      setPopupType('error');
+      setShowPopup(true);
       setLoading(false);
       return;
     }
-
-    if (!selectedAccount) {
-      showAlert('Please select a payment card to transfer from.');
-      setLoading(false);
-      return;
-    }
-
-    if (!amount || Number(amount) <= 0) {
-      showAlert('Please enter a valid amount.');
+    if (!account) {
+      setMessage('Please select a card.');
+      setPopupType('error');
+      setShowPopup(true);
       setLoading(false);
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
-      const selectedCard = accounts.find(card => card.id === selectedAccount);
-
-      if (!selectedCard) {
-        showAlert('Selected payment card not found.');
-        setLoading(false);
-        return;
-      }
-
-      // Prepare transfer data according to the API specification
-      const transferData = {
-        cardId: selectedCard.id,
-        beneficiaryId: Number(selectedBeneficiary.id),
-        amount: Number(amount),
-        description: `Transfer to ${selectedBeneficiary.firstName} ${selectedBeneficiary.middleName || ''} - ${accountType}`
-      };
-
-      console.log('Sending money with data:', transferData);
-
-      // Send money using the correct API endpoint
-      const transferRes = await axios.post(
-        'https://nanacaring-backend.onrender.com/api/transfers/send-to-beneficiary',
-        transferData,
+      const res = await axios.post(
+        'https://nanacaring-backend.onrender.com/api/stripe/create-payment-intent',
+        {
+          amount: Number(amount),
+          accountNumber: selectedBeneficiary.accountNumber,
+          accountType,
+          paymentMethodId: account
+        },
         {
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -568,57 +550,23 @@ const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary
         }
       );
 
-      if (transferRes.data.message === 'Money sent successfully' || transferRes.data.success) {
-        const transferInfo = transferRes.data.transfer || {};
-        showAlert(`Transfer successful! R${amount} has been sent to ${selectedBeneficiary.firstName} ${selectedBeneficiary.middleName || ''} for ${accountType}. Transaction ID: ${transferInfo.transactionRef || 'N/A'}`, true);
-        
-        // Reset form
-        setAmount('');
-        setBeneficiary('');
-        setSelectedAccount('');
-        setAccountType('Main Account');
+      if (res.data.success) {
+        setMessage('🎉 Payment successful!');
+        setPopupType('success');
+        setShowPopup(true);
       } else {
-        showAlert('Transfer failed: ' + (transferRes.data.message || 'Unknown error'));
+        setMessage(res.data.message || 'Payment failed.');
+        setPopupType('error');
+        setShowPopup(true);
       }
-
     } catch (err) {
-      console.error('Transfer error:', err);
-      
-      // Handle different error scenarios
-      if (err.response?.status === 400) {
-        showAlert(err.response?.data?.message || 'Invalid transfer data. Please check your inputs.');
-      } else if (err.response?.status === 402) {
-        showAlert('Insufficient funds or card declined. Please check your payment method.');
-      } else if (err.response?.status === 403) {
-        showAlert('You are not authorized to send money to this beneficiary.');
-      } else if (err.response?.status === 404) {
-        // Handle 404 specifically for transfer endpoint not found
-        console.log('Transfer endpoint not found - using mock response for development');
-        showAlert(`Transfer simulated successfully! R${amount} has been sent to ${selectedBeneficiary.firstName} ${selectedBeneficiary.middleName || ''} for ${accountType}. (Transfer API endpoint not configured - this is a mock response for development)`, true);
-        
-        // Reset form on mock success
-        setAmount('');
-        setBeneficiary('');
-        setSelectedAccount('');
-        setAccountType('Main Account');
-      } else if (err.response?.status === 500) {
-        showAlert('Server error occurred. Please try again later.');
-      } else if (err.message?.includes('Network Error') || err.code === 'ECONNREFUSED') {
-        // Mock success for development when backend is not available
-        showAlert(`Transfer simulated successfully! R${amount} would be sent to ${selectedBeneficiary.firstName} ${selectedBeneficiary.middleName || ''} for ${accountType}. (Backend server not available - this is a mock response)`, true);
-        setAmount('');
-        setBeneficiary('');
-        setSelectedAccount('');
-        setAccountType('Main Account');
-      } else {
-        showAlert(err.response?.data?.message || err.message || 'Transfer failed. Please try again.');
-      }
+      setMessage(err.response?.data?.error || 'Payment failed.');
+      setPopupType('error');
+      setShowPopup(true);
     } finally {
       setLoading(false);
     }
   };
-
-
 
   return (
     <Container>
@@ -628,8 +576,7 @@ const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary
           <FormSubtitle>Transfer funds to your beneficiaries using your payment cards</FormSubtitle>
         </FormHeader>
         
-        <FormContainer onSubmit={handleSubmit}>
-        <FormRow>
+        <form onSubmit={handleSubmit}>
           <FormGroup>
             <label htmlFor="beneficiary-select">Beneficiary name</label>
             <select
@@ -642,18 +589,51 @@ const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary
               <option value="">Select</option>
               {beneficiaries.map((b, idx) => (
                 <option key={`${b.id}-${idx}`} value={String(b.id)}>
-                  {b.firstName} {b.middleName ? b.middleName :  ''}
+                  {b.firstName} {b.middleName ? b.middleName : ''}
                 </option>
               ))}
             </select>
           </FormGroup>
 
+          <FormGroup style={{ position: 'relative' }}>
+            <label>From</label>
+            <div style={{ position: 'relative' }}>
+              <select
+                value={account}
+                onChange={(e) => setAccount(e.target.value)}
+                required
+                style={{ paddingLeft: 40 }}
+              >
+                <option value="">Select a card</option>
+                {accounts.map(acc => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.card?.brand?.toUpperCase()} •••• {acc.card?.last4} (exp {acc.card?.exp_month}/{acc.card?.exp_year})
+                  </option>
+                ))}
+              </select>
+              {/* Mastercard SVG Icon (optional) */}
+              <span style={{
+                position: 'absolute',
+                left: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                pointerEvents: 'none'
+              }}>
+                <svg width="28" height="18" viewBox="0 0 28 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="10" cy="9" r="7" fill="#EB001B"/>
+                  <circle cx="18" cy="9" r="7" fill="#F79E1B"/>
+                  <circle cx="14" cy="9" r="7" fill="#FF5F00"/>
+                </svg>
+              </span>
+            </div>
+          </FormGroup>
+
           <FormGroup>
             <label>To</label>
-            <select 
-            value={accountType} 
-            onChange={(e) => setAccountType(e.target.value)}
-            required
+            <select
+              value={accountType}
+              onChange={(e) => setAccountType(e.target.value)}
+              required
             >
               <option value="">Select</option>
               <option value="Main Account">Main Account</option>
@@ -662,39 +642,33 @@ const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary
               </option>
               <option value="Healthcare" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
                 Healthcare
-            </option>
-            <option value="Clothing" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
-              Clothing
-            </option>
-            <option value="Entertainment" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
-              Entertainment
-            </option>
-            <option value="Baby Care" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
-              Baby Care
-            </option>
-            <option value="Pregnancy" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
-              Pregnancy
-            </option>
-          </select>
-        </FormGroup>
-        </FormRow>
+              </option>
+              <option value="Clothing" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+                Clothing
+              </option>
+              <option value="Entertainment" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+                Entertainment
+              </option>
+              <option value="Baby Care" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+                Baby Care
+              </option>
+              <option value="Pregnancy" disabled style={{ filter: 'blur(3px)', color: '#aaa' }}>
+                Pregnancy
+              </option>
+            </select>
+          </FormGroup>
 
-        <WarningText>
-          Please be advised that when you proceed now, you have made sure that the details are accurate.
-        </WarningText>
+          <WarningText>
+            Please be advised that when you proceed now, you have made sure that the details are accurate.
+          </WarningText>
 
-        <AmountContainer>
-          <label>Amount</label>
-          <AmountField>
-            <span>R</span>
-            <input 
-              type="text" 
-              value={amount} 
-              onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="Enter amount"
-            />
-          </AmountField>
-        </AmountContainer>
+          <AmountContainer>
+            <label>Amount</label>
+            <AmountField>
+              <span>R</span>
+              <input type="text" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
+            </AmountField>
+          </AmountContainer>
 
         <FormGroup>
           <label>Payment Method</label>
@@ -799,7 +773,8 @@ const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary
           {loading ? 'Processing...' : 'Transfer Money'}
         </PayButton>
 
-        </FormContainer>
+          {message && <WarningText>{message}</WarningText>}
+        </form>
       </FormSection>
       
       {showPopup && (

@@ -15,6 +15,8 @@ import Statements from './components/Statements/Statements'
 import LandingPage from './components/LandingPage/LandingPage'
 import SignUpPage from './components/SignUpPage/SignUpPage'
 import LoginPage from './components/LoginPage/LoginPage'
+// TODO: Import ResetPassword component when UI team creates it
+// import ResetPassword from './components/ResetPassword/ResetPassword'
 import SecondSignUp from './components/SignUpPage/SecondSignUp'
 import SplashScreen from './components/SplashScreen/SplashScreen';
 import Benefits from './components/BenefitsPage/Benefits';
@@ -177,6 +179,9 @@ function App() {
       <Route path="/signup" element={<SignUpPage />} />
       <Route path="/second-signup" element={<SecondSignUp />} />
       <Route path="/login" element={<LoginPage />} />
+      {/* TODO: Add ResetPassword route when UI team creates component
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
+      */}
       <Route path="/benefits" element={<Benefits />} />
       <Route path="/how-it-works" element={<HowItWorks />} />
       <Route path="/contact" element={<Contact />} />
@@ -222,12 +227,16 @@ function App() {
               </ProtectedRoute>
             }>
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="my-accounts" element={<MyAccounts />} />
-               <Route path="send-money" element={
+              <Route path="my-accounts" element={
                 <Elements stripe={stripePromise}>
-                  <SendMoney />
+                  <MyAccounts />
                 </Elements>
-              } />
+                } />
+                <Route path="send-money" element={
+                  <Elements stripe={stripePromise}>
+                    <SendMoney />
+                  </Elements>
+                } />
               <Route path="beneficiary" element={<BeneficiaryForm />} />
               <Route path="messages" element={<Messages />} />
               <Route path="statements" element={<Statements />} />
