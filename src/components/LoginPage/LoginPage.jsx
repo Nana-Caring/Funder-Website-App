@@ -391,6 +391,7 @@ const LoginPage = () => {
                     padding: '0 10px',
                    
                     cursor: 'pointer',
+                    marginRight: '10px',
                     marginRight: '10px'
                   }}
                   onMouseOver={e => e.currentTarget.style.color = '#FFD600'}
