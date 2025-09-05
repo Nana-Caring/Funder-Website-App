@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = 'https://nanacaring-backend.onrender.com/api/auth';
+// const API_URL = 'https://nanacaring-backend.onrender.com/api/auth';
+const API_URL = 'http://localhost:5000/api/auth';
 
 const authService = {
   login: async (credentials) => {
@@ -64,9 +65,9 @@ const authService = {
   },
 
   // Verify Reset Token API call
-  verifyResetToken: async (token) => {
+  verifyResetToken: async (token, email) => {
     try {
-      const response = await axios.get(`${API_URL}/verify-reset-token/${token}`);
+      const response = await axios.post(`${API_URL}/verify-reset-token`, { token, email });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
