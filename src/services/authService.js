@@ -52,9 +52,10 @@ const authService = {
   },
 
   // Reset Password API call
-  resetPassword: async (token, newPassword) => {
+  resetPassword: async (token, newPassword, email) => {
     try {
       const response = await axios.post(`${API_URL}/reset-password`, { 
+        email,
         token, 
         newPassword 
       });
