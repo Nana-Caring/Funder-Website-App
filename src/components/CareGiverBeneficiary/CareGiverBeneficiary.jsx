@@ -10,9 +10,6 @@ import {
   refreshFromStorage,
   fetchDependents,
   fetchCaregiverStats,
-  setSearchParams,
-  loadDashboardData,
-  searchDependents,
   registerDependent,
   // UI State actions
   showModal,
@@ -368,27 +365,6 @@ const ActionButton = styled.button`
   }
 `;
 
-const RemoveButton = styled.button`
-  background: #ff4444;
-  color: white;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 10px;
-  font-weight: 500;
-  transition: all 0.2s;
-
-  &:hover {
-    background: #cc3333;
-    transform: scale(1.05);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-`;
-
 const CareGiverBeneficiary = () => {
   const dispatch = useDispatch();
 
@@ -396,9 +372,7 @@ const CareGiverBeneficiary = () => {
     list: beneficiaries, 
     isLoading: beneficiariesLoading, 
     error: beneficiariesError,
-    pagination,
     stats,
-    searchParams,
     dashboardErrors,
     ui: {
       showFormModal,
@@ -420,7 +394,7 @@ const CareGiverBeneficiary = () => {
                 localStorage.getItem('authToken') ||
                 localStorage.getItem('jwt');
 
-  // Separate effect for initial data loading (only depends on token)
+  // Single effect for initial data loading
   useEffect(() => {
     if (!token) {
       dispatch(setFeedback({
@@ -430,8 +404,18 @@ const CareGiverBeneficiary = () => {
       return;
     }
 
-    // Always use loadDashboardData for initial load - it's more efficient
-    dispatch(loadDashboardData({ token, params: searchParams }));
+    // Direct fetch of dependents with basic parameters
+    dispatch(fetchDependents({ 
+      token, 
+      params: { 
+        page: 1, 
+        limit: 50, 
+        status: 'active' 
+      } 
+    }));
+
+    // Also fetch stats
+    dispatch(fetchCaregiverStats(token));
 
     // Listen for storage changes (useful for syncing across tabs)
     const handleStorageChange = (e) => {
@@ -442,28 +426,7 @@ const CareGiverBeneficiary = () => {
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [token, dispatch]); // Remove searchParams from dependency to prevent infinite re-renders
-
-  // Separate effect for handling search parameter changes
-  useEffect(() => {
-    if (!token) return;
-
-    const isDefaultParams = searchParams.page === 1 && !searchParams.search && searchParams.status === 'active';
-    
-    // Only fetch if we have non-default search params (avoid duplicate initial load)
-    if (!isDefaultParams) {
-      dispatch(fetchDependents({ token, params: searchParams }));
-    }
-  }, [
-    token, 
-    dispatch, 
-    searchParams.page, 
-    searchParams.search, 
-    searchParams.status, 
-    searchParams.sortBy, 
-    searchParams.sortOrder, 
-    searchParams.limit
-  ]); // Use individual properties instead of the whole object
+  }, [token, dispatch]);
 
   // Show beneficiaries error if any
   useEffect(() => {
@@ -636,43 +599,22 @@ const CareGiverBeneficiary = () => {
       dispatch(resetForm());
       dispatch(hideModal());
 
-      // IMPORTANT: Refresh the dependents list from server to get the actual registered data
-      // This ensures we get the complete dependent info with all 8 accounts created by backend
-      
-      // Use a small delay to allow backend to complete the dependent setup
+      // Refresh the dependents list after successful registration
       setTimeout(async () => {
         try {
-          // Force a fresh fetch with current search params
-          const refreshResult = await dispatch(fetchDependents({ 
+          // Refetch dependents data
+          await dispatch(fetchDependents({ 
             token, 
             params: { 
-              ...searchParams, 
-              // Temporarily reset to defaults to ensure we see the new dependent
-              page: 1,
-              search: '',
-              status: 'active'
+              page: 1, 
+              limit: 50, 
+              status: 'active' 
             } 
           })).unwrap();
           
           // Also refresh stats to update counts
           await dispatch(fetchCaregiverStats(token)).unwrap();
 
-          // Check if the dependent appears in the refreshed list
-          const newDependentsCount = refreshResult.dependents?.length || 0;
-          
-          if (newDependentsCount === 0) {
-            dispatch(setFeedback({
-              success: false,
-              message: 'Dependent was registered but may not be assigned to you. Please contact support or try refreshing the page.'
-            }));
-          } else {
-            // Also reset search params to default view so user can see the new dependent
-            dispatch(setSearchParams({ 
-              page: 1, 
-              search: '', 
-              status: 'active' 
-            }));
-          }
         } catch (refreshError) {
           dispatch(setFeedback({
             success: false,
@@ -702,60 +644,6 @@ const CareGiverBeneficiary = () => {
     }
   };
 
-  // Function to handle search with debouncing
-  const handleSearch = (searchTerm) => {
-    dispatch(setSearchParams({ search: searchTerm, page: 1 }));
-  };
-
-  // Function to handle status filter
-  const handleStatusFilter = (status) => {
-    dispatch(setSearchParams({ status, page: 1 }));
-  };
-
-  // Function to handle pagination
-  const handlePageChange = (page) => {
-    dispatch(setSearchParams({ page }));
-  };
-
-  // Function to refresh data manually
-  const handleRefresh = () => {
-    if (token) {
-      // Use loadDashboardData for complete refresh
-      dispatch(loadDashboardData({ token, params: searchParams }));
-    }
-  };
-
-  // Function to handle search using the enhanced search method
-  const handleSearchEnhanced = (searchTerm) => {
-    if (token) {
-      dispatch(searchDependents({ 
-        token, 
-        searchOptions: {
-          query: searchTerm,
-          status: searchParams.status,
-          sortBy: searchParams.sortBy,
-          sortOrder: searchParams.sortOrder,
-          page: 1,
-          limit: searchParams.limit
-        }
-      }));
-    }
-  };
-
-  // Function to handle advanced filtering
-  const handleAdvancedFilter = (filterOptions) => {
-    if (token) {
-      dispatch(searchDependents({ 
-        token, 
-        searchOptions: {
-          ...searchParams,
-          ...filterOptions,
-          page: 1 // Reset to first page when filtering
-        }
-      }));
-    }
-  };
-
   return (
     <Container>
       <Content>
@@ -775,61 +663,10 @@ const CareGiverBeneficiary = () => {
               )}
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              {/* Search Input */}
-              <input
-                type="text"
-                placeholder="Search dependents..."
-                value={searchParams.search}
-                onChange={(e) => handleSearch(e.target.value)}
-                style={{
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  width: '200px'
-                }}
-              />
-              
-              {/* Status Filter */}
-              <select
-                value={searchParams.status}
-                onChange={(e) => handleStatusFilter(e.target.value)}
-                style={{
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '14px'
-                }}
-              >
-                <option value="active">Active</option>
-                <option value="blocked">Blocked</option>
-                <option value="suspended">Suspended</option>
-                <option value="pending">Pending</option>
-                <option value="all">All Status</option>
-              </select>
-              
-              {/* Refresh Button */}
-              <button
-                onClick={handleRefresh}
-                style={{
-                  padding: '8px 12px',
-                  border: '1px solid #185c37',
-                  borderRadius: '6px',
-                  background: 'white',
-                  color: '#185c37',
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
-              >
-                ↻ Refresh
-              </button>
-              
-              <AddButton onClick={handleOpenModal}>
-                <span style={{ fontSize: '16px' }}>+</span>
-                Add Dependent
-              </AddButton>
-            </div>
+            <AddButton onClick={handleOpenModal}>
+              <span style={{ fontSize: '16px' }}>+</span>
+              Add Dependent
+            </AddButton>
           </div>
 
           <div className="table-wrapper">
@@ -856,20 +693,28 @@ const CareGiverBeneficiary = () => {
                 ) : beneficiaries.length === 0 ? (
                   <tr>
                     <td colSpan="8" style={{ textAlign: 'center', padding: '40px' }}>
-                      <div style={{ color: '#666' }}>No dependents found</div>
+                      <div style={{ color: '#666' }}>
+                        No dependents found
+                        <br />
+                        <small style={{ fontSize: '10px', marginTop: '8px', display: 'block' }}>
+                          {beneficiariesError ? `Error: ${beneficiariesError}` : 'Click "Add Dependent" to get started'}
+                        </small>
+                      </div>
                     </td>
                   </tr>
                 ) : (
-                  beneficiaries.map((beneficiary) => (
-                    <tr key={beneficiary.id}>
+                  beneficiaries.map((beneficiary, index) => {
+                    console.log('Rendering beneficiary:', beneficiary); // Debug log
+                    return (
+                    <tr key={beneficiary.id || beneficiary._id || index}>
                       <td>
                         <Avatar color={getRandomPastelColor()}>
-                          {beneficiary.name.charAt(0)}
+                          {(beneficiary.name || beneficiary.firstName || 'U').charAt(0)}
                         </Avatar>
                       </td>
                       <td>
                         <span style={{ fontWeight: 600, fontSize: '11.5px', color: '#222' }}>
-                          {beneficiary.name}
+                          {beneficiary.name || `${beneficiary.firstName || ''} ${beneficiary.surname || ''}`.trim() || 'N/A'}
                         </span>
                       </td>
                       <td>
@@ -879,22 +724,24 @@ const CareGiverBeneficiary = () => {
                       </td>
                       <td>
                         <span style={{ fontFamily: 'monospace', fontWeight: 500, letterSpacing: '0.03em', color: '#185c37', fontSize: '11.5px' }}>
-                          {beneficiary.idNumber}
+                          {beneficiary.idNumber || beneficiary.Idnumber || 'N/A'}
                         </span>
                       </td>
                       <td>
                         <span style={{ fontSize: '11.5px', color: '#333' }}>
-                          {beneficiary.relation}
+                          {beneficiary.relation || 'N/A'}
                         </span>
                       </td>
                       <td>
                         <span style={{ 
                           fontSize: '11.5px', 
-                          color: beneficiary.account?.balance > 0 ? '#185c37' : '#999',
+                          color: (beneficiary.account?.balance || beneficiary.balance) > 0 ? '#185c37' : '#999',
                           fontWeight: '600'
                         }}>
                           {beneficiary.account ? 
-                            `${beneficiary.account.currency} ${beneficiary.account.balance.toFixed(2)}` : 
+                            `${beneficiary.account.currency || 'R'} ${(beneficiary.account.balance || 0).toFixed(2)}` :
+                            beneficiary.balance !== undefined ?
+                            `R ${(beneficiary.balance || 0).toFixed(2)}` :
                             'No Account'
                           }
                         </span>
@@ -904,12 +751,12 @@ const CareGiverBeneficiary = () => {
                           fontSize: '10px', 
                           padding: '4px 8px',
                           borderRadius: '12px',
-                          background: beneficiary.status === 'active' ? '#e8f5e8' : 
-                                     beneficiary.status === 'blocked' ? '#ffe8e8' : 
-                                     beneficiary.status === 'suspended' ? '#fff3e0' : '#f0f0f0',
-                          color: beneficiary.status === 'active' ? '#2e7d32' : 
-                                 beneficiary.status === 'blocked' ? '#c62828' : 
-                                 beneficiary.status === 'suspended' ? '#f57c00' : '#666',
+                          background: (beneficiary.status || 'active') === 'active' ? '#e8f5e8' : 
+                                     (beneficiary.status || 'active') === 'blocked' ? '#ffe8e8' : 
+                                     (beneficiary.status || 'active') === 'suspended' ? '#fff3e0' : '#f0f0f0',
+                          color: (beneficiary.status || 'active') === 'active' ? '#2e7d32' : 
+                                 (beneficiary.status || 'active') === 'blocked' ? '#c62828' : 
+                                 (beneficiary.status || 'active') === 'suspended' ? '#f57c00' : '#666',
                           fontWeight: '500',
                           textTransform: 'capitalize'
                         }}>
@@ -917,7 +764,7 @@ const CareGiverBeneficiary = () => {
                         </span>
                       </td>
                       <td>
-                        <ActionButton onClick={() => handleRemoveBeneficiary(beneficiary.id)}>
+                        <ActionButton onClick={() => handleRemoveBeneficiary(beneficiary.id || beneficiary._id)}>
                           <span style={{ fontSize: '14px', fontWeight: '600' }}>Remove</span>
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-trash" viewBox="0 0 16 16">
                             <path d="M2.5 0a.5.5 0 0 1 .5.5V1h10V.5a.5.5 0 0 1 1 0V1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h1V.5a.5.5 0 0 1 .5-.5zM1 4h14v11a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V4zm4 2a.5.5 0 0 0-.5.5V13a.5.5 0 0 0 1 0V6.5A.5.5 0 0 0 5 6zm4 0a.5.5 0 0 0-.5.5V13a.5.5 0 0 0 1 0V6.5A.5.5 0 0 0 9 6z"/>
@@ -925,71 +772,11 @@ const CareGiverBeneficiary = () => {
                         </ActionButton>
                       </td>
                     </tr>
-                  ))
+                  )})
                 )}
               </tbody>
             </table>
           </div>
-          
-          {/* Pagination */}
-          {pagination && pagination.totalPages > 1 && (
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              marginTop: '16px',
-              padding: '16px 0',
-              borderTop: '1px solid #f0f0f0'
-            }}>
-              <div style={{ fontSize: '12px', color: '#666' }}>
-                Showing {((pagination.currentPage - 1) * pagination.limit) + 1} to{' '}
-                {Math.min(pagination.currentPage * pagination.limit, pagination.totalDependents)} of{' '}
-                {pagination.totalDependents} dependents
-              </div>
-              
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={() => handlePageChange(pagination.currentPage - 1)}
-                  disabled={!pagination.hasPrevPage}
-                  style={{
-                    padding: '6px 12px',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    background: pagination.hasPrevPage ? 'white' : '#f5f5f5',
-                    color: pagination.hasPrevPage ? '#333' : '#999',
-                    cursor: pagination.hasPrevPage ? 'pointer' : 'not-allowed',
-                    fontSize: '12px'
-                  }}
-                >
-                  Previous
-                </button>
-                
-                <span style={{ 
-                  padding: '6px 12px', 
-                  fontSize: '12px', 
-                  color: '#666' 
-                }}>
-                  Page {pagination.currentPage} of {pagination.totalPages}
-                </span>
-                
-                <button
-                  onClick={() => handlePageChange(pagination.currentPage + 1)}
-                  disabled={!pagination.hasNextPage}
-                  style={{
-                    padding: '6px 12px',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    background: pagination.hasNextPage ? 'white' : '#f5f5f5',
-                    color: pagination.hasNextPage ? '#333' : '#999',
-                    cursor: pagination.hasNextPage ? 'pointer' : 'not-allowed',
-                    fontSize: '12px'
-                  }}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
         </TableContainer>
       </Content>
 
