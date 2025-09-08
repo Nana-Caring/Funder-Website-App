@@ -15,7 +15,6 @@ import Statements from './components/Statements/Statements'
 import LandingPage from './components/LandingPage/LandingPage'
 import SignUpPage from './components/SignUpPage/SignUpPage'
 import LoginPage from './components/LoginPage/LoginPage'
-import ResetPassword from './components/ResetPassword/ResetPassword'
 import SecondSignUp from './components/SignUpPage/SecondSignUp'
 import SplashScreen from './components/SplashScreen/SplashScreen';
 import Benefits from './components/BenefitsPage/Benefits';
@@ -69,6 +68,15 @@ const MainContentWrapper = styled.div`
   background-color: #f8f9fa;
   min-height: calc(100vh - 60px);
   box-sizing: border-box;
+  
+  @media (max-width: 1024px) {
+    padding: 15px;
+    width: 100%;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 10px;
+  }
 `;
 
 const ContentWrapper = styled.div`
@@ -93,12 +101,13 @@ const CareGiverLayout = () => {
 
 const DependentLayout = () => {
   const { loading } = useSelector(state => state.authentication);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <AppContainer>
-      <DependentSidebar />
-      <MainContentWrapper>
-        <DependentHeader />
+      <DependentSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <MainContentWrapper style={sidebarOpen ? {} : { width: '100%', marginLeft: 0 }}>
+        <DependentHeader onToggleSidebar={() => setSidebarOpen(open => !open)} isSidebarOpen={sidebarOpen} />
         <ContentWrapper>
           <Suspense fallback={<Loader />}>
             <Outlet />
@@ -178,7 +187,6 @@ function App() {
       <Route path="/signup" element={<SignUpPage />} />
       <Route path="/second-signup" element={<SecondSignUp />} />
       <Route path="/login" element={<LoginPage />} />
-  <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/benefits" element={<Benefits />} />
       <Route path="/how-it-works" element={<HowItWorks />} />
       <Route path="/contact" element={<Contact />} />
@@ -224,16 +232,12 @@ function App() {
               </ProtectedRoute>
             }>
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="my-accounts" element={
+              <Route path="my-accounts" element={<MyAccounts />} />
+               <Route path="send-money" element={
                 <Elements stripe={stripePromise}>
-                  <MyAccounts />
+                  <SendMoney />
                 </Elements>
-                } />
-                <Route path="send-money" element={
-                  <Elements stripe={stripePromise}>
-                    <SendMoney />
-                  </Elements>
-                } />
+              } />
               <Route path="beneficiary" element={<BeneficiaryForm />} />
               <Route path="messages" element={<Messages />} />
               <Route path="statements" element={<Statements />} />
