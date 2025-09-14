@@ -143,7 +143,7 @@ const LoginPage = () => {
       // Use replace: true to prevent going back to login
       switch (response.user.role) {
         case 'caregiver':
-          navigate('/CareGiverHome', { replace: true });
+          navigate('/caregiver-home', { replace: true });
           break;
         case 'dependent':
           navigate('/dependent-home', { replace: true });
@@ -389,10 +389,8 @@ const LoginPage = () => {
                     border: 'none',
                     alignContent: 'center',
                     padding: '0 10px',
-                   
                     cursor: 'pointer',
                     marginRight: '10px',
-                    marginRight: '10px'
                   }}
                   onMouseOver={e => e.currentTarget.style.color = '#FFD600'}
                   onMouseOut={e => e.currentTarget.style.color = '#000'}

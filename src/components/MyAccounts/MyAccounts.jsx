@@ -121,7 +121,7 @@ const FormGroup = styled.div`
 
   input, select {
     padding: 10px 14px;
-    border: 2px solid ${props => props.hasError ? '#ef4444' : '#e5e7eb'};
+    border: 2px solid ${props => props.haserror ? '#ef4444' : '#e5e7eb'};
     border-radius: 8px;
     font-size: 13px;
     background: white;
@@ -129,12 +129,12 @@ const FormGroup = styled.div`
     
     &:focus {
       outline: none;
-      border-color: ${props => props.hasError ? '#ef4444' : '#185c37'};
-      box-shadow: 0 0 0 3px ${props => props.hasError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(24, 92, 55, 0.1)'};
+      border-color: ${props => props.haserror ? '#ef4444' : '#185c37'};
+      box-shadow: 0 0 0 3px ${props => props.haserror ? 'rgba(239, 68, 68, 0.1)' : 'rgba(24, 92, 55, 0.1)'};
     }
     
     &:hover {
-      border-color: ${props => props.hasError ? '#ef4444' : '#d1d5db'};
+      border-color: ${props => props.haserror ? '#ef4444' : '#d1d5db'};
     }
   }
 
@@ -1045,7 +1045,7 @@ const MyAccounts = () => {
             )}
             
             <FormContainer onSubmit={handleCardSubmit}>
-              <FormGroup hasError={validationErrors.bankName}>
+              <FormGroup haserror={validationErrors.bankName}>
                 <label>Bank Name *</label>
                 <select
                   name="bankName"
@@ -1065,7 +1065,7 @@ const MyAccounts = () => {
                 )}
               </FormGroup>
               
-              <FormGroup hasError={validationErrors.cardNumber}>
+              <FormGroup haserror={validationErrors.cardNumber}>
                 <label>
                   Card Number *
                   {cardType && (
@@ -1089,7 +1089,7 @@ const MyAccounts = () => {
               </FormGroup>
               
               <FormRow>
-                <FormGroup hasError={validationErrors.expiryDate}>
+                <FormGroup haserror={validationErrors.expiryDate}>
                   <label>Expiry Date (MM/YY) *</label>
                   <input
                     type="text"
@@ -1105,7 +1105,7 @@ const MyAccounts = () => {
                   )}
                 </FormGroup>
                 
-                <FormGroup hasError={validationErrors.ccv}>
+                <FormGroup haserror={validationErrors.ccv}>
                   <label>CCV *</label>
                   <input
                     type="text"

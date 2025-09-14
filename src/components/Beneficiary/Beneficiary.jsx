@@ -357,7 +357,7 @@ const BeneficiaryForm = () => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:5000/api/funder/link-dependent', {
+      const response = await axios.post('https://nanacaring-backend.onrender.com/api/funder/link-dependent', {
         dependentName: formData.name,
         accountNumber: formData.accountNumber
 
@@ -395,6 +395,46 @@ const BeneficiaryForm = () => {
     setShowFormModal(true);
     setError('');
   };
+const handleUpdateBeneficiary = async (e) => {
+  e.preventDefault();
+  setError('');
+
+  if (!formData.name || !formData.accountNumber) {
+    setError('Please fill in all fields');
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.put(
+      `https://nanacaring-backend.onrender.com/api/funder/beneficiary/${beneficiaries[editingIndex]._id}`,
+      {
+        dependentName: formData.name,
+        accountNumber: formData.accountNumber
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+
+    if (response.status === 200) {
+      setFormData({ name: '', accountNumber: '' });
+      setError('✅ Beneficiary updated successfully.');
+      setShowFormModal(false);
+      setIsEditing(false);
+      setEditingIndex(null);
+      await fetchBeneficiaries(); // refresh + update localStorage
+    } else {
+      setError(response.data.message || 'Failed to update beneficiary');
+    }
+  } catch (err) {
+    console.error('Error updating beneficiary:', err);
+    setError(err.response?.data?.message || 'Server error');
+  }
+};
 
   const handleCancel = () => {
     setIsEditing(false);
@@ -510,7 +550,7 @@ const BeneficiaryForm = () => {
       {showFormModal && (
         <ModalOverlay onClick={() => setShowFormModal(false)}>
           <ModalContent onClick={(e) => e.stopPropagation()}>
-            <FormContainer onSubmit={handleAddBeneficiary}>
+          <FormContainer onSubmit={isEditing ? handleUpdateBeneficiary : handleAddBeneficiary}>
               <h3 style={{ 
                 marginBottom: '20px', 
                 fontSize: '18px', 

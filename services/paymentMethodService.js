@@ -1,3 +1,5 @@
+import apiClient from '../src/services/apiClient';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://nanacaring-backend.onrender.com';
 
 class PaymentMethodService {
@@ -73,18 +75,15 @@ class PaymentMethodService {
   // Get all payment methods for the user (now using payment cards endpoint)
   async getPaymentMethods() {
     try {
-      const response = await fetch(`${this.paymentCardsURL}/my-cards`, {
-        method: 'GET',
-        headers: this.getAuthHeaders()
-      });
-      return await this.handleResponse(response);
+      const response = await apiClient.get('/api/payment-cards/my-cards');
+      return response.data;
     } catch (error) {
       console.error('Error fetching payment cards:', error);
       
       // For development - return mock data if backend is not available
       if (error.message.includes('Failed to fetch') || 
           error.message.includes('ERR_NAME_NOT_RESOLVED') ||
-          error.message.includes('404') || 
+          error.response?.status === 404 || 
           error.message.includes('Not Found')) {
         console.log('Backend not available, using mock data for development');
         return this.getMockCards();
@@ -252,7 +251,25 @@ class PaymentMethodService {
     }
   }
 
-  // Create payment intent with card
+  // Ensure a Stripe customer exists for the current user
+  async ensureStripeCustomer() {
+    try {
+      // Try payment-cards endpoint first
+      const response = await apiClient.post('/api/payment-cards/ensure-customer');
+      return response.data;
+    } catch (error) {
+      // Try stripe endpoint as fallback
+      try {
+        const response = await apiClient.post('/api/stripe/ensure-customer');
+        return response.data;
+      } catch (fallbackError) {
+        console.error('Error ensuring Stripe customer:', fallbackError);
+        throw fallbackError;
+      }
+    }
+  }
+
+  // Create payment intent with automatic customer creation retry
   async createPaymentIntent(paymentData) {
     try {
       const payload = {
@@ -261,15 +278,35 @@ class PaymentMethodService {
         description: paymentData.description || 'Payment for account funding'
       };
 
-      const response = await fetch(`${this.paymentCardsURL}/create-payment-intent`, {
-        method: 'POST',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify(payload)
-      });
-      return await this.handleResponse(response);
+      const response = await apiClient.post('/api/payment-cards/create-payment-intent', payload);
+      return response.data;
     } catch (error) {
+      const errorMessage = error.response?.data?.message || '';
+      
+      // If Stripe customer not found, create customer and retry once
+      if (error.response?.status === 404 && /stripe customer not found/i.test(errorMessage)) {
+        console.warn('Stripe customer not found. Creating customer and retrying...');
+        
+        try {
+          await this.ensureStripeCustomer();
+          console.log('✅ Stripe customer created successfully. Retrying payment...');
+          
+          const payload = {
+            amount: paymentData.amount,
+            cardId: paymentData.cardId,
+            description: paymentData.description || 'Payment for account funding'
+          };
+          
+          const response = await apiClient.post('/api/payment-cards/create-payment-intent', payload);
+          return response.data;
+        } catch (retryError) {
+          console.error('Failed to create payment intent after customer creation:', retryError);
+          throw new Error('Unable to process payment. Please try again later.');
+        }
+      }
+      
       console.error('Error creating payment intent:', error);
-      throw error;
+      throw new Error(errorMessage || 'Failed to create payment intent');
     }
   }
 

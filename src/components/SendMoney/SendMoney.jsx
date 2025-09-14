@@ -346,7 +346,7 @@ const MessageContainer = styled.div`
   font-size: 13px;
   font-weight: 500;
   
-  ${props => props.success ? `
+  ${props => props.$success ? `
     background: #f0fdf4;
     border: 1px solid #bbf7d0;
     color: #166534;
@@ -382,7 +382,7 @@ const PopupIcon = styled.div`
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  background: ${props => props.success ? 
+  background: ${props => props.$success ? 
     'linear-gradient(135deg, #22c55e, #16a34a)' : 
     'linear-gradient(135deg, #f87171, #ef4444)'
   };
@@ -517,50 +517,87 @@ const SendMoney = () => {
     setMessage('');
     setLoading(true);
 
-    if (!selectedBeneficiary || !selectedBeneficiary.accountNumber) {
-      setMessage('Please select a valid beneficiary.');
-      setPopupType('error');
-      setShowPopup(true);
-      setLoading(false);
-      return;
-    }
-    if (!account) {
-      setMessage('Please select a card.');
-      setPopupType('error');
-      setShowPopup(true);
-      setLoading(false);
-      return;
-    }
+    // Debug logs
+    console.log('Payment Details:', {
+      beneficiary: selectedBeneficiary,
+      amount: amount,
+      accountType: accountType,
+      selectedCard: accounts.find(card => card.id === selectedAccount),
+      paymentMethods
+    });
 
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post(
-        'https://nanacaring-backend.onrender.com/api/stripe/create-payment-intent',
-        {
-          amount: Number(amount),
-          accountNumber: selectedBeneficiary.accountNumber,
-          accountType,
-          paymentMethodId: account
-        },
-        {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      // 1. Validate inputs
+      if (!selectedBeneficiary || !selectedBeneficiary.accountNumber) {
+        throw new Error('Please select a valid beneficiary.');
+      }
+      if (!selectedAccount) {
+        throw new Error('Please select a payment card.');
+      }
+      if (!amount || Number(amount) <= 0) {
+        throw new Error('Please enter a valid amount.');
+      }
 
-      if (res.data.success) {
-        setMessage('🎉 Payment successful!');
+      const token = localStorage.getItem('token');
+      
+      // Verify selected card is valid
+      const selectedCardDetails = accounts.find(card => card.id === selectedAccount);
+      if (!selectedCardDetails) {
+        throw new Error('Selected payment card not found.');
+      }
+
+      // Create payment intent via Payment Cards API (matches backend)
+      const paymentIntent = await paymentMethodService.createPaymentIntent({
+        amount: Number(amount),
+        cardId: selectedAccount,
+        description: `Transfer to ${selectedBeneficiary.firstName} (${accountType})`
+      });
+
+      console.log('Create Payment Intent response:', paymentIntent);
+
+      // 4. Handle successful payment
+      if (paymentIntent?.clientSecret) {
+        // Payment intent created with client secret (Stripe flow)
+        const stripe = await stripePromise;
+        const { error: confirmError } = await stripe.confirmCardPayment(
+          paymentIntent.clientSecret
+        );
+        if (confirmError) {
+          throw new Error(confirmError.message);
+        }
+
+        setMessage('🎉 Payment successful! The funds have been transferred.');
         setPopupType('success');
         setShowPopup(true);
-      } else {
-        setMessage(res.data.message || 'Payment failed.');
-        setPopupType('error');
+        setAmount('');
+        setBeneficiary('');
+        setAccountType('Main Account');
+      } else if (paymentIntent?.success || paymentIntent?.message) {
+        // Backend confirmed success without client secret
+        setMessage(paymentIntent.message || '🎉 Payment successful!');
+        setPopupType('success');
         setShowPopup(true);
+        setAmount('');
+        setBeneficiary('');
+        setAccountType('Main Account');
+      } else {
+        throw new Error('Could not process payment. Please try again.');
       }
     } catch (err) {
-      setMessage(err.response?.data?.error || 'Payment failed.');
+      console.error('Payment Error:', err);
+      
+      // Handle specific error cases
+      if (err.response?.status === 404) {
+        setMessage('The payment service is currently unavailable. Please try again later.');
+      } else {
+        setMessage(
+          err.response?.data?.error || 
+          err.response?.data?.message || 
+          err.message || 
+          'Payment failed. Please try again.'
+        );
+      }
+      
       setPopupType('error');
       setShowPopup(true);
     } finally {
@@ -780,7 +817,7 @@ const SendMoney = () => {
       {showPopup && (
         <ModalOverlay onClick={closePopup}>
           <PopupContainer onClick={(e) => e.stopPropagation()}>
-            <PopupIcon success={popupType === 'success'}>
+            <PopupIcon $success={popupType === 'success'}>
               {popupType === 'success' ? '✅' : '❌'}
             </PopupIcon>
             <PopupTitle>

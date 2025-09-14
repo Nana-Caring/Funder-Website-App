@@ -11,6 +11,9 @@ import {
   fetchDependents,
   fetchCaregiverStats,
   registerDependent,
+  setCurrentUser,
+  loadUserData,
+  clearUserData,
   // UI State actions
   showModal,
   hideModal,
@@ -326,10 +329,13 @@ const FeedbackMessage = styled.div`
   align-items: center;
   gap: 12px;
   animation: slideIn 0.3s ease;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 2000; /* Increased z-index to ensure visibility */
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25); /* Enhanced shadow */
   background-color: ${props => props.$success ? '#4CAF50' : '#f44336'};
   color: white;
+  font-weight: 600;
+  min-width: 300px;
+  max-width: 500px;
 
   @keyframes slideIn {
     from {
@@ -341,6 +347,11 @@ const FeedbackMessage = styled.div`
       opacity: 1;
     }
   }
+`;
+
+const FeedbackIcon = styled.span`
+  font-size: 20px;
+  font-weight: bold;
 `;
 
 const ActionButton = styled.button`
@@ -374,6 +385,7 @@ const CareGiverBeneficiary = () => {
     error: beneficiariesError,
     stats,
     dashboardErrors,
+    currentUserId,
     ui: {
       showFormModal,
       formStep,
@@ -387,6 +399,16 @@ const CareGiverBeneficiary = () => {
   } = useSelector(state => state.beneficiaries);
   const { user, token: reduxToken } = useSelector(state => state.authentication);
   
+  // Debug: Log current state
+  console.log('🔍 Current beneficiaries state:', {
+    beneficiaries,
+    beneficiariesLoading,
+    beneficiariesError,
+    stats,
+    currentUserId,
+    feedback
+  });
+  
   // Improved token retrieval - prefer Redux state, fallback to localStorage with multiple possible keys
   const token = reduxToken || 
                 localStorage.getItem('token') || 
@@ -394,7 +416,7 @@ const CareGiverBeneficiary = () => {
                 localStorage.getItem('authToken') ||
                 localStorage.getItem('jwt');
 
-  // Single effect for initial data loading
+  // Single effect for initial data loading with enhanced persistence
   useEffect(() => {
     if (!token) {
       dispatch(setFeedback({
@@ -404,7 +426,18 @@ const CareGiverBeneficiary = () => {
       return;
     }
 
-    // Direct fetch of dependents with basic parameters
+    // Get current user ID for user-specific data storage
+    const currentUserId = user?.id || localStorage.getItem('userId') || localStorage.getItem('id');
+    
+    if (currentUserId) {
+      // Set current user for proper data segmentation
+      dispatch(setCurrentUser(currentUserId));
+      
+      // Load existing data from localStorage first for instant UI
+      dispatch(loadUserData(currentUserId));
+    }
+
+    // Fetch fresh data from API (this will merge with localStorage)
     dispatch(fetchDependents({ 
       token, 
       params: { 
@@ -419,14 +452,15 @@ const CareGiverBeneficiary = () => {
 
     // Listen for storage changes (useful for syncing across tabs)
     const handleStorageChange = (e) => {
-      if (e.key === 'caregiver_dependents') {
+      if (e.key && e.key.includes('caregiver_dependents')) {
+        console.log('📱 Storage changed, refreshing from localStorage');
         dispatch(refreshFromStorage());
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [token, dispatch]);
+  }, [token, user?.id, dispatch]);
 
   // Show beneficiaries error if any
   useEffect(() => {
@@ -449,6 +483,20 @@ const CareGiverBeneficiary = () => {
       }));
     }
   }, [dashboardErrors, dispatch]);
+
+  // Auto-persist beneficiaries whenever the list changes
+  useEffect(() => {
+    if (beneficiaries.length > 0 && currentUserId) {
+      console.log('📱 Auto-persisting', beneficiaries.length, 'dependents for user', currentUserId);
+      const storageKey = `caregiver_dependents_${currentUserId}`;
+      const dataToSave = {
+        dependents: beneficiaries,
+        timestamp: new Date().getTime(),
+        userId: currentUserId
+      };
+      localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+    }
+  }, [beneficiaries, currentUserId]);
 
   // Auto-clear feedback after 5 seconds
   useEffect(() => {
@@ -588,8 +636,11 @@ const CareGiverBeneficiary = () => {
         throw new Error('No authentication token found');
       }
 
+      console.log('🚀 Starting dependent registration...', dependentData);
       const result = await dispatch(registerDependent({ token, dependentData })).unwrap();
+      console.log('✅ Registration result:', result);
       
+      // Show immediate success feedback
       dispatch(setFeedback({ 
         success: true, 
         message: result.message || 'Dependent registered successfully with 8 accounts created!' 
@@ -599,31 +650,17 @@ const CareGiverBeneficiary = () => {
       dispatch(resetForm());
       dispatch(hideModal());
 
-      // Refresh the dependents list after successful registration
-      setTimeout(async () => {
-        try {
-          // Refetch dependents data
-          await dispatch(fetchDependents({ 
-            token, 
-            params: { 
-              page: 1, 
-              limit: 50, 
-              status: 'active' 
-            } 
-          })).unwrap();
-          
-          // Also refresh stats to update counts
-          await dispatch(fetchCaregiverStats(token)).unwrap();
-
-        } catch (refreshError) {
-          dispatch(setFeedback({
-            success: false,
-            message: 'Registration successful but failed to refresh data. Please refresh the page manually.'
-          }));
-        }
-      }, 1500); // Give backend time to complete dependent setup
+      // The dependent should now be automatically added to the list via the registerDependent.fulfilled reducer
+      // Show final success message with updated count
+      setTimeout(() => {
+        dispatch(setFeedback({ 
+          success: true, 
+          message: `Dependent "${dependentData.firstName} ${dependentData.surname}" added successfully! Total dependents: ${beneficiaries.length + 1}` 
+        }));
+      }, 100);
 
     } catch (error) {
+      console.error('❌ Registration failed:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to register beneficiary';
       dispatch(setFeedback({
         success: false,
@@ -658,9 +695,6 @@ const CareGiverBeneficiary = () => {
               }}>
                 Dependents ({stats?.totalDependents || beneficiaries.length})
               </h3>
-              {beneficiariesLoading && (
-                <div style={{ fontSize: '12px', color: '#666' }}>Loading...</div>
-              )}
             </div>
             
             <AddButton onClick={handleOpenModal}>
@@ -696,8 +730,8 @@ const CareGiverBeneficiary = () => {
                       <div style={{ color: '#666' }}>
                         No dependents found
                         <br />
-                        <small style={{ fontSize: '10px', marginTop: '8px', display: 'block' }}>
-                          {beneficiariesError ? `Error: ${beneficiariesError}` : 'Click "Add Dependent" to get started'}
+                        <small style={{ fontSize: '12px', marginTop: '8px', display: 'block' }}>
+                          Click "Add Dependent" to get started
                         </small>
                       </div>
                     </td>
@@ -724,7 +758,7 @@ const CareGiverBeneficiary = () => {
                       </td>
                       <td>
                         <span style={{ fontFamily: 'monospace', fontWeight: 500, letterSpacing: '0.03em', color: '#185c37', fontSize: '11.5px' }}>
-                          {beneficiary.idNumber || beneficiary.Idnumber || 'N/A'}
+                          {beneficiary.idNumber || beneficiary.Idnumber || beneficiary.id_number || 'N/A'}
                         </span>
                       </td>
                       <td>
@@ -924,7 +958,8 @@ const CareGiverBeneficiary = () => {
       
       {feedback && (
         <FeedbackMessage $success={feedback.success}>
-          {feedback.message}
+          <FeedbackIcon>{feedback.success ? '✅' : '❌'}</FeedbackIcon>
+          <span>{feedback.message}</span>
         </FeedbackMessage>
       )}
     </Container>

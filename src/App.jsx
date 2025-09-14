@@ -152,7 +152,7 @@ function App() {
   // Dependent Routes
   const dependentRoutes = (
     <Routes>
-      <Route path="/" element={
+      <Route path="*" element={
         <ProtectedRoute allowedRoles={['dependent']}>
           <DependentLayout />
         </ProtectedRoute>
@@ -178,7 +178,7 @@ function App() {
       <Route path="/signup" element={<SignUpPage />} />
       <Route path="/second-signup" element={<SecondSignUp />} />
       <Route path="/login" element={<LoginPage />} />
-  <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/benefits" element={<Benefits />} />
       <Route path="/how-it-works" element={<HowItWorks />} />
       <Route path="/contact" element={<Contact />} />
@@ -194,7 +194,7 @@ function App() {
       case 'caregiver':
         return (
           <Routes>
-            <Route path="/" element={
+            <Route path="*" element={
               <ProtectedRoute allowedRoles={['caregiver']}>
                 <CareGiverLayout />
               </ProtectedRoute>

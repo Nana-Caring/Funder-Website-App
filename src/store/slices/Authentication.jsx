@@ -140,8 +140,19 @@ const authenticationSlice = createSlice({
       state.accounts = null;
       state.loading = false;
       state.error = action.payload;
-      // Clear localStorage on failure
-      localStorage.clear();
+      
+      // Clear only authentication-related localStorage items on failure
+      const authKeys = [
+        'token', 'accessToken', 'jwt', 'userId', 'firstName', 'middleName', 
+        'surname', 'email', 'role', 'userRole', 'userName', 'Idnumber', 
+        'relation', 'createdAt', 'updatedAt', 'user', 'account', 'accountId', 
+        'accountType', 'accountBalance', 'accountNumber', 'parentAccountId', 
+        'userAccounts', 'mainAccountId', 'mainAccountNumber', 'mainAccountBalance'
+      ];
+      
+      authKeys.forEach(key => {
+        localStorage.removeItem(key);
+      });
     },
     logout: (state) => {
       state.isAuthenticated = false;
@@ -149,8 +160,21 @@ const authenticationSlice = createSlice({
       state.token = null;
       state.accounts = null;
       state.loading = false;
-      // Clear localStorage on logout
-      localStorage.clear();
+      
+      // Clear only authentication-related localStorage items, preserve dependent data
+      const authKeys = [
+        'token', 'accessToken', 'jwt', 'userId', 'firstName', 'middleName', 
+        'surname', 'email', 'role', 'userRole', 'userName', 'Idnumber', 
+        'relation', 'createdAt', 'updatedAt', 'user', 'account', 'accountId', 
+        'accountType', 'accountBalance', 'accountNumber', 'parentAccountId', 
+        'userAccounts', 'mainAccountId', 'mainAccountNumber', 'mainAccountBalance'
+      ];
+      
+      authKeys.forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
+      console.log('🚪 User logged out, authentication data cleared, dependent data preserved');
     }
   },
   extraReducers: (builder) => {

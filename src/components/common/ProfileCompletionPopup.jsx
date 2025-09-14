@@ -127,7 +127,7 @@ const ProgressBarContainer = styled.div`
 `;
 
 const ProgressBar = styled.div`
-  width: ${props => props.percentage}%;
+  width: ${props => props.$percentage}%;
   height: 100%;
   background: linear-gradient(135deg, #185c37, #22c55e);
   border-radius: 8px;
@@ -400,7 +400,7 @@ const ProfileCompletionPopup = ({ onClose, onCompleteProfile }) => {
         <ProgressSection>
           <PercentageText>{profileCompletion.percentage}% Complete</PercentageText>
           <ProgressBarContainer>
-            <ProgressBar percentage={profileCompletion.percentage} />
+            <ProgressBar $percentage={profileCompletion.percentage} />
           </ProgressBarContainer>
         </ProgressSection>
 
