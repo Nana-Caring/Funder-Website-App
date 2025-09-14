@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { useNavigate } from 'react-router-dom';
 import healthcareIcon from '../../assets/icons/healthcare.png';
 import clothingIcon from '../../assets/icons/clothing.png';
 import schoolIcon from '../../assets/icons/school.png';
@@ -93,18 +94,26 @@ const Label = styled.div`
   padding: 0 4px;
 `;
 
-const DependentBuy = () => (
-  <Container>
-    <Title>Please Choose the products category</Title>
-    <Grid>
-      {categories.map((cat) => (
-        <Card key={cat.label}>
-          {cat.icon}
-          <Label>{cat.label}</Label>
-        </Card>
-      ))}
-    </Grid>
-  </Container>
-);
+const DependentBuy = () => {
+  const navigate = useNavigate();
+  
+  const handleCategoryClick = (category) => {
+    navigate('/products', { state: { category } });
+  };
+  
+  return (
+    <Container>
+      <Title>Please Choose the products category</Title>
+      <Grid>
+        {categories.map((cat) => (
+          <Card key={cat.label} onClick={() => handleCategoryClick(cat.label)}>
+            {cat.icon}
+            <Label>{cat.label}</Label>
+          </Card>
+        ))}
+      </Grid>
+    </Container>
+  );
+};
 
 export default DependentBuy;
