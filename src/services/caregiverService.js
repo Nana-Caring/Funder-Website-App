@@ -295,6 +295,139 @@ export const caregiverService = {
     }
   },
 
+  // ===== TRANSACTION ROUTES =====
+  
+  // Get all dependent transactions for the caregiver
+  getAllTransactions: async (token, params = {}) => {
+    try {
+      console.log('Fetching all caregiver transactions with params:', params);
+      
+      const response = await axios.get(`${API_BASE_URL}/caregiver/transactions`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        params: {
+          page: params.page || 1,
+          limit: params.limit || 20,
+          startDate: params.startDate,
+          endDate: params.endDate,
+          category: params.category,
+          dependentId: params.dependentId,
+          sortBy: params.sortBy || 'createdAt',
+          sortOrder: params.sortOrder || 'DESC'
+        }
+      });
+      
+      console.log('All transactions response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching all transactions:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please log in again.');
+      } else if (error.response?.status === 403) {
+        throw new Error('Access denied. Caregiver role required.');
+      } else if (error.response?.status === 404) {
+        throw new Error('No transactions found.');
+      } else if (error.response?.status >= 500) {
+        throw new Error('Server error. Please try again later.');
+      } else {
+        throw new Error(error.response?.data?.message || error.message || 'Failed to fetch transactions');
+      }
+    }
+  },
+
+  // Get transactions for a specific dependent
+  getDependentTransactions: async (token, dependentId, params = {}) => {
+    try {
+      console.log('Fetching transactions for dependent:', dependentId, 'with params:', params);
+      
+      const response = await axios.get(`${API_BASE_URL}/caregiver/dependents/${dependentId}/transactions`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        params: {
+          page: params.page || 1,
+          limit: params.limit || 20,
+          startDate: params.startDate,
+          endDate: params.endDate,
+          category: params.category,
+          sortBy: params.sortBy || 'createdAt',
+          sortOrder: params.sortOrder || 'DESC'
+        }
+      });
+      
+      console.log('Dependent transactions response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching dependent transactions:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please log in again.');
+      } else if (error.response?.status === 403) {
+        throw new Error('Access denied. Caregiver role required.');
+      } else if (error.response?.status === 404) {
+        throw new Error('Dependent not found or no transactions available.');
+      } else if (error.response?.status >= 500) {
+        throw new Error('Server error. Please try again later.');
+      } else {
+        throw new Error(error.response?.data?.message || error.message || 'Failed to fetch dependent transactions');
+      }
+    }
+  },
+
+  // Get transaction analytics for caregiver dashboard
+  getTransactionAnalytics: async (token, params = {}) => {
+    try {
+      console.log('Fetching transaction analytics with params:', params);
+      
+      const response = await axios.get(`${API_BASE_URL}/caregiver/transactions/analytics`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        params: {
+          period: params.period || 'month', // month, week, year
+          dependentId: params.dependentId,
+          category: params.category,
+          startDate: params.startDate,
+          endDate: params.endDate
+        }
+      });
+      
+      console.log('Transaction analytics response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching transaction analytics:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please log in again.');
+      } else if (error.response?.status === 403) {
+        throw new Error('Access denied. Caregiver role required.');
+      } else if (error.response?.status === 404) {
+        throw new Error('No analytics data found.');
+      } else if (error.response?.status >= 500) {
+        throw new Error('Server error. Please try again later.');
+      } else {
+        throw new Error(error.response?.data?.message || error.message || 'Failed to fetch transaction analytics');
+      }
+    }
+  },
+
   // ===== CONVENIENCE METHODS =====
   
   // Load complete dashboard data (stats + dependents + activity)
@@ -677,6 +810,62 @@ export const caregiverService = {
     
     console.log('Endpoint availability test results:', results);
     return results;
+  },
+
+  // Download statements as CSV or PDF
+  downloadStatements: async (token, params = {}) => {
+    try {
+      console.log('Downloading statements with params:', params);
+      
+      const response = await axios.get(`${API_BASE_URL}/caregiver/transactions/export`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        params: {
+          format: params.format || 'csv', // csv, pdf
+          startDate: params.startDate,
+          endDate: params.endDate,
+          dependentId: params.dependentId,
+          category: params.category
+        },
+        responseType: 'blob' // Important for file downloads
+      });
+      
+      // Create blob and download
+      const blob = new Blob([response.data], { 
+        type: params.format === 'pdf' ? 'application/pdf' : 'text/csv' 
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `statements_${new Date().toISOString().split('T')[0]}.${params.format || 'csv'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log('Statements downloaded successfully');
+      return { success: true };
+    } catch (error) {
+      console.error('Error downloading statements:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please log in again.');
+      } else if (error.response?.status === 403) {
+        throw new Error('Access denied. Caregiver role required.');
+      } else if (error.response?.status === 404) {
+        throw new Error('No statements found for the specified criteria.');
+      } else if (error.response?.status >= 500) {
+        throw new Error('Server error. Please try again later.');
+      } else {
+        throw new Error(error.response?.data?.message || error.message || 'Failed to download statements');
+      }
+    }
   },
 };
 

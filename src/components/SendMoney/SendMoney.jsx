@@ -5,6 +5,36 @@ import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
 import styled from 'styled-components';
 import { paymentMethodService } from '../../services/paymentMethodService';
 
+// Safe localStorage wrapper to handle tracking prevention
+const safeLocalStorage = {
+  getItem: (key) => {
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      console.log('LocalStorage access blocked, using fallback');
+      return null;
+    }
+  },
+  setItem: (key, value) => {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (error) {
+      console.log('LocalStorage write blocked, data not persisted');
+      return false;
+    }
+  },
+  removeItem: (key) => {
+    try {
+      localStorage.removeItem(key);
+      return true;
+    } catch (error) {
+      console.log('LocalStorage remove blocked');
+      return false;
+    }
+  }
+};
+
 const stripePromise = loadStripe('pk_test_51REGFbROeQRel9O58mOSulLZR25JiDCo0FqwlrhopxEUuFh68lZXNTKYDer8334RrTFGBvlsKdkPMFbvzLbaoA4X00OLIDpVtW');
 
 const Container = styled.div`
@@ -446,7 +476,7 @@ const SendMoney = () => {
       setLoading(true);
       setError('');
       try {
-        const token = localStorage.getItem('token');
+        const token = safeLocalStorage.getItem('token');
         const response = await axios.get('https://nanacaring-backend.onrender.com/api/funder/get-beneficiaries', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -538,7 +568,7 @@ const SendMoney = () => {
         throw new Error('Please enter a valid amount.');
       }
 
-      const token = localStorage.getItem('token');
+      const token = safeLocalStorage.getItem('token');
       
       // Verify selected card is valid
       const selectedCardDetails = accounts.find(card => card.id === selectedAccount);
@@ -573,8 +603,13 @@ const SendMoney = () => {
         setBeneficiary('');
         setAccountType('Main Account');
       } else if (paymentIntent?.success || paymentIntent?.message) {
-        // Backend confirmed success without client secret
-        setMessage(paymentIntent.message || '🎉 Payment successful!');
+        // Backend confirmed success (including simulated payments)
+        const isSimulated = paymentIntent.simulatedPayment;
+        const successMessage = isSimulated 
+          ? `💻 Payment simulated successfully! R${amount} would be transferred to ${selectedBeneficiary.firstName} (Development Mode)`
+          : (paymentIntent.message || '🎉 Payment successful!');
+        
+        setMessage(successMessage);
         setPopupType('success');
         setShowPopup(true);
         setAmount('');
@@ -586,18 +621,27 @@ const SendMoney = () => {
     } catch (err) {
       console.error('Payment Error:', err);
       
-      // Handle specific error cases
+      // Handle specific error cases with better user messaging
+      let errorMessage = '';
+      
       if (err.response?.status === 404) {
-        setMessage('The payment service is currently unavailable. Please try again later.');
+        errorMessage = 'Payment service is currently unavailable. Please try again later.';
+      } else if (err.response?.status === 500) {
+        errorMessage = 'Server error occurred. Your payment was not processed. Please try again.';
+      } else if (err.message.includes('Failed to create payment intent')) {
+        errorMessage = 'Unable to process payment at this time. Please check your payment method and try again.';
+      } else if (err.message.includes('Please select')) {
+        errorMessage = err.message; // Validation errors
+      } else if (err.message.includes('Please enter')) {
+        errorMessage = err.message; // Validation errors
       } else {
-        setMessage(
-          err.response?.data?.error || 
-          err.response?.data?.message || 
-          err.message || 
-          'Payment failed. Please try again.'
-        );
+        errorMessage = err.response?.data?.error || 
+                      err.response?.data?.message || 
+                      err.message || 
+                      'Payment failed. Please check your details and try again.';
       }
       
+      setMessage(errorMessage);
       setPopupType('error');
       setShowPopup(true);
     } finally {

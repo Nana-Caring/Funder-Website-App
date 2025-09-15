@@ -15,3 +15,20 @@ export const store = configureStore({
     }),
 });
 
+// Development helper: Log store state changes
+if (process.env.NODE_ENV === 'development') {
+  store.subscribe(() => {
+    const state = store.getState();
+    const beneficiariesCount = state.beneficiaries?.list?.length || 0;
+    const isLoading = state.beneficiaries?.isLoading;
+    const currentUser = state.authentication?.user?.id;
+    
+    console.log('🏪 Store updated:', {
+      beneficiariesCount,
+      isLoading,
+      currentUser,
+      userRole: state.authentication?.user?.role
+    });
+  });
+}
+

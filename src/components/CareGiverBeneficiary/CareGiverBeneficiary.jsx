@@ -416,7 +416,7 @@ const CareGiverBeneficiary = () => {
                 localStorage.getItem('authToken') ||
                 localStorage.getItem('jwt');
 
-  // Single effect for initial data loading with enhanced persistence
+  // Optimized effect for initial data loading - relies on app-level initialization
   useEffect(() => {
     if (!token) {
       dispatch(setFeedback({
@@ -437,18 +437,26 @@ const CareGiverBeneficiary = () => {
       dispatch(loadUserData(currentUserId));
     }
 
-    // Fetch fresh data from API (this will merge with localStorage)
-    dispatch(fetchDependents({ 
-      token, 
-      params: { 
-        page: 1, 
-        limit: 50, 
-        status: 'active' 
-      } 
-    }));
+    // Only fetch fresh data if we don't already have beneficiaries loaded
+    // This prevents duplicate API calls since app-level initialization should handle this
+    if (beneficiaries.length === 0 && !beneficiariesLoading) {
+      console.log('🔄 No beneficiaries loaded yet, fetching from API...');
+      
+      // Fetch fresh data from API (this will merge with localStorage)
+      dispatch(fetchDependents({ 
+        token, 
+        params: { 
+          page: 1, 
+          limit: 50, 
+          status: 'active' 
+        } 
+      }));
 
-    // Also fetch stats
-    dispatch(fetchCaregiverStats(token));
+      // Also fetch stats
+      dispatch(fetchCaregiverStats(token));
+    } else {
+      console.log('✅ Beneficiaries already loaded, count:', beneficiaries.length);
+    }
 
     // Listen for storage changes (useful for syncing across tabs)
     const handleStorageChange = (e) => {
@@ -460,7 +468,7 @@ const CareGiverBeneficiary = () => {
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [token, user?.id, dispatch]);
+  }, [token, user?.id, dispatch, beneficiaries.length, beneficiariesLoading]);
 
   // Show beneficiaries error if any
   useEffect(() => {
@@ -695,6 +703,9 @@ const CareGiverBeneficiary = () => {
               }}>
                 Dependents ({stats?.totalDependents || beneficiaries.length})
               </h3>
+              {beneficiariesLoading && (
+                <div style={{ fontSize: '12px', color: '#666' }}>Loading...</div>
+              )}
             </div>
             
             <AddButton onClick={handleOpenModal}>
@@ -816,7 +827,7 @@ const CareGiverBeneficiary = () => {
 
       {/* Form Modal */}
       {showFormModal && (
-        <ModalOverlay onClick={handleCloseModal}>
+        <ModalOverlay>
           <ModalContent onClick={(e) => e.stopPropagation()}>
             {formStep === 1 && (
               <>

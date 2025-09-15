@@ -1,7 +1,7 @@
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { Routes, Route, useLocation, Navigate, Outlet } from 'react-router-dom';
 import styled from 'styled-components';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import Loader from './components/Loader/Loader';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
 import Sidebar from './components/Sidebar/Sidebar'
@@ -46,6 +46,7 @@ import FunderSettings from './components/Settings/FunderSettings';
 import DependentProfile from './components/Profile/DependentProfile';
 import CaregiverProfile from './components/Profile/CaregiverProfile';
 import FunderProfile from './components/Profile/FunderProfile';
+import { initializeBeneficiaries } from './store/slices/beneficiaries';
 
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
@@ -126,6 +127,27 @@ const DashboardLayout = () => {
 function App() {
   const { loading, user, isAuthenticated } = useSelector(state => state.authentication);
   const [showSplash, setShowSplash] = useState(true);
+  const dispatch = useDispatch();
+
+  // Initialize beneficiaries when app starts or user authentication changes
+  useEffect(() => {
+    console.log('🚀 App component mounted, initializing beneficiaries...');
+    
+    // Small delay to ensure authentication state is properly set
+    const initTimer = setTimeout(() => {
+      dispatch(initializeBeneficiaries());
+    }, 500);
+
+    return () => clearTimeout(initTimer);
+  }, [dispatch]);
+
+  // Re-initialize when user authentication state changes
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('👤 User authenticated, re-initializing beneficiaries...', user.role);
+      dispatch(initializeBeneficiaries());
+    }
+  }, [isAuthenticated, user?.id, user?.role, dispatch]);
 
   // Caregiver Routes
   const caregiverRoutes = (

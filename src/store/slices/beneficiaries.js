@@ -102,7 +102,7 @@ const transformDependentToBeneficiary = (dependent) => {
 };
 
 // Async thunk to fetch dependents from caregiver API
-export const fetchDependents = createAsyncThunk(
+const fetchDependents = createAsyncThunk(
   'beneficiaries/fetchDependents',
   async ({ token, params = {} }, { rejectWithValue }) => {
     try {
@@ -162,7 +162,10 @@ export const fetchDependents = createAsyncThunk(
         dependents: transformedDependents,
         pagination: pagination,
         stats: {
-          totalDependents: pagination?.total || transformedDependents.length
+          // Note: This is the total count across all pages (from pagination.total)
+          // or current page count if pagination is not available
+          totalDependents: pagination?.total || transformedDependents.length,
+          currentPageCount: transformedDependents.length
         }
       };
     } catch (error) {
@@ -173,7 +176,7 @@ export const fetchDependents = createAsyncThunk(
 );
 
 // Async thunk to fetch a specific dependent
-export const fetchDependentById = createAsyncThunk(
+const fetchDependentById = createAsyncThunk(
   'beneficiaries/fetchDependentById',
   async ({ token, dependentId }, { rejectWithValue }) => {
     try {
@@ -192,7 +195,7 @@ export const fetchDependentById = createAsyncThunk(
 );
 
 // Async thunk to fetch caregiver stats
-export const fetchCaregiverStats = createAsyncThunk(
+const fetchCaregiverStats = createAsyncThunk(
   'beneficiaries/fetchCaregiverStats',
   async (token, { rejectWithValue }) => {
     try {
@@ -211,7 +214,7 @@ export const fetchCaregiverStats = createAsyncThunk(
 );
 
 // Async thunk to fetch recent activity
-export const fetchRecentActivity = createAsyncThunk(
+const fetchRecentActivity = createAsyncThunk(
   'beneficiaries/fetchRecentActivity',
   async ({ token, params = {} }, { rejectWithValue }) => {
     try {
@@ -229,8 +232,65 @@ export const fetchRecentActivity = createAsyncThunk(
   }
 );
 
+// Async thunk to fetch caregiver transactions
+const fetchCaregiverTransactions = createAsyncThunk(
+  'beneficiaries/fetchCaregiverTransactions',
+  async ({ token, params = {} }, { rejectWithValue }) => {
+    try {
+      console.log('🔍 Fetching caregiver transactions with params:', params);
+      const response = await caregiverService.getAllTransactions(token, params);
+      console.log('📋 Transactions response:', response);
+      
+      // Handle the correct response structure
+      const transactionsData = response.data || response;
+      return transactionsData;
+    } catch (error) {
+      console.error('❌ fetchCaregiverTransactions error:', error);
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Async thunk to fetch specific dependent transactions
+const fetchDependentTransactions = createAsyncThunk(
+  'beneficiaries/fetchDependentTransactions',
+  async ({ token, dependentId, params = {} }, { rejectWithValue }) => {
+    try {
+      console.log('🔍 Fetching dependent transactions for:', dependentId, 'with params:', params);
+      const response = await caregiverService.getDependentTransactions(token, dependentId, params);
+      console.log('📋 Dependent transactions response:', response);
+      
+      // Handle the correct response structure
+      const transactionsData = response.data || response;
+      return { dependentId, ...transactionsData };
+    } catch (error) {
+      console.error('❌ fetchDependentTransactions error:', error);
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Async thunk to fetch transaction analytics
+const fetchTransactionAnalytics = createAsyncThunk(
+  'beneficiaries/fetchTransactionAnalytics',
+  async ({ token, params = {} }, { rejectWithValue }) => {
+    try {
+      console.log('🔍 Fetching transaction analytics with params:', params);
+      const response = await caregiverService.getTransactionAnalytics(token, params);
+      console.log('📊 Analytics response:', response);
+      
+      // Handle the correct response structure
+      const analyticsData = response.data || response;
+      return analyticsData;
+    } catch (error) {
+      console.error('❌ fetchTransactionAnalytics error:', error);
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 // Async thunk to load complete dashboard data efficiently
-export const loadDashboardData = createAsyncThunk(
+const loadDashboardData = createAsyncThunk(
   'beneficiaries/loadDashboardData',
   async ({ token, params = {} }, { rejectWithValue }) => {
     try {
@@ -271,7 +331,7 @@ export const loadDashboardData = createAsyncThunk(
 );
 
 // Async thunk to search dependents with enhanced options
-export const searchDependents = createAsyncThunk(
+const searchDependents = createAsyncThunk(
   'beneficiaries/searchDependents',
   async ({ token, searchOptions = {} }, { rejectWithValue }) => {
     try {
@@ -291,7 +351,7 @@ export const searchDependents = createAsyncThunk(
 );
 
 // Async thunk to get all dependents' accounts (financial view)
-export const fetchDependentsAccounts = createAsyncThunk(
+const fetchDependentsAccounts = createAsyncThunk(
   'beneficiaries/fetchDependentsAccounts',
   async (token, { rejectWithValue }) => {
     try {
@@ -304,7 +364,7 @@ export const fetchDependentsAccounts = createAsyncThunk(
 );
 
 // Async thunk to get specific dependent's accounts
-export const fetchDependentAccounts = createAsyncThunk(
+const fetchDependentAccounts = createAsyncThunk(
   'beneficiaries/fetchDependentAccounts',
   async ({ token, dependentId }, { rejectWithValue }) => {
     try {
@@ -320,7 +380,7 @@ export const fetchDependentAccounts = createAsyncThunk(
 );
 
 // Async thunk to register a new dependent
-export const registerDependent = createAsyncThunk(
+const registerDependent = createAsyncThunk(
   'beneficiaries/registerDependent',
   async ({ token, dependentData }, { rejectWithValue }) => {
     try {
@@ -352,6 +412,94 @@ export const registerDependent = createAsyncThunk(
   }
 );
 
+// Async thunk to initialize beneficiaries on app startup
+const initializeBeneficiaries = createAsyncThunk(
+  'beneficiaries/initializeBeneficiaries',
+  async (_, { dispatch, getState, rejectWithValue }) => {
+    try {
+      console.log('🚀 Initializing beneficiaries on app startup...');
+      
+      // Helper function to get safe localStorage wrapper
+      const safeLocalStorage = {
+        getItem: (key) => {
+          try {
+            return localStorage.getItem(key);
+          } catch (error) {
+            console.log('LocalStorage access blocked, using fallback');
+            return null;
+          }
+        }
+      };
+      
+      // Get authentication state
+      const state = getState();
+      const { authentication } = state;
+      
+      // Check if user is authenticated
+      const token = authentication.token || 
+                   safeLocalStorage.getItem('token') || 
+                   safeLocalStorage.getItem('accessToken') || 
+                   safeLocalStorage.getItem('authToken') ||
+                   safeLocalStorage.getItem('jwt');
+                   
+      if (!token) {
+        console.log('⚠️ No token found, skipping beneficiary initialization');
+        return { message: 'No authentication token found' };
+      }
+      
+      // Get current user ID
+      const user = authentication.user;
+      const currentUserId = user?.id || 
+                           safeLocalStorage.getItem('userId') || 
+                           safeLocalStorage.getItem('id');
+      
+      if (currentUserId) {
+        // Set current user for proper data segmentation
+        dispatch(setCurrentUser(currentUserId));
+        
+        // Load existing data from localStorage first for instant UI
+        dispatch(loadUserData(currentUserId));
+      }
+      
+      // Check user role to determine if we should load beneficiaries
+      const userRole = user?.role || safeLocalStorage.getItem('role');
+      if (userRole === 'caregiver' || userRole === 'funder') {
+        console.log('👤 User is caregiver/funder, loading beneficiaries...');
+        
+        // Fetch fresh data from API
+        const fetchResult = await dispatch(fetchDependents({ 
+          token, 
+          params: { 
+            page: 1, 
+            limit: 50, 
+            status: 'active' 
+          } 
+        }));
+        
+        // Also fetch stats
+        const statsResult = await dispatch(fetchCaregiverStats(token));
+        
+        console.log('✅ Beneficiaries initialization completed');
+        console.log('📊 Dependents loaded:', fetchResult.payload?.dependents?.length || 0);
+        console.log('📊 Stats API result:', statsResult.payload);
+        
+        return { 
+          message: 'Beneficiaries loaded successfully', 
+          dependentsCount: fetchResult.payload?.dependents?.length || 0,
+          statsData: statsResult.payload
+        };
+      } else {
+        console.log('👤 User role does not require beneficiary loading');
+        return { message: 'User role does not require beneficiary data' };
+      }
+      
+    } catch (error) {
+      console.error('❌ Error initializing beneficiaries:', error);
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 const initialState = {
   list: [], // Will be loaded dynamically based on current user
   isLoading: false,
@@ -370,6 +518,15 @@ const initialState = {
     transactions: [],
     period: '',
     totalTransactions: 0
+  },
+  // New transaction-specific state
+  transactions: {
+    all: [],
+    byDependent: {},
+    analytics: null,
+    pagination: null,
+    isLoading: false,
+    error: null
   },
   searchParams: {
     page: 1,
@@ -584,8 +741,19 @@ const beneficiariesSlice = createSlice({
         state.isLoading = false;
         state.list = action.payload.dependents || [];
         state.pagination = action.payload.pagination;
-        state.stats = { ...state.stats, ...action.payload.stats };
+        
+        // Use pagination total for totalDependents if available (across all pages)
+        // Otherwise use current loaded list length
+        const totalDependentsCount = action.payload.pagination?.total || state.list.length;
+        state.stats = { 
+          ...state.stats, 
+          ...action.payload.stats,
+          totalDependents: totalDependentsCount
+        };
+        
         console.log('📊 Updated state.list length:', state.list.length);
+        console.log('📊 Total dependents (across all pages):', totalDependentsCount);
+        console.log('📊 Current page dependents:', state.list.length);
         saveBeneficiariesToStorage(action.payload.dependents || [], state.currentUserId);
       })
       .addCase(fetchDependents.rejected, (state, action) => {
@@ -624,7 +792,21 @@ const beneficiariesSlice = createSlice({
       })
       .addCase(fetchCaregiverStats.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.stats = action.payload;
+        // Merge stats but be careful about totalDependents
+        // Only update totalDependents from stats API if we don't have dependents loaded yet
+        const shouldUseDependentsCount = state.list.length > 0;
+        const totalDependentsCount = shouldUseDependentsCount 
+          ? (state.pagination?.total || state.list.length)
+          : (action.payload.totalDependents || 0);
+          
+        state.stats = { 
+          ...state.stats, 
+          ...action.payload,
+          totalDependents: totalDependentsCount
+        };
+        
+        console.log(`📊 Updated stats from API - using dependents count: ${shouldUseDependentsCount}, totalDependents: ${totalDependentsCount}`);
+        console.log('📊 Stats API response:', action.payload);
       })
       .addCase(fetchCaregiverStats.rejected, (state, action) => {
         state.isLoading = false;
@@ -655,13 +837,25 @@ const beneficiariesSlice = createSlice({
         state.isLoading = false;
         state.list = action.payload.dependents || [];
         state.pagination = action.payload.pagination;
+        
+        // Always set totalDependents based on actual dependents list, not API stats
+        const actualDependentsCount = state.list.length;
         if (action.payload.stats) {
-          state.stats = action.payload.stats;
+          state.stats = { 
+            ...state.stats, 
+            ...action.payload.stats,
+            totalDependents: actualDependentsCount
+          };
+        } else {
+          // Ensure totalDependents is updated even if no stats from API
+          state.stats.totalDependents = actualDependentsCount;
         }
+        
         if (action.payload.activity) {
           state.recentActivity = action.payload.activity;
         }
         state.dashboardErrors = action.payload.errors || [];
+        console.log('📊 Dashboard loaded - totalDependents set to:', actualDependentsCount);
         saveBeneficiariesToStorage(action.payload.dependents || [], state.currentUserId);
       })
       .addCase(loadDashboardData.rejected, (state, action) => {
@@ -688,6 +882,54 @@ const beneficiariesSlice = createSlice({
       .addCase(searchDependents.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload || 'Failed to search dependents';
+      })
+      
+      // Fetch caregiver transactions
+      .addCase(fetchCaregiverTransactions.pending, (state) => {
+        state.transactions.isLoading = true;
+        state.transactions.error = null;
+      })
+      .addCase(fetchCaregiverTransactions.fulfilled, (state, action) => {
+        state.transactions.isLoading = false;
+        state.transactions.all = action.payload.transactions || [];
+        state.transactions.pagination = action.payload.pagination;
+      })
+      .addCase(fetchCaregiverTransactions.rejected, (state, action) => {
+        state.transactions.isLoading = false;
+        state.transactions.error = action.payload || 'Failed to fetch transactions';
+      })
+      
+      // Fetch dependent transactions
+      .addCase(fetchDependentTransactions.pending, (state) => {
+        state.transactions.isLoading = true;
+        state.transactions.error = null;
+      })
+      .addCase(fetchDependentTransactions.fulfilled, (state, action) => {
+        state.transactions.isLoading = false;
+        const { dependentId, transactions = [], pagination } = action.payload;
+        state.transactions.byDependent[dependentId] = {
+          transactions,
+          pagination,
+          lastFetched: new Date().toISOString()
+        };
+      })
+      .addCase(fetchDependentTransactions.rejected, (state, action) => {
+        state.transactions.isLoading = false;
+        state.transactions.error = action.payload || 'Failed to fetch dependent transactions';
+      })
+      
+      // Fetch transaction analytics
+      .addCase(fetchTransactionAnalytics.pending, (state) => {
+        state.transactions.isLoading = true;
+        state.transactions.error = null;
+      })
+      .addCase(fetchTransactionAnalytics.fulfilled, (state, action) => {
+        state.transactions.isLoading = false;
+        state.transactions.analytics = action.payload;
+      })
+      .addCase(fetchTransactionAnalytics.rejected, (state, action) => {
+        state.transactions.isLoading = false;
+        state.transactions.error = action.payload || 'Failed to fetch transaction analytics';
       })
       
       // Fetch dependents accounts
@@ -765,6 +1007,29 @@ const beneficiariesSlice = createSlice({
       .addCase(registerDependent.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload || 'Failed to register dependent';
+      })
+      
+      // Initialize beneficiaries on app startup
+      .addCase(initializeBeneficiaries.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(initializeBeneficiaries.fulfilled, (state, action) => {
+        state.isLoading = false;
+        console.log('🎉 Beneficiaries initialization successful:', action.payload);
+        
+        // If dependents were loaded, update the list and stats
+        if (action.payload.dependentsCount > 0) {
+          // Fetch fresh stats
+          //dispatch(fetchCaregiverStats(state.authentication.token));
+          
+          // Optionally, you can refetch dependents to ensure latest data
+          //dispatch(fetchDependents({ token: state.authentication.token, params: { page: 1, limit: 50, status: 'active' } }));
+        }
+      })
+      .addCase(initializeBeneficiaries.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Failed to initialize beneficiaries';
       });
   },
 });
@@ -799,3 +1064,20 @@ export const {
 } = beneficiariesSlice.actions;
 
 export default beneficiariesSlice.reducer;
+
+// Export async thunks
+export {
+  fetchDependents,
+  fetchDependentById,
+  fetchCaregiverStats,
+  fetchRecentActivity,
+  fetchCaregiverTransactions,
+  fetchDependentTransactions,
+  fetchTransactionAnalytics,
+  loadDashboardData,
+  searchDependents,
+  fetchDependentsAccounts,
+  fetchDependentAccounts,
+  registerDependent,
+  initializeBeneficiaries
+};
