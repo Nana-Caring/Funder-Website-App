@@ -16,6 +16,7 @@ import LandingPage from './components/LandingPage/LandingPage'
 import SignUpPage from './components/SignUpPage/SignUpPage'
 import LoginPage from './components/LoginPage/LoginPage'
 import ResetPassword from './components/ResetPassword/ResetPassword'
+import ResetPasswordPage from './components/ResetPasswordPage/ResetPasswordPage'
 import SecondSignUp from './components/SignUpPage/SecondSignUp'
 import SplashScreen from './components/SplashScreen/SplashScreen';
 import Benefits from './components/BenefitsPage/Benefits';
@@ -201,6 +202,7 @@ function App() {
       <Route path="/second-signup" element={<SecondSignUp />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/reset-password-page" element={<ResetPasswordPage />} />
       <Route path="/benefits" element={<Benefits />} />
       <Route path="/how-it-works" element={<HowItWorks />} />
       <Route path="/contact" element={<Contact />} />

@@ -196,15 +196,24 @@ const LoginPage = () => {
 
       setLoading(true);
 
-      // Call the actual forgot password API
-      await authService.forgotPassword(forgotPasswordData.emailOrUsername);
+      // Use the specified endpoint for forgot password
+      const response = await fetch('https://nanacaring-backend.onrender.com/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotPasswordData.emailOrUsername })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to send reset instructions');
+      }
       
       setForgotPasswordMessage('Password reset instructions have been sent to your email address. Please check your inbox and follow the instructions to reset your password.');
 
     } catch (err) {
       console.error('Forgot Password Error:', err);
       setError(
-        err.response?.data?.message || 
         err.message || 
         'Failed to send reset instructions. Please try again.'
       );
