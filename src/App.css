@@ -4,12 +4,13 @@ html, body {
   padding: 0;
   width: 100vw;
   height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 #root {
   width: 100vw;
-  height: 100vh;
+  min-height: 100vh;
   margin: 0;
   padding: 0;
   display: flex;
@@ -17,8 +18,8 @@ html, body {
   align-items: center;
   justify-content: flex-start;
   box-sizing: border-box;
-  overflow: hidden;
-  
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .logo {

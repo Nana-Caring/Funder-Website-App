@@ -5,6 +5,7 @@ import personIcon from '../../assets/icons/person.png';
 import notificationIcon from '../../assets/icons/notifications.png';
 import notificationIndicatorIcon from '../../assets/icons/notification-icon.png';
 import settingsIcon from '../../assets/icons/settings.png';
+import cartIcon from '../../assets/icons/buy.png'; // Using buy.png as a temporary replacement for cart.png
 
 const DependentHeaderContainer = styled.div`
   position: fixed;
@@ -129,6 +130,10 @@ const DependentHeader = ({ title }) => {
       <div className="icons">
         <div className="icon-container" onClick={() => navigate('/profile')}>
           <img src={personIcon} alt="Profile" />
+        </div>
+
+         <div className="icon-container" onClick={() => navigate('/cart')}>
+          <img src={cartIcon} alt="Cart" />
         </div>
       
         <div className="icon-container" onClick={() => navigate('/settings')}>
