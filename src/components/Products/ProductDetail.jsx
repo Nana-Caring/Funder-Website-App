@@ -35,15 +35,41 @@ const ImageSection = styled.div`
   width: 35%;
   padding: 20px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   background-color: white;
 `;
 
+const MainImageContainer = styled.div`
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 15px;
+`;
+
 const ProductImage = styled.img`
-  max-width: 100%;
-  max-height: 300px;
+  width: 280px;
+  height: 320px;
   object-fit: contain;
+`;
+
+const ThumbnailContainer = styled.div`
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+`;
+
+const ThumbnailImage = styled.img`
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  
+  &:hover {
+    border-color: #185c37;
+  }
 `;
 
 const InfoSection = styled.div`
@@ -59,7 +85,6 @@ const StockTag = styled.div`
   padding: 3px 6px;
   border-radius: 3px;
   font-weight: 500;
-  margin-left: 10px;
   display: inline-block;
 `;
 
@@ -126,11 +151,27 @@ const QuantityInput = styled.input`
   font-size: 13px;
 `;
 
-const ProductDescription = styled.p`
+const ProductDescription = styled.div`
   font-size: 14px;
   line-height: 1.6;
   color: #555;
   margin: 15px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+`;
+
+const DescriptionText = styled.p`
+  margin: 0;
+  flex: 1;
+`;
+
+const IngredientsText = styled.span`
+  color: #185c37;
+  text-decoration: underline;
+  font-weight: 500;
+  cursor: pointer;
+  margin-left: 20px;
 `;
 
 const ButtonsContainer = styled.div`
@@ -359,7 +400,13 @@ const ProductDetail = () => {
       
       <ProductContainer>
         <ImageSection>
-          <ProductImage src={product.image} alt={product.name} />
+          <MainImageContainer>
+            <ProductImage src={product.image} alt={product.name} />
+          </MainImageContainer>
+          <ThumbnailContainer>
+            <ThumbnailImage src={product.image} alt={`${product.name} view 1`} />
+            <ThumbnailImage src={product.image} alt={`${product.name} view 2`} />
+          </ThumbnailContainer>
         </ImageSection>
         
         <InfoSection>
@@ -376,7 +423,7 @@ const ProductDetail = () => {
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', width: '100%' }}>
                 <Price>{product.price}</Price>
                 <StockTag>In Stock</StockTag>
               </div>
@@ -394,7 +441,10 @@ const ProductDetail = () => {
           </div>
           
           <ProductDescription>
-            Pregnavit M 30 Capsules are formulated for women before, during and after pregnancy. It combines folic acid and a range of essential vitamins and minerals to improve energy, maintain healthy cells, and promote strong bones and teeth.
+            <DescriptionText>
+              Pregnavit M 30 Capsules are formulated for women before, during and after pregnancy. It combines folic acid and a range of essential vitamins and minerals to improve energy, maintain healthy cells, and promote strong bones and teeth.
+            </DescriptionText>
+            <IngredientsText>Ingredients</IngredientsText>
           </ProductDescription>
 
           <DescriptionTitle>More information</DescriptionTitle>

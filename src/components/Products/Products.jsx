@@ -3,6 +3,7 @@ import styled from "styled-components";
 import { Grid, List, Heart, Baby, GraduationCap, Shirt, Gamepad2, Users } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import sampleProductImage from "../../../assets/sample-product.png";
+import chevronIcon from "../../../assets/icons/Chevron down.png";
 
 // Export sampleProducts to make it available for import in ProductDetail.jsx
 
@@ -25,19 +26,53 @@ const ContentWrapper = styled.div`
 const Sidebar = styled.div`
   width: 180px;
   background: #fff;
-  padding: 15px;
+  padding: 0;
   border-radius: 10px;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
   height: fit-content;
   position: sticky;
-  top: 20px; /* sticks below header */
+  top: 33px;
   align-self: flex-start;
+`;
+
+const SidebarHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border-bottom: 1px solid #e0e0e0;
+`;
+
+const FiltersTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: #333;
+`;
+
+const ClearAllButton = styled.button`
+  background: #185c37;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  
+  &:hover {
+    background: #124a2c;
+  }
+`;
+
+const SidebarContent = styled.div`
+  padding: 15px;
 `;
 
 const SidebarSection = styled.div`
   margin-bottom: 15px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border: none;
+  border-radius: 0;
   overflow: hidden;
 `;
 
@@ -45,26 +80,26 @@ const SectionTitle = styled.h4`
   font-size: 15px;
   font-weight: 600;
   margin: 0;
-  padding: 12px 15px;
-  background-color: #f8f9fa;
+  padding: 12px 0;
+  background-color: transparent;
   color: #333;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: none;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative;
   
   &:hover {
-    background-color: #f0f1f2;
+    color: #185c37;
   }
-  
-  &::after {
-    content: '▼';
-    font-size: 12px;
-    color: #666;
-    transition: transform 0.2s ease;
-    transform: ${props => props.isOpen ? 'rotate(0deg)' : 'rotate(-90deg)'};
-  }
+`;
+
+const SectionTitleIcon = styled.img`
+  width: 12px;
+  height: 12px;
+  transition: transform 0.2s ease;
+  transform: ${props => props.isOpen ? 'rotate(180deg)' : 'rotate(0deg)'};
 `;
 
 const SectionContent = styled.div`
@@ -78,10 +113,27 @@ const SectionContent = styled.div`
 const CheckboxLabel = styled.label`
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   font-size: 14px;
   margin-bottom: 8px;
   cursor: pointer;
+`;
+
+const CheckboxGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const CountBadge = styled.span`
+  background: #185c37;
+  color: white;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 12px;
+  min-width: 20px;
+  text-align: center;
 `;
 
 const Checkbox = styled.input`
@@ -104,6 +156,11 @@ const Header = styled.div`
   font-size: 18px;
   font-weight: 600;
   margin-bottom: 5px;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 10;
+  padding: 10px 0;
 `;
 
 const Breadcrumb = styled.div`
@@ -121,12 +178,16 @@ const FiltersRow = styled.div`
   padding: 10px 15px;
   border-radius: 8px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 48px;
+  z-index: 9;
 `;
 
 const FilterGroup = styled.div`
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 5px;
+  position: relative;
 `;
 
 const IconsGroup = styled.div`
@@ -155,17 +216,41 @@ const IconButton = styled.button`
   }
 `;
 
-const Label = styled.span`
-  font-size: 14px;
+const Label = styled.label`
+  font-size: 12px;
   font-weight: 500;
   color: #333;
 `;
 
+const SelectWrapper = styled.div`
+  position: relative;
+  display: inline-block;
+`;
+
 const Select = styled.select`
-  padding: 6px 10px;
+  padding: 6px 30px 6px 10px;
   border: 1px solid #ddd;
   border-radius: 6px;
   background: #fff;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  
+  &:focus {
+    outline: none;
+    border-color: #185c37;
+  }
+`;
+
+const ChevronIcon = styled.img`
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
 `;
 
 const ProductGrid = styled.div`
@@ -301,22 +386,34 @@ const Products = () => {
       <ContentWrapper>
         {/* LEFT FILTER SIDEBAR */}
         <Sidebar>
+          <SidebarHeader>
+            <FiltersTitle>Filters</FiltersTitle>
+            <ClearAllButton>Clear all</ClearAllButton>
+          </SidebarHeader>
+          <SidebarContent>
         <SidebarSection>
           <SectionTitle 
             isOpen={openSections.promotionType}
             onClick={() => toggleSection('promotionType')}
           >
             Promotion Type
+            <SectionTitleIcon src={chevronIcon} alt="dropdown" isOpen={openSections.promotionType} />
           </SectionTitle>
           <SectionContent isOpen={openSections.promotionType}>
             <CheckboxLabel>
-              <Checkbox type="checkbox" /> Discount offers
+              <CheckboxGroup>
+                <Checkbox type="checkbox" /> Discount offers
+              </CheckboxGroup>
             </CheckboxLabel>
             <CheckboxLabel>
-              <Checkbox type="checkbox" /> Mix and Match
+              <CheckboxGroup>
+                <Checkbox type="checkbox" /> Mix and Match
+              </CheckboxGroup>
             </CheckboxLabel>
             <CheckboxLabel>
-              <Checkbox type="checkbox" /> Bulk offers
+              <CheckboxGroup>
+                <Checkbox type="checkbox" /> Bulk offers
+              </CheckboxGroup>
             </CheckboxLabel>
           </SectionContent>
         </SidebarSection>
@@ -327,19 +424,26 @@ const Products = () => {
             onClick={() => toggleSection('category')}
           >
             Category
+            <SectionTitleIcon src={chevronIcon} alt="dropdown" isOpen={openSections.category} />
           </SectionTitle>
           <SectionContent isOpen={openSections.category}>
             <CheckboxLabel>
-              <Checkbox type="checkbox" /> Healthcare
+              <CheckboxGroup>
+                <Checkbox type="checkbox" /> Healthcare
+              </CheckboxGroup>
+              <CountBadge>15</CountBadge>
             </CheckboxLabel>
             <CheckboxLabel>
-              <Checkbox type="checkbox" /> Babycare
+              <CheckboxGroup>
+                <Checkbox type="checkbox" /> Babycare
+              </CheckboxGroup>
+              <CountBadge>8</CountBadge>
             </CheckboxLabel>
             <CheckboxLabel>
-              <Checkbox type="checkbox" /> School
-            </CheckboxLabel>
-            <CheckboxLabel>
-              <Checkbox type="checkbox" /> Clothing
+              <CheckboxGroup>
+                <Checkbox type="checkbox" /> School
+              </CheckboxGroup>
+              <CountBadge>12</CountBadge>
             </CheckboxLabel>
           </SectionContent>
         </SidebarSection>
@@ -350,22 +454,42 @@ const Products = () => {
             onClick={() => toggleSection('shopByBrand')}
           >
             Shop by Brand
+            <SectionTitleIcon src={chevronIcon} alt="dropdown" isOpen={openSections.shopByBrand} />
           </SectionTitle>
           <SectionContent isOpen={openSections.shopByBrand}>
             <CheckboxLabel>
-              <Checkbox type="checkbox" /> Cal-C-Vita
+              <CheckboxGroup>
+                <Checkbox type="checkbox" /> Cal-C-Vita
+              </CheckboxGroup>
+              <CountBadge>10</CountBadge>
             </CheckboxLabel>
             <CheckboxLabel>
-              <Checkbox type="checkbox" /> Clicks Expert
+              <CheckboxGroup>
+                <Checkbox type="checkbox" /> Clicks
+              </CheckboxGroup>
+              <CountBadge>20</CountBadge>
             </CheckboxLabel>
             <CheckboxLabel>
-              <Checkbox type="checkbox" /> Ensure
+              <CheckboxGroup>
+                <Checkbox type="checkbox" /> Clicks Expert
+              </CheckboxGroup>
+              <CountBadge>5</CountBadge>
             </CheckboxLabel>
             <CheckboxLabel>
-              <Checkbox type="checkbox" /> Biogen
+              <CheckboxGroup>
+                <Checkbox type="checkbox" /> DS Boost
+              </CheckboxGroup>
+              <CountBadge>11</CountBadge>
+            </CheckboxLabel>
+            <CheckboxLabel>
+              <CheckboxGroup>
+                <Checkbox type="checkbox" /> Ensure
+              </CheckboxGroup>
+              <CountBadge>3</CountBadge>
             </CheckboxLabel>
           </SectionContent>
         </SidebarSection>
+          </SidebarContent>
       </Sidebar>
 
         {/* RIGHT MAIN PRODUCT CATALOG */}
@@ -375,20 +499,26 @@ const Products = () => {
           <FiltersRow>
           <FilterGroup>
             <Label>Sort By</Label>
-            <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-              <option value="relevance">Relevance</option>
-              <option value="price-low">Price: Low to High</option>
-              <option value="price-high">Price: High to Low</option>
-            </Select>
+            <SelectWrapper>
+              <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                <option value="relevance">Relevance</option>
+                <option value="price-low">Price: Low to High</option>
+                <option value="price-high">Price: High to Low</option>
+              </Select>
+              <ChevronIcon src={chevronIcon} alt="dropdown" />
+            </SelectWrapper>
           </FilterGroup>
 
           <FilterGroup>
             <Label>Show</Label>
-            <Select>
-              <option value="20">20 per page</option>
-              <option value="40">40 per page</option>
-              <option value="60">60 per page</option>
-            </Select>
+            <SelectWrapper>
+              <Select>
+                <option value="20">20 per page</option>
+                <option value="40">40 per page</option>
+                <option value="60">60 per page</option>
+              </Select>
+              <ChevronIcon src={chevronIcon} alt="dropdown" />
+            </SelectWrapper>
           </FilterGroup>
 
           {/* NEW ICONS ON RIGHT */}

@@ -132,8 +132,8 @@ const DependentHeader = ({ title }) => {
           <img src={personIcon} alt="Profile" />
         </div>
 
-         <div className="icon-container" onClick={() => navigate('/profile')}>
-          <img src={cartIcon} alt="Profile" />
+         <div className="icon-container" onClick={() => navigate('/cart')}>
+          <img src={cartIcon} alt="Cart" />
         </div>
       
         <div className="icon-container" onClick={() => navigate('/settings')}>
