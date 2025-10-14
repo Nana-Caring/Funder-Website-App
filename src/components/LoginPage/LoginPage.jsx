@@ -5,8 +5,80 @@ import { loginUser, loginSuccess, loginFailure } from '../../store/slices/Authen
 import authService from '../../services/authService';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import './LoginPage.css';
-import logo from '../../assets/logo.jpg';
+import logo from '../../assets/logo.png';
 import FeaturesSection from '../common/FeaturesSection';
+import { API_ENDPOINTS, apiCall } from '../../utils/apiConfig';
+
+// Styled components for popup - matching system theme
+const PopupOverlay = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 1000,
+  fontFamily: "'Poppins', sans-serif"
+};
+
+const PopupContainer = {
+  background: '#ffffff',
+  padding: '32px',
+  borderRadius: '12px',
+  boxShadow: '0 10px 40px rgba(255, 165, 0, 0.1), 0 4px 20px rgba(0, 0, 0, 0.15)',
+  maxWidth: '420px',
+  width: '90%',
+  textAlign: 'center',
+  border: '2px solid #FFA500EE',
+  position: 'relative'
+};
+
+const PopupIcon = {
+  width: '64px',
+  height: '64px',
+  borderRadius: '50%',
+  margin: '0 auto 20px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '32px',
+  background: 'linear-gradient(135deg, #FFA500EE, #FF8C00)',
+  color: 'white',
+  boxShadow: '0 4px 16px rgba(255, 165, 0, 0.3)'
+};
+
+const PopupTitle = {
+  margin: '0 0 16px 0',
+  color: '#008000',
+  fontSize: '22px',
+  fontWeight: '600',
+  fontFamily: "'Poppins', sans-serif"
+};
+
+const PopupMessage = {
+  margin: '0 0 28px 0',
+  color: '#333333',
+  fontSize: '14px',
+  lineHeight: '1.6',
+  fontFamily: "'Poppins', sans-serif"
+};
+
+const PopupButton = {
+  background: '#008000',
+  color: 'white',
+  padding: '12px 32px',
+  border: '2px solid #008000',
+  borderRadius: '25px',
+  fontSize: '14px',
+  fontWeight: '500',
+  cursor: 'pointer',
+  transition: 'all 0.3s ease',
+  fontFamily: "'Poppins', sans-serif",
+  minWidth: '120px'
+};
 
 export const useAuth = () => {
   const { token, isAuthenticated, user } = useSelector(state => state.authentication);
@@ -42,6 +114,7 @@ const LoginPage = () => {
     emailOrUsername: ''
   });
   const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -196,20 +269,19 @@ const LoginPage = () => {
 
       setLoading(true);
 
-      // Use the specified endpoint for forgot password
-      const response = await fetch('https://nanacaring-backend.onrender.com/api/auth/forgot-password', {
+      // Use the API configuration to handle CORS in development
+      console.log('🔄 Sending forgot password request to:', API_ENDPOINTS.FORGOT_PASSWORD);
+      console.log('📧 Email being sent:', forgotPasswordData.emailOrUsername);
+      
+      const data = await apiCall(API_ENDPOINTS.FORGOT_PASSWORD, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotPasswordData.emailOrUsername })
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to send reset instructions');
-      }
+      
+      console.log('📨 Server response:', data);
       
       setForgotPasswordMessage('Password reset instructions have been sent to your email address. Please check your inbox and follow the instructions to reset your password.');
+      setShowSuccessPopup(true);
 
     } catch (err) {
       console.error('Forgot Password Error:', err);
@@ -234,6 +306,13 @@ const LoginPage = () => {
       ...forgotPasswordData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const closeSuccessPopup = () => {
+    setShowSuccessPopup(false);
+    setShowForgotPassword(false);
+    setForgotPasswordMessage('');
+    setForgotPasswordData({ emailOrUsername: '' });
   };
 
   return (
@@ -363,18 +442,7 @@ const LoginPage = () => {
                   <p>{error}</p>
                 </div>
               )}
-              {forgotPasswordMessage && (
-                <div className="success-message" style={{
-                  backgroundColor: '#d4edda',
-                  color: '#155724',
-                  border: '1px solid #c3e6cb',
-                  borderRadius: '5px',
-                  padding: '10px',
-                  marginBottom: '15px'
-                }}>
-                  <p>{forgotPasswordMessage}</p>
-                </div>
-              )}
+
               <p className="form-description">Enter your email or username to receive password reset instructions</p>
               <div className="form-group">
                 <label>Email or Username:</label>
@@ -420,6 +488,36 @@ const LoginPage = () => {
       </div>
 
       <FeaturesSection />
+
+      {/* Success Popup */}
+      {showSuccessPopup && (
+        <div style={PopupOverlay} onClick={closeSuccessPopup}>
+          <div style={PopupContainer} onClick={(e) => e.stopPropagation()}>
+            <h3 style={PopupTitle}>Password Reset Email Sent!</h3>
+            <p style={PopupMessage}>
+              {forgotPasswordMessage}
+            </p>
+            <button 
+              style={PopupButton}
+              onClick={closeSuccessPopup}
+              onMouseEnter={(e) => {
+                e.target.style.background = '#FFA500EE';
+                e.target.style.borderColor = '#FFA500EE';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 20px rgba(255, 165, 0, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = '#008000';
+                e.target.style.borderColor = '#008000';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = 'none';
+              }}
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

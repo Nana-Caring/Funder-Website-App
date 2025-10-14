@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import styled from 'styled-components';
-import logo from '../../assets/logo.jpg';
+import logo from '../../assets/logo.png';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -116,9 +116,9 @@ const PasswordToggleBtn = styled.button`
 
 const SubmitButton = styled.button`
   width: 100%;
-  background: #185c37;
+ background:rgb(240, 170, 19);
   color: white;
-  border: none;
+  border-radius: 8px;
   padding: 14px 16px;
   border-radius: 8px;
   font-size: 16px;

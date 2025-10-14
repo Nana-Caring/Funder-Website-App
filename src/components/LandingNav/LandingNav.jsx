@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FaUser } from 'react-icons/fa';
-import logo from '../../assets/logo.jpg';
+import logo from '../../assets/logo.png';
 
 const LandingNav = () => {
   const location = useLocation();
@@ -83,7 +83,7 @@ const LandingNav = () => {
           align-items: center;
         }
         .nav-logo {
-          height: 90px;
+          height: 65px;
           width: auto;
         }
         .nav-center {

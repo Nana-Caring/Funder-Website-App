@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Link, useLocation } from 'react-router-dom';
-import logo from '../../assets/logo.jpg';
+import logo from '../../assets/logo.png';
 import homeIcon from '../../assets/icons/home-icon.png';
 import expensesIcon from '../../assets/icons/expenses.png';
 import requestIcon from '../../assets/icons/send-money-icon.png';

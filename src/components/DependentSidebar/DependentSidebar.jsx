@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Link, useLocation } from 'react-router-dom';
-import logo from '../../assets/logo.jpg';
+import logo from '../../assets/logo.png';
 import homeIcon from '../../assets/icons/home-icon.png';
 import buyIcon from '../../assets/icons/buy.png'; 
 import myAccountIcon from '../../assets/icons/my-account-icon.png';
@@ -26,8 +26,8 @@ const SidebarContainer = styled.div`
 `;
 
 const Logo = styled.img`
-  width: 100px;
-  height: 100px;
+  width: auto;
+  height: 60px;
   margin-bottom: 40px;
   object-fit: contain;
 `;

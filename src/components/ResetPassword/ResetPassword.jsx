@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import authService from '../../services/authService';
-import logo from '../../assets/logo.jpg';
+import logo from '../../assets/logo.png';
 import './ResetPassword.css';
+import { API_ENDPOINTS, apiCall } from '../../utils/apiConfig';
 
 const ResetPassword = () => {
   const location = useLocation();
@@ -42,7 +43,16 @@ const ResetPassword = () => {
 
       try {
         setLoading(true);
-  await authService.verifyResetToken(token, formData.email || emailFromQuery);
+        
+        // Verify token using API configuration
+        const data = await apiCall(API_ENDPOINTS.VERIFY_RESET_TOKEN, {
+          method: 'POST',
+          body: JSON.stringify({ 
+            token,
+            email: formData.email || emailFromQuery 
+          })
+        });
+
         setTokenValid(true);
       } catch (err) {
         console.error('Token verification failed:', err);
@@ -115,17 +125,29 @@ const ResetPassword = () => {
 
     try {
       setLoading(true);
-  await authService.resetPassword(token, formData.password, formData.email);
-      setSuccess('Password reset successful! You can now log in with your new password.');
-      setTimeout(() => {
-        navigate('/login');
-      }, 3000);
+      
+      // Call the reset password API using API configuration
+      const data = await apiCall(API_ENDPOINTS.RESET_PASSWORD, {
+        method: 'POST',
+        body: JSON.stringify({ 
+          email: formData.email, 
+          token, 
+          newPassword: formData.password 
+        })
+      });
+
+      if (data.success) {
+        setSuccess('Password reset successful! You can now log in with your new password.');
+        setTimeout(() => {
+          navigate('/login');
+        }, 3000);
+      } else {
+        throw new Error(data.message || 'Reset failed. Please try again.');
+      }
     } catch (err) {
       console.error('Password reset failed:', err);
       let errorMsg = 'Failed to reset password. Please try again or request a new reset link.';
-      if (err?.response?.data?.message) {
-        errorMsg = err.response.data.message;
-      } else if (err?.message && typeof err.message === 'string') {
+      if (err?.message && typeof err.message === 'string') {
         errorMsg = err.message;
       } else if (typeof err === 'string') {
         errorMsg = err;

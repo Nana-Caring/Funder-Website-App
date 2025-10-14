@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { registerUser } from '../../store/slices/Authentication';
 import './SecondSignUp.css';
 import landingCard from '../../assets/images/landingCard.png';
-import logo from '../../assets/logo.jpg';
+import logo from '../../assets/logo.png';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import FeaturesSection from '../common/FeaturesSection';
 

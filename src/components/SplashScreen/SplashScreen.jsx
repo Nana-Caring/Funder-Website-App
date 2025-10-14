@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import logo from '../../assets/logo.jpg';
+import logo from '../../assets/logo.png';
 
 const SplashContainer = styled.div`
   position: fixed;
