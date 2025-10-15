@@ -24,14 +24,12 @@ const SidebarContainer = styled.div`
   z-index: 99;
 `;
 
-const Logo = styled.div`
-  color: #FD3E6E;
-  font-size: 24px;
-  font-weight: bold;
+const Logo = styled.img`
+  width: 90px;
+  height: 90px;
   margin-bottom: 40px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  object-fit: cover;
+  border-radius: 50%;
 `;
 
 const MenuItem = styled(Link)`
@@ -65,9 +63,7 @@ const CareGiverSidebar = () => {
   const location = useLocation();
   return (
     <SidebarContainer>
-      <Logo>
-        <img src={logo} alt="Nana" width="90" height="70" />
-      </Logo>
+      <Logo src={logo} alt="Nana" />
       <MenuItem to="/caregiver-home" active={location.pathname === "/caregiver-home" ? 1 : 0}>
         <img src={homeIcon} alt="Home" />
         Home

@@ -26,10 +26,11 @@ const SidebarContainer = styled.div`
 `;
 
 const Logo = styled.img`
-  width: auto;
-  height: 60px;
+  width: 90px;
+  height: 90px;
   margin-bottom: 40px;
-  object-fit: contain;
+  object-fit: cover;
+  border-radius: 50%;
 `;
 
 const MenuItem = styled(Link)`
