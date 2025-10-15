@@ -113,7 +113,6 @@ const SignUpPage = () => {
           <img src={logo} alt="Nana Logo" className="nav-logo" />
         </div>
         <div className="nav-center">
-          <Link to="/service">Service</Link>
           <Link to="/how-it-works">How it works</Link>
           <Link to="/benefits">Benefits</Link>
           <Link to="/contact">Contact Us</Link>
