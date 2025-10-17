@@ -1,4 +1,4 @@
-// API Configuration Module - Updated Export Structure
+// Fresh API Configuration Module - New File to Bypass Cache
 export const API_ENDPOINTS = {
   FORGOT_PASSWORD: '/api/auth/forgot-password',
   VERIFY_RESET_TOKEN: '/api/auth/verify-reset-token', 
@@ -8,8 +8,12 @@ export const API_ENDPOINTS = {
 // API call function with comprehensive error handling
 export const apiCall = async (endpoint, options = {}) => {
   try {
-    console.log('🚀 Calling API:', endpoint);
+    console.log('�=== FRONTEND API CALL DEBUG START ===');
+    console.log('🎯 Full endpoint URL:', endpoint);
+    console.log('🌍 Current location:', window.location.href);
+    console.log('🔗 Will resolve to:', new URL(endpoint, window.location.origin).href);
     console.log('📦 Request body:', options.body);
+    console.log('⚙️ Request options:', options);
     
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -22,10 +26,13 @@ export const apiCall = async (endpoint, options = {}) => {
     });
 
     console.log('📊 Response status:', response.status);
+    console.log('📋 Response headers:', [...response.headers.entries()]);
+    console.log('✅ Response OK:', response.ok);
     
     // Get response text
     const text = await response.text();
-    console.log('🔍 Raw response:', text);
+    console.log('🔍 Raw response text:', text);
+    console.log('📏 Response length:', text.length);
     
     // Try to parse as JSON, or create success response
     let data = {};

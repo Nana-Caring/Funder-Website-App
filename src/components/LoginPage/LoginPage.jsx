@@ -7,7 +7,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import './LoginPage.css';
 import logo from '../../assets/logo.png';
 import FeaturesSection from '../common/FeaturesSection';
-import { API_ENDPOINTS, apiCall } from '../../utils/apiConfig';
+import { API_ENDPOINTS, apiCall } from '../../utils/apiConfiguration';
 
 // Styled components for popup - matching system theme
 const PopupOverlay = {
@@ -269,28 +269,80 @@ const LoginPage = () => {
 
       setLoading(true);
 
-      // Use the API configuration to handle CORS in development
-      console.log('🔄 Sending forgot password request to:', API_ENDPOINTS.FORGOT_PASSWORD);
-      console.log('📧 Email being sent:', forgotPasswordData.emailOrUsername);
+      console.log('🔄=== PASSWORD RESET DEBUG START ===');
+      console.log('🌍 Environment:', import.meta.env.DEV ? 'DEVELOPMENT' : 'PRODUCTION');
+      console.log('🎯 Target endpoint:', API_ENDPOINTS.FORGOT_PASSWORD);
+      console.log('📧 Email/Username:', forgotPasswordData.emailOrUsername);
+      console.log('⏰ Request timestamp:', new Date().toISOString());
+      
+      // Validate email format if it looks like an email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (emailRegex.test(forgotPasswordData.emailOrUsername)) {
+        console.log('✅ Email format validation passed');
+      } else {
+        console.log('⚠️ Input appears to be username, not email format');
+      }
+      
+      const requestData = { email: forgotPasswordData.emailOrUsername };
+      console.log('� Sending password reset for:', forgotPasswordData.emailOrUsername);
+      console.log('� API endpoint:', API_ENDPOINTS.FORGOT_PASSWORD);
       
       const data = await apiCall(API_ENDPOINTS.FORGOT_PASSWORD, {
         method: 'POST',
-        body: JSON.stringify({ email: forgotPasswordData.emailOrUsername })
+        body: JSON.stringify(requestData)
       });
       
+      console.log('✅ API call successful!');
       console.log('📨 Server response:', data);
       
-      setForgotPasswordMessage('Password reset instructions have been sent to your email address. Please check your inbox and follow the instructions to reset your password.');
+      // Set success message
+      setForgotPasswordMessage(`Password reset instructions have been sent to ${forgotPasswordData.emailOrUsername}. Please check your inbox (and spam folder) within 5-10 minutes.`);
       setShowSuccessPopup(true);
+      
+      console.log('🔔 Success popup displayed');
+      console.log('🔄=== PASSWORD RESET DEBUG END ===');
 
     } catch (err) {
-      console.error('Forgot Password Error:', err);
-      setError(
-        err.message || 
-        'Failed to send reset instructions. Please try again.'
-      );
+      console.log('❌=== PASSWORD RESET ERROR DEBUG ===');
+      console.error('🚨 Forgot Password Error Details:');
+      console.error('📛 Error name:', err.name);
+      console.error('📛 Error message:', err.message);
+      console.error('📛 Error stack:', err.stack);
+      
+      if (err.response) {
+        console.error('📛 Response status:', err.response.status);
+        console.error('📛 Response data:', err.response.data);
+        console.error('📛 Response headers:', err.response.headers);
+      }
+      
+      if (err.message.includes('Network')) {
+        console.error('🌐 Network error detected - check internet connection');
+      } else if (err.message.includes('CORS')) {
+        console.error('🚫 CORS error detected - server configuration issue');
+      } else if (err.message.includes('404')) {
+        console.error('🔍 404 error - endpoint not found on server');
+      } else if (err.message.includes('500')) {
+        console.error('⚠️ Server error - backend processing failed');
+      }
+      
+      let userMessage = '';
+      if (err.message.includes('Network') || err.message.includes('fetch')) {
+        userMessage = 'Network error: Please check your internet connection and try again.';
+      } else if (err.message.includes('404')) {
+        userMessage = 'Service unavailable: The password reset service is currently unavailable. Please try again later.';
+      } else if (err.message.includes('500')) {
+        userMessage = 'Server error: There was an issue processing your request. Please try again or contact support.';
+      } else {
+        userMessage = err.message || 'Failed to send reset instructions. Please try again.';
+      }
+      
+      console.error('👤 User will see error:', userMessage);
+      console.log('❌=== ERROR DEBUG END ===');
+      
+      setError(userMessage);
     } finally {
       setLoading(false);
+      console.log('🏁 Password reset request completed');
     }
   };
 
@@ -493,10 +545,32 @@ const LoginPage = () => {
       {showSuccessPopup && (
         <div style={PopupOverlay} onClick={closeSuccessPopup}>
           <div style={PopupContainer} onClick={(e) => e.stopPropagation()}>
-            <h3 style={PopupTitle}>Password Reset Email Sent!</h3>
+            <div style={PopupIcon}>
+              📧
+            </div>
+            <h3 style={PopupTitle}>Reset Email Sent!</h3>
             <p style={PopupMessage}>
               {forgotPasswordMessage}
             </p>
+            <div style={{
+              background: '#f8f9fa',
+              border: '1px solid #e9ecef',
+              borderRadius: '8px',
+              padding: '16px',
+              margin: '16px 0',
+              fontSize: '13px',
+              color: '#6c757d',
+              textAlign: 'left'
+            }}>
+              <strong style={{ color: '#495057' }}>Next Steps:</strong><br/>
+              • Check your inbox within 5-10 minutes<br/>
+              • Look in your spam/junk folder<br/>
+              • Click the reset link in the email<br/>
+              • Create a new password<br/>
+              <br/>
+              <strong style={{ color: '#495057' }}>Didn't receive it?</strong><br/>
+              Try again with a different email or contact support.
+            </div>
             <button 
               style={PopupButton}
               onClick={closeSuccessPopup}

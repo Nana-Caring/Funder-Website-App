@@ -5,11 +5,14 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    port: 5173, // Force specific port to ensure proxy works
+    strictPort: false, // Allow fallback to other ports if 5173 is busy
     proxy: {
-      '/api/password-reset': {
-        target: 'https://password-reset-29wr.onrender.com',
+      '/api/auth': {
+        target: 'https://nanacaring-backend.onrender.com',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/password-reset/, '/api/auth')
+        secure: true,
+        logLevel: 'debug' // Add logging to see proxy activity
       }
     }
   }

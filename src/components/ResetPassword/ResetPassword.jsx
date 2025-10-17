@@ -4,7 +4,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import authService from '../../services/authService';
 import logo from '../../assets/logo.png';
 import './ResetPassword.css';
-import { API_ENDPOINTS, apiCall } from '../../utils/apiConfig';
+import { API_ENDPOINTS, apiCall } from '../../utils/apiConfiguration';
 
 const ResetPassword = () => {
   const location = useLocation();
