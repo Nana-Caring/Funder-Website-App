@@ -7,7 +7,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import './LoginPage.css';
 import logo from '../../assets/logo.png';
 import FeaturesSection from '../common/FeaturesSection';
-import { API_ENDPOINTS, apiCall } from '../../utils/apiConfig';
+import { API_ENDPOINTS, apiCall } from '../../utils/apiConfiguration';
 
 // Styled components for popup - matching system theme
 const PopupOverlay = {
@@ -361,6 +361,8 @@ const LoginPage = () => {
         console.error('🚫 CORS error detected - server configuration issue');
       } else if (err.message.includes('404')) {
         console.error('🔍 404 error - endpoint not found on server');
+      } else if (err.message.includes('429')) {
+        console.error('⏱️ Rate limit exceeded - too many requests');
       } else if (err.message.includes('500')) {
         console.error('⚠️ Server error - backend processing failed');
       }
@@ -370,6 +372,8 @@ const LoginPage = () => {
         userMessage = 'Network error: Please check your internet connection and try again.';
       } else if (err.message.includes('404')) {
         userMessage = 'Service unavailable: The password reset service is currently unavailable. Please try again later.';
+      } else if (err.message.includes('429') || err.message.includes('Too Many Requests')) {
+        userMessage = 'Too many password reset attempts. Please wait a few minutes before trying again. This helps keep your account secure.';
       } else if (err.message.includes('500')) {
         userMessage = 'Server error: There was an issue processing your request. Please try again or contact support.';
       } else {
@@ -583,51 +587,86 @@ const LoginPage = () => {
 
       {/* Success Popup */}
       {showSuccessPopup && (
-        <div style={PopupOverlay} onClick={closeSuccessPopup}>
-          <div style={PopupContainer} onClick={(e) => e.stopPropagation()}>
-            <div style={PopupIcon}>
-              📧
-            </div>
-            <h3 style={PopupTitle}>Reset Email Sent!</h3>
-            <p style={PopupMessage}>
-              {forgotPasswordMessage}
-            </p>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          backdropFilter: 'blur(4px)'
+        }} onClick={closeSuccessPopup}>
+          <div style={{
+            background: 'var(--background, #ffffff)',
+            padding: '32px',
+            borderRadius: '12px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            maxWidth: '400px',
+            width: '90%',
+            textAlign: 'center',
+            border: '1px solid var(--border, #e5e7eb)',
+            fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+          }} onClick={(e) => e.stopPropagation()}>
             <div style={{
-              background: '#f8f9fa',
-              border: '1px solid #e9ecef',
-              borderRadius: '8px',
-              padding: '16px',
-              margin: '16px 0',
-              fontSize: '13px',
-              color: '#6c757d',
-              textAlign: 'left'
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              margin: '0 auto 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px',
+              background: 'var(--success, #10b981)',
+              color: 'white',
+              fontWeight: '600'
             }}>
-              <strong style={{ color: '#495057' }}>Next Steps:</strong><br/>
-              • Check your inbox within 5-10 minutes<br/>
-              • Look in your spam/junk folder<br/>
-              • Click the reset link in the email<br/>
-              • Create a new password<br/>
-              <br/>
-              <strong style={{ color: '#495057' }}>Didn't receive it?</strong><br/>
-              Try again with a different email or contact support.
+              ✓
             </div>
+            <h3 style={{
+              margin: '0 0 8px 0',
+              color: 'var(--foreground, #111827)',
+              fontSize: '20px',
+              fontWeight: '600',
+              fontFamily: 'inherit'
+            }}>Email Sent</h3>
+            <p style={{
+              margin: '0 0 24px 0',
+              color: 'var(--muted-foreground, #6b7280)',
+              fontSize: '15px',
+              lineHeight: '1.5',
+              fontFamily: 'inherit'
+            }}>
+              Check your email for reset instructions.
+            </p>
             <button 
-              style={PopupButton}
+              style={{
+                background: 'var(--primary, #3b82f6)',
+                color: 'var(--primary-foreground, #ffffff)',
+                padding: '12px 24px',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                fontFamily: 'inherit',
+                minWidth: '100px'
+              }}
               onClick={closeSuccessPopup}
               onMouseEnter={(e) => {
-                e.target.style.background = '#FFA500EE';
-                e.target.style.borderColor = '#FFA500EE';
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 6px 20px rgba(255, 165, 0, 0.3)';
+                e.target.style.background = 'var(--primary-hover, #2563eb)';
+                e.target.style.transform = 'translateY(-1px)';
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = '#008000';
-                e.target.style.borderColor = '#008000';
+                e.target.style.background = 'var(--primary, #3b82f6)';
                 e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = 'none';
               }}
             >
-              Got it!
+              Close
             </button>
           </div>
         </div>
