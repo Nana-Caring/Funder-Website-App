@@ -7,7 +7,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import './LoginPage.css';
 import logo from '../../assets/logo.png';
 import FeaturesSection from '../common/FeaturesSection';
-import { API_ENDPOINTS, apiCall } from '../../utils/apiConfiguration';
+import { API_ENDPOINTS, apiCall } from '../../utils/apiConfig';
 
 // Styled components for popup - matching system theme
 const PopupOverlay = {
@@ -284,8 +284,18 @@ const LoginPage = () => {
       }
       
       const requestData = { email: forgotPasswordData.emailOrUsername };
-      console.log('� Sending password reset for:', forgotPasswordData.emailOrUsername);
-      console.log('� API endpoint:', API_ENDPOINTS.FORGOT_PASSWORD);
+      console.log('📦 Request payload:', JSON.stringify(requestData, null, 2));
+      
+      // Enhanced debugging for frontend vs backend comparison
+      console.log('🔍 === DETAILED REQUEST DEBUG ===');
+      console.log('🌐 Full URL that will be called:', 
+        window.location.origin + API_ENDPOINTS.FORGOT_PASSWORD);
+      console.log('📋 Headers that will be sent:', {
+        'Content-Type': 'application/json'
+      });
+      console.log('📝 Exact request body:', JSON.stringify(requestData));
+      console.log('🔧 Request method: POST');
+      console.log('⚙️ Browser User-Agent:', navigator.userAgent);
       
       const data = await apiCall(API_ENDPOINTS.FORGOT_PASSWORD, {
         method: 'POST',
@@ -293,13 +303,43 @@ const LoginPage = () => {
       });
       
       console.log('✅ API call successful!');
-      console.log('📨 Server response:', data);
+      console.log('📨 Server response data:', JSON.stringify(data, null, 2));
+      console.log('🔍 Response type:', typeof data);
+      console.log('📋 Response keys:', Object.keys(data || {}));
       
-      // Set success message
-      setForgotPasswordMessage(`Password reset instructions have been sent to ${forgotPasswordData.emailOrUsername}. Please check your inbox (and spam folder) within 5-10 minutes.`);
+      // Check if the response indicates email was actually sent
+      if (data && (data.success || data.message || data.status === 'success')) {
+        console.log('🎉 Backend confirms email processing initiated');
+        if (data.message) {
+          console.log('💬 Backend message:', data.message);
+          
+          // Check if the message indicates a generic response (likely no email service configured)
+          if (data.message === 'Request processed successfully' && !data.emailSent) {
+            console.warn('🚨 === EMAIL SERVICE ISSUE DETECTED ===');
+            console.warn('⚠️ Backend returned generic response without email confirmation');
+            console.warn('⚠️ This indicates the email service is NOT configured on backend');
+            console.warn('⚠️ NO EMAIL WAS ACTUALLY SENT despite success response');
+            console.warn('⚠️ Backend needs email service setup (SMTP/SendGrid/etc.)');
+            console.warn('🚨 === CONTACT BACKEND DEVELOPER ===');
+          }
+        }
+      } else {
+        console.log('⚠️ Backend response unclear - assuming success for now');
+      }
+      
+      // Provide more specific feedback based on the response
+      let userMessage = '';
+      if (data.message === 'Request processed successfully' && !data.emailSent) {
+        userMessage = `⚠️ Password reset request was received, but there appears to be an email service configuration issue on our servers. The email may not have been sent. Please contact technical support or try again later. Email: ${forgotPasswordData.emailOrUsername}`;
+        console.warn('🚨 Showing user WARNING about confirmed email service issue');
+      } else {
+        userMessage = `Password reset instructions have been sent to ${forgotPasswordData.emailOrUsername}. Please check your inbox (and spam folder) for an email from our system. If you don't receive it within 5-10 minutes, please try again or contact support.`;
+      }
+      
+      setForgotPasswordMessage(userMessage);
       setShowSuccessPopup(true);
       
-      console.log('🔔 Success popup displayed');
+      console.log('🔔 Success popup displayed to user');
       console.log('🔄=== PASSWORD RESET DEBUG END ===');
 
     } catch (err) {
