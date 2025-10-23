@@ -407,7 +407,7 @@ const handleUpdateBeneficiary = async (e) => {
   try {
     const token = localStorage.getItem('token');
     const response = await axios.put(
-      `https://nanacaring-backend.onrender.com/api/funder/beneficiary/${beneficiaries[editingIndex]._id}`,
+      `/api/funder/beneficiary/${beneficiaries[editingIndex]._id}`,
       {
         dependentName: formData.name,
         accountNumber: formData.accountNumber

@@ -5,15 +5,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173, // Force specific port to ensure proxy works
-    strictPort: false, // Allow fallback to other ports if 5173 is busy
-    proxy: {
-      '/api/auth': {
-        target: 'https://nanacaring-backend.onrender.com',
-        changeOrigin: true,
-        secure: true,
-        logLevel: 'debug' // Add logging to see proxy activity
-      }
-    }
+    port: 5174, // Match the actual running port
+    strictPort: false, // Allow fallback to other ports if 5174 is busy
+    cors: true // Enable CORS for direct API connections
   }
 })

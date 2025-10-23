@@ -504,6 +504,7 @@ const initialState = {
   list: [], // Will be loaded dynamically based on current user
   isLoading: false,
   error: null,
+  statsError: null, // Separate error tracking for stats (non-critical)
   pagination: null,
   selectedDependent: null,
   currentUserId: null, // Track current user for data persistence
@@ -789,9 +790,11 @@ const beneficiariesSlice = createSlice({
       .addCase(fetchCaregiverStats.pending, (state) => {
         state.isLoading = true;
         state.error = null;
+        state.statsError = null;
       })
       .addCase(fetchCaregiverStats.fulfilled, (state, action) => {
         state.isLoading = false;
+        state.statsError = null; // Clear stats error on success
         // Merge stats but be careful about totalDependents
         // Only update totalDependents from stats API if we don't have dependents loaded yet
         const shouldUseDependentsCount = state.list.length > 0;
@@ -810,7 +813,9 @@ const beneficiariesSlice = createSlice({
       })
       .addCase(fetchCaregiverStats.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to fetch statistics';
+        // Don't set global error for stats failures - store in separate field
+        state.statsError = action.payload || 'Failed to fetch statistics';
+        console.log('📊 Stats fetch failed (non-critical):', state.statsError);
       })
       
       // Fetch recent activity

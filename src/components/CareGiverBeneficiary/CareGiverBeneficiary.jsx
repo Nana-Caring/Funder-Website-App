@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { useSelector, useDispatch } from 'react-redux';
+import { runServiceDiagnostics, getServiceStatusMessage } from '../../utils/serviceHealth';
 import { 
   addBeneficiary, 
   removeBeneficiary, 
@@ -383,6 +384,7 @@ const CareGiverBeneficiary = () => {
     list: beneficiaries, 
     isLoading: beneficiariesLoading, 
     error: beneficiariesError,
+    statsError,
     stats,
     dashboardErrors,
     currentUserId,
@@ -416,7 +418,30 @@ const CareGiverBeneficiary = () => {
                 localStorage.getItem('authToken') ||
                 localStorage.getItem('jwt');
 
-  // Optimized effect for initial data loading - relies on app-level initialization
+  // Diagnostic state for service health checking
+  const [diagnostics, setDiagnostics] = useState(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+
+  // Service health check function
+  const runDiagnostics = async () => {
+    console.log('🔍 Running service diagnostics...');
+    setShowDiagnostics(true);
+    
+    try {
+      const results = await runServiceDiagnostics(token);
+      setDiagnostics(results);
+      
+      // Show user-friendly status
+      const statusMessage = getServiceStatusMessage(results);
+      alert(statusMessage);
+      
+    } catch (error) {
+      console.error('Failed to run diagnostics:', error);
+      alert('Unable to run diagnostics. Please check your internet connection.');
+    }
+  };
+
+  // Optimized effect for initial data loading with retry mechanism
   useEffect(() => {
     if (!token) {
       dispatch(setFeedback({
@@ -437,26 +462,67 @@ const CareGiverBeneficiary = () => {
       dispatch(loadUserData(currentUserId));
     }
 
-    // Only fetch fresh data if we don't already have beneficiaries loaded
-    // This prevents duplicate API calls since app-level initialization should handle this
-    if (beneficiaries.length === 0 && !beneficiariesLoading) {
-      console.log('🔄 No beneficiaries loaded yet, fetching from API...');
-      
-      // Fetch fresh data from API (this will merge with localStorage)
-      dispatch(fetchDependents({ 
-        token, 
-        params: { 
-          page: 1, 
-          limit: 50, 
-          status: 'active' 
-        } 
-      }));
+    // Implement retry mechanism for API calls
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 5000; // 5 seconds
 
-      // Also fetch stats
-      dispatch(fetchCaregiverStats(token));
-    } else {
-      console.log('✅ Beneficiaries already loaded, count:', beneficiaries.length);
-    }
+    const fetchWithRetry = async () => {
+      if (beneficiaries.length === 0 && !beneficiariesLoading && retryCount < maxRetries) {
+        console.log(`🔄 Attempt ${retryCount + 1}/${maxRetries}: Fetching from API...`);
+        
+        try {
+          // Fetch fresh data from API (this will merge with localStorage)
+          await dispatch(fetchDependents({ 
+            token, 
+            params: { 
+              page: 1, 
+              limit: 50, 
+              status: 'active' 
+            } 
+          })).unwrap();
+
+          console.log('✅ Dependents fetch successful');
+
+          // Try to fetch stats separately - don't fail the whole process if this fails
+          try {
+            await dispatch(fetchCaregiverStats(token)).unwrap();
+            console.log('✅ Stats fetch successful');
+          } catch (statsError) {
+            console.log('⚠️ Stats fetch failed, but dependents loaded successfully:', statsError);
+            // Don't show error to user since the main functionality (dependents) is working
+          }
+          
+        } catch (error) {
+          retryCount++;
+          console.log(`❌ Dependents API call failed (attempt ${retryCount}/${maxRetries}):`, error);
+          
+          if (retryCount < maxRetries) {
+            console.log(`⏳ Retrying dependents fetch in ${retryDelay/1000} seconds...`);
+            setTimeout(fetchWithRetry, retryDelay);
+          } else {
+            console.log('❌ Max retries reached for dependents. Backend server appears to be down.');
+            dispatch(setFeedback({
+              success: false,
+              message: 'Unable to load dependents. Backend server appears to be temporarily unavailable.'
+            }));
+          }
+        }
+      } else if (beneficiaries.length > 0) {
+        console.log('✅ Beneficiaries already loaded, count:', beneficiaries.length);
+        
+        // Try to fetch stats for already loaded beneficiaries, but silently fail if it doesn't work
+        try {
+          await dispatch(fetchCaregiverStats(token)).unwrap();
+          console.log('✅ Stats fetched for existing beneficiaries');
+        } catch (statsError) {
+          console.log('⚠️ Stats unavailable, but beneficiaries are loaded:', statsError);
+        }
+      }
+    };
+
+    // Start the fetch process
+    fetchWithRetry();
 
     // Listen for storage changes (useful for syncing across tabs)
     const handleStorageChange = (e) => {
@@ -468,15 +534,23 @@ const CareGiverBeneficiary = () => {
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [token, user?.id, dispatch, beneficiaries.length, beneficiariesLoading]);
+  }, [token, user?.id, dispatch]);
 
-  // Show beneficiaries error if any
+  // Show beneficiaries error only if it's a critical error (not stats-related)
   useEffect(() => {
     if (beneficiariesError) {
-      dispatch(setFeedback({
-        success: false,
-        message: beneficiariesError
-      }));
+      // Only show error if it's not just a stats failure and we actually have a dependents problem
+      if (beneficiariesError.toLowerCase().includes('dependents') || 
+          beneficiariesError.toLowerCase().includes('fetch') && 
+          !beneficiariesError.toLowerCase().includes('statistics')) {
+        dispatch(setFeedback({
+          success: false,
+          message: beneficiariesError
+        }));
+      } else {
+        // For stats-only errors, just log them without alerting the user
+        console.log('📊 Non-critical error (stats related):', beneficiariesError);
+      }
       dispatch(clearError());
     }
   }, [beneficiariesError, dispatch]);
@@ -701,17 +775,41 @@ const CareGiverBeneficiary = () => {
                 color: '#222',
                 margin: 0
               }}>
-                Dependents ({stats?.totalDependents || beneficiaries.length})
+                Dependents ({beneficiaries.length})
               </h3>
               {beneficiariesLoading && (
                 <div style={{ fontSize: '12px', color: '#666' }}>Loading...</div>
               )}
             </div>
             
-            <AddButton onClick={handleOpenModal}>
-              <span style={{ fontSize: '16px' }}>+</span>
-              Add Dependent
-            </AddButton>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {beneficiariesError && (
+                <button
+                  onClick={runDiagnostics}
+                  style={{
+                    background: '#ff6b35',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Run service diagnostics to troubleshoot backend issues"
+                >
+                  🔍 Diagnose
+                </button>
+              )}
+              
+              <AddButton onClick={handleOpenModal}>
+                <span style={{ fontSize: '16px' }}>+</span>
+                Add Dependent
+              </AddButton>
+            </div>
           </div>
 
           <div className="table-wrapper">
@@ -732,7 +830,43 @@ const CareGiverBeneficiary = () => {
                 {beneficiariesLoading ? (
                   <tr>
                     <td colSpan="8" style={{ textAlign: 'center', padding: '40px' }}>
-                      <div style={{ color: '#666' }}>Loading dependents...</div>
+                      <div style={{ color: '#666', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                        <div>Loading dependents...</div>
+                        <div style={{ fontSize: '12px', color: '#999' }}>
+                          If this takes too long, the server might be temporarily unavailable
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : beneficiariesError ? (
+                  <tr>
+                    <td colSpan="8" style={{ textAlign: 'center', padding: '40px' }}>
+                      <div style={{ color: '#d32f2f', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                        <div style={{ fontSize: '16px', fontWeight: '600' }}>
+                          ⚠️ Unable to Load Dependents
+                        </div>
+                        <div style={{ fontSize: '14px', maxWidth: '400px', lineHeight: '1.4' }}>
+                          The backend server is currently experiencing issues. 
+                          Your data is safe and will be available once the server is restored.
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+                          Error: {beneficiariesError}
+                        </div>
+                        <button 
+                          onClick={() => window.location.reload()} 
+                          style={{
+                            background: '#185c37',
+                            color: 'white',
+                            border: 'none',
+                            padding: '8px 16px',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          Retry Loading
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ) : beneficiaries.length === 0 ? (
@@ -972,6 +1106,87 @@ const CareGiverBeneficiary = () => {
           <FeedbackIcon>{feedback.success ? '✅' : '❌'}</FeedbackIcon>
           <span>{feedback.message}</span>
         </FeedbackMessage>
+      )}
+
+      {/* Service Diagnostics Display */}
+      {showDiagnostics && diagnostics && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          background: 'white',
+          border: '1px solid #ddd',
+          borderRadius: '8px',
+          padding: '16px',
+          maxWidth: '400px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          zIndex: 1000,
+          fontSize: '12px'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            marginBottom: '12px',
+            borderBottom: '1px solid #eee',
+            paddingBottom: '8px'
+          }}>
+            <strong style={{ color: '#185c37' }}>Service Diagnostics</strong>
+            <button 
+              onClick={() => setShowDiagnostics(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '16px',
+                cursor: 'pointer',
+                color: '#666'
+              }}
+            >
+              ×
+            </button>
+          </div>
+          
+          <div style={{ marginBottom: '8px' }}>
+            <strong>Overall Status:</strong> 
+            <span style={{ 
+              color: diagnostics.summary.overallHealth === 'HEALTHY' ? '#4caf50' : '#f44336',
+              marginLeft: '8px'
+            }}>
+              {diagnostics.summary.overallHealth}
+            </span>
+          </div>
+          
+          <div style={{ marginBottom: '8px' }}>
+            <strong>Health Check:</strong> 
+            <span style={{ 
+              color: diagnostics.summary.healthCheck === 'PASS' ? '#4caf50' : '#f44336',
+              marginLeft: '8px'
+            }}>
+              {diagnostics.summary.healthCheck}
+            </span>
+          </div>
+          
+          {diagnostics.summary.endpointAccessibility && (
+            <div style={{ marginBottom: '8px' }}>
+              <strong>Endpoints:</strong> {diagnostics.summary.endpointAccessibility}
+            </div>
+          )}
+          
+          {diagnostics.summary.recommendations.length > 0 && (
+            <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #eee' }}>
+              <strong>Recommendations:</strong>
+              <ul style={{ margin: '4px 0', paddingLeft: '16px' }}>
+                {diagnostics.summary.recommendations.map((rec, index) => (
+                  <li key={index} style={{ color: '#666', lineHeight: '1.4' }}>{rec}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          <div style={{ fontSize: '10px', color: '#999', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #eee' }}>
+            Checked: {new Date(diagnostics.timestamp).toLocaleTimeString()}
+          </div>
+        </div>
       )}
     </Container>
   );

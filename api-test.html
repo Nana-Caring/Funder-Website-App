@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Connection Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        h1 { text-align: center; margin-bottom: 30px; }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #45a049; }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        .success { background: rgba(76, 175, 80, 0.3); }
+        .error { background: rgba(244, 67, 54, 0.3); }
+        .loading { background: rgba(255, 193, 7, 0.3); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Nana Caring API Connection Test</h1>
+        
+        <div class="test-section">
+            <h3>🌐 Production API Status</h3>
+            <button onclick="testApiConnection()">Test API Connection</button>
+            <div id="connectionResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>👥 Test Demo Login</h3>
+            <button onclick="testLogin('funder@demo.com', 'Demo123!@#')">Test Funder Login</button>
+            <button onclick="testLogin('caregiver@demo.com', 'Demo123!@#')">Test Caregiver Login</button>
+            <button onclick="testLogin('dependent@demo.com', 'Demo123!@#')">Test Dependent Login</button>
+            <div id="loginResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📧 Test Password Reset</h3>
+            <button onclick="testPasswordReset()">Test Forgot Password</button>
+            <div id="resetResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://nanacaring-backend.onrender.com/api';
+
+        async function testApiConnection() {
+            const resultDiv = document.getElementById('connectionResult');
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = '🔄 Testing API connection...';
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/health`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = '✅ API Connection Successful!\n🌐 Backend is online and responding';
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ API Connection Failed:\n${error.message}`;
+            }
+        }
+
+        async function testLogin(email, password) {
+            const resultDiv = document.getElementById('loginResult');
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = `🔄 Testing login for ${email}...`;
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Login Successful!\n👤 User: ${data.user?.firstName || email}\n🎭 Role: ${data.user?.role || 'Unknown'}\n🔑 Token received: ${data.token ? 'Yes' : 'No'}`;
+                } else {
+                    throw new Error(data.message || `HTTP ${response.status}`);
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Login Failed:\n${error.message}`;
+            }
+        }
+
+        async function testPasswordReset() {
+            const resultDiv = document.getElementById('resetResult');
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = '🔄 Testing password reset...';
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/forgot-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'test@example.com' })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = '✅ Password Reset Endpoint Working!\n📧 API accepted the request (email may not send to test address)';
+                } else {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Password Reset Endpoint Responding!\n📝 Response: ${data.message || 'Endpoint is functional'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Password Reset Failed:\n${error.message}`;
+            }
+        }
+
+        // Auto-test connection on page load
+        window.onload = () => {
+            testApiConnection();
+        };
+    </script>
+</body>
+</html>

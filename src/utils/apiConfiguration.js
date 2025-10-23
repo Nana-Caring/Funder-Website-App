@@ -1,8 +1,8 @@
 // Fresh API Configuration Module - Clean Export Structure
 export const API_ENDPOINTS = {
-  FORGOT_PASSWORD: '/api/auth/forgot-password',
-  VERIFY_RESET_TOKEN: '/api/auth/verify-reset-token', 
-  RESET_PASSWORD: '/api/auth/reset-password'
+  FORGOT_PASSWORD: 'https://nanacaring-backend.onrender.com/api/auth/forgot-password',
+  VERIFY_RESET_TOKEN: 'https://nanacaring-backend.onrender.com/api/auth/verify-reset-token', 
+  RESET_PASSWORD: 'https://nanacaring-backend.onrender.com/api/auth/reset-password'
 };
 
 // API call function with comprehensive error handling
