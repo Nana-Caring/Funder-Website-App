@@ -104,8 +104,8 @@ const Sidebar = () => {
       </MenuItem>
 
       <MenuItem to="/my-accounts" active={location.pathname === "/my-accounts" ? 1 : 0}>
-        <img src={myAccountIcon} alt="My Accounts" />
-        My Accounts
+        <img src={myAccountIcon} alt="My Card" />
+        My Card
       </MenuItem>
 
       <MenuItem to="/send-money" active={location.pathname === "/send-money" ? 1 : 0}>

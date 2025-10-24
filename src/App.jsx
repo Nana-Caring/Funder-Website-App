@@ -7,7 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
 import Sidebar from './components/Sidebar/Sidebar'
 import Header from './components/Header/Header'
 import Dashboard from './components/Dashboard/Dashboard'
-import MyAccounts from './components/MyAccounts/MyAccounts';
+import MyCards from './components/MyAccounts/MyAccounts';
 import SendMoney from './components/SendMoney/SendMoney'
 import BeneficiaryForm from './components/Beneficiary/Beneficiary'
 import Messages from './components/Messages/Messages'
@@ -256,7 +256,7 @@ function App() {
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="my-accounts" element={
                 <Elements stripe={stripePromise}>
-                  <MyAccounts />
+                  <MyCards />
                 </Elements>
                 } />
                 <Route path="send-money" element={

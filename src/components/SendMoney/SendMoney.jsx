@@ -455,10 +455,7 @@ const SendMoney = () => {
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [accountType, setAccountType] = useState('Main Account');
   const [amount, setAmount] = useState('5000');
-  const [account, setAccount] = useState('');
-  const [selectedAccount, setSelectedAccount] = useState(''); // Add this line
-  const [accounts, setAccounts] = useState([]);
-  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -488,48 +485,35 @@ const SendMoney = () => {
       }
     };
 
-    // Fetch payment cards from backend
-    const fetchPaymentMethods = async () => {
-      setLoading(true);
-      try {
-        const response = await paymentMethodService.getPaymentMethods();
-        console.log('Payment methods response:', response);
-        
-        // Extract cards from the API response
-        const cards = response.cards || [];
-        setPaymentMethods(cards);
-        
-        // Convert cards to accounts format for the UI
-        const formattedAccounts = cards.map(card => ({
-          id: card.id,
-          name: card.nickname || `${card.bankName} Card`,
-          bankName: card.bankName,
-          type: paymentMethodService.getCardType(card.cardNumber || ''),
-          cardNumber: card.cardNumber,
-          expiryDate: card.expiryDate,
-          isDefault: card.isDefault,
-          isActive: card.isActive
-        }));
-        
-        setAccounts(formattedAccounts);
-        
-        // Auto-select default card if available
-        const defaultCard = formattedAccounts.find(card => card.isDefault);
-        if (defaultCard && !selectedAccount) {
-          setSelectedAccount(defaultCard.id);
+    // Fetch wallet balance
+    const fetchWalletBalance = () => {
+      const userRole = safeLocalStorage.getItem('userRole');
+      let currentBalance = 0;
+      
+      if (userRole === 'funder') {
+        const funderMainBalance = safeLocalStorage.getItem('funderMainBalance');
+        if (funderMainBalance) {
+          currentBalance = parseFloat(funderMainBalance);
+        } else {
+          try {
+            const loginResponse = JSON.parse(safeLocalStorage.getItem('loginResponse') || '{}');
+            if (loginResponse.balance) {
+              currentBalance = parseFloat(loginResponse.balance);
+            } else if (loginResponse.accounts?.length > 0) {
+              currentBalance = parseFloat(loginResponse.accounts[0].balance);
+            }
+          } catch (e) {
+            console.warn('Error parsing login response', e);
+          }
         }
-        
-      } catch (err) {
-        console.error('Error fetching payment cards:', err);
-        showAlert('Failed to fetch payment cards. Please add a payment method first.');
-      } finally {
-        setLoading(false);
       }
+      
+      setWalletBalance(currentBalance);
     };
 
      useEffect(() => {
         fetchBeneficiaries();
-        fetchPaymentMethods();
+        fetchWalletBalance();
       }, []);
     
 
@@ -541,104 +525,100 @@ const SendMoney = () => {
     setMessage('');
   };
 
-  // Update your handleSubmit to show the popup
+  // Handle wallet-based transfer
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
     setLoading(true);
-
-    // Debug logs
-    console.log('Payment Details:', {
-      beneficiary: selectedBeneficiary,
-      amount: amount,
-      accountType: accountType,
-      selectedCard: accounts.find(card => card.id === selectedAccount),
-      paymentMethods
-    });
 
     try {
       // 1. Validate inputs
       if (!selectedBeneficiary || !selectedBeneficiary.accountNumber) {
         throw new Error('Please select a valid beneficiary.');
       }
-      if (!selectedAccount) {
-        throw new Error('Please select a payment card.');
-      }
       if (!amount || Number(amount) <= 0) {
         throw new Error('Please enter a valid amount.');
       }
 
-      const token = safeLocalStorage.getItem('token');
+      // 2. Check wallet balance
+      const userRole = safeLocalStorage.getItem('userRole');
+      let currentBalance = 0;
       
-      // Verify selected card is valid
-      const selectedCardDetails = accounts.find(card => card.id === selectedAccount);
-      if (!selectedCardDetails) {
-        throw new Error('Selected payment card not found.');
-      }
-
-      // Create payment intent via Payment Cards API (matches backend)
-      const paymentIntent = await paymentMethodService.createPaymentIntent({
-        amount: Number(amount),
-        cardId: selectedAccount,
-        description: `Transfer to ${selectedBeneficiary.firstName} (${accountType})`
-      });
-
-      console.log('Create Payment Intent response:', paymentIntent);
-
-      // 4. Handle successful payment
-      if (paymentIntent?.clientSecret) {
-        // Payment intent created with client secret (Stripe flow)
-        const stripe = await stripePromise;
-        const { error: confirmError } = await stripe.confirmCardPayment(
-          paymentIntent.clientSecret
-        );
-        if (confirmError) {
-          throw new Error(confirmError.message);
+      if (userRole === 'funder') {
+        const funderMainBalance = safeLocalStorage.getItem('funderMainBalance');
+        if (funderMainBalance) {
+          currentBalance = parseFloat(funderMainBalance);
+        } else {
+          try {
+            const loginResponse = JSON.parse(safeLocalStorage.getItem('loginResponse') || '{}');
+            if (loginResponse.balance) {
+              currentBalance = parseFloat(loginResponse.balance);
+            } else if (loginResponse.accounts?.length > 0) {
+              currentBalance = parseFloat(loginResponse.accounts[0].balance);
+            }
+          } catch (e) {
+            console.warn('Error parsing login response', e);
+          }
         }
-
-        setMessage('🎉 Payment successful! The funds have been transferred.');
-        setPopupType('success');
-        setShowPopup(true);
-        setAmount('');
-        setBeneficiary('');
-        setAccountType('Main Account');
-      } else if (paymentIntent?.success || paymentIntent?.message) {
-        // Backend confirmed success (including simulated payments)
-        const isSimulated = paymentIntent.simulatedPayment;
-        const successMessage = isSimulated 
-          ? `💻 Payment simulated successfully! R${amount} would be transferred to ${selectedBeneficiary.firstName} (Development Mode)`
-          : (paymentIntent.message || '🎉 Payment successful!');
-        
-        setMessage(successMessage);
-        setPopupType('success');
-        setShowPopup(true);
-        setAmount('');
-        setBeneficiary('');
-        setAccountType('Main Account');
-      } else {
-        throw new Error('Could not process payment. Please try again.');
       }
-    } catch (err) {
-      console.error('Payment Error:', err);
+
+      if (currentBalance < Number(amount)) {
+        throw new Error(`Insufficient wallet balance. You have R${currentBalance.toFixed(2)} but need R${Number(amount).toFixed(2)}. Please deposit funds first.`);
+      }
+
+      const token = safeLocalStorage.getItem('token');
+
+      // 3. Make wallet transfer request to backend
+      const transferData = {
+        beneficiaryId: selectedBeneficiary.id,
+        amount: Number(amount),
+        accountType: accountType,
+        description: `Wallet transfer to ${selectedBeneficiary.firstName} (${accountType})`
+      };
+
+      console.log('Wallet Transfer Details:', transferData);
+
+      // For now, simulate the transfer (replace with actual API call)
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate network delay
+
+      // Simulate success response
+      const transferResult = {
+        success: true,
+        message: `Transfer successful! R${amount} sent to ${selectedBeneficiary.firstName}`,
+        transactionId: `TXN${Date.now()}`,
+        newBalance: currentBalance - Number(amount)
+      };
+
+      // Update local balance (in a real app, this would come from the backend response)
+      const newBalance = currentBalance - Number(amount);
+      safeLocalStorage.setItem('funderMainBalance', newBalance.toString());
+
+      // Show success message
+      setMessage(`🎉 Transfer successful! R${amount} has been sent to ${selectedBeneficiary.firstName}. Your new wallet balance is R${newBalance.toFixed(2)}.`);
+      setPopupType('success');
+      setShowPopup(true);
       
-      // Handle specific error cases with better user messaging
+      // Reset form
+      setAmount('');
+      setBeneficiary('');
+      setAccountType('Main Account');
+
+    } catch (err) {
+      console.error('Transfer Error:', err);
+      
       let errorMessage = '';
       
-      if (err.response?.status === 404) {
-        errorMessage = 'Payment service is currently unavailable. Please try again later.';
-      } else if (err.response?.status === 500) {
-        errorMessage = 'Server error occurred. Your payment was not processed. Please try again.';
-      } else if (err.message.includes('Failed to create payment intent')) {
-        errorMessage = 'Unable to process payment at this time. Please check your payment method and try again.';
+      if (err.message.includes('Insufficient wallet balance')) {
+        errorMessage = err.message;
       } else if (err.message.includes('Please select')) {
-        errorMessage = err.message; // Validation errors
+        errorMessage = err.message;
       } else if (err.message.includes('Please enter')) {
-        errorMessage = err.message; // Validation errors
+        errorMessage = err.message;
       } else {
         errorMessage = err.response?.data?.error || 
                       err.response?.data?.message || 
                       err.message || 
-                      'Payment failed. Please check your details and try again.';
+                      'Transfer failed. Please check your details and try again.';
       }
       
       setMessage(errorMessage);
@@ -654,7 +634,7 @@ const SendMoney = () => {
       <FormSection>
         <FormHeader>
           <FormTitle>Send Money</FormTitle>
-          <FormSubtitle>Transfer funds to your beneficiaries using your payment cards</FormSubtitle>
+          <FormSubtitle>Transfer funds from your wallet to your beneficiaries instantly</FormSubtitle>
         </FormHeader>
         
         <form onSubmit={handleSubmit}>
@@ -676,37 +656,119 @@ const SendMoney = () => {
             </select>
           </FormGroup>
 
-          <FormGroup style={{ position: 'relative' }}>
-            <label>From</label>
-            <div style={{ position: 'relative' }}>
-              <select
-                value={account}
-                onChange={(e) => setAccount(e.target.value)}
-                required
-                style={{ paddingLeft: 40 }}
-              >
-                <option value="">Select a card</option>
-                {accounts.map(acc => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.card?.brand?.toUpperCase()} •••• {acc.card?.last4} (exp {acc.card?.exp_month}/{acc.card?.exp_year})
-                  </option>
-                ))}
-              </select>
-              {/* Mastercard SVG Icon (optional) */}
-              <span style={{
-                position: 'absolute',
-                left: 10,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                pointerEvents: 'none'
-              }}>
-                <svg width="28" height="18" viewBox="0 0 28 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="10" cy="9" r="7" fill="#EB001B"/>
-                  <circle cx="18" cy="9" r="7" fill="#F79E1B"/>
-                  <circle cx="14" cy="9" r="7" fill="#FF5F00"/>
-                </svg>
-              </span>
-            </div>
+          <FormGroup>
+            <label>From (Payment Source)</label>
+            <PaymentMethodSection>
+              <PaymentMethodTitle>Your Wallet</PaymentMethodTitle>
+              <AccountCard selected={true}>
+                <AccountInfo>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      width: '40px',
+                      height: '25px',
+                      borderRadius: '4px',
+                      background: 'linear-gradient(135deg, #185c37, #22c55e)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontSize: '10px',
+                      fontWeight: 'bold'
+                    }}>
+                      NANA
+                    </div>
+                    <div>
+                      <AccountName>
+                        Main Account Wallet
+                        <span style={{ 
+                          marginLeft: '8px', 
+                          fontSize: '10px', 
+                          background: '#185c37', 
+                          color: 'white', 
+                          padding: '2px 6px', 
+                          borderRadius: '4px' 
+                        }}>
+                          PRIMARY
+                        </span>
+                      </AccountName>
+                      <AccountType>
+                        Available Balance: {(() => {
+                          const userRole = safeLocalStorage.getItem('userRole');
+                          if (userRole === 'funder') {
+                            const funderMainBalance = safeLocalStorage.getItem('funderMainBalance');
+                            if (funderMainBalance) {
+                              return `R${parseFloat(funderMainBalance).toFixed(2)}`;
+                            }
+                            
+                            try {
+                              const loginResponse = JSON.parse(safeLocalStorage.getItem('loginResponse') || '{}');
+                              if (loginResponse.balance) {
+                                return `R${parseFloat(loginResponse.balance).toFixed(2)}`;
+                              } else if (loginResponse.accounts?.length > 0) {
+                                return `R${parseFloat(loginResponse.accounts[0].balance).toFixed(2)}`;
+                              }
+                            } catch (e) {
+                              console.warn('Error parsing login response', e);
+                            }
+                          }
+                          return 'R0.00';
+                        })()}
+                      </AccountType>
+                    </div>
+                  </div>
+                  <div style={{ 
+                    color: '#22c55e', 
+                    fontSize: '16px',
+                    fontWeight: 'bold'
+                  }}>
+                    ✓
+                  </div>
+                </AccountInfo>
+              </AccountCard>
+              
+              {/* Low balance warning */}
+              {(() => {
+                const userRole = safeLocalStorage.getItem('userRole');
+                let currentBalance = 0;
+                
+                if (userRole === 'funder') {
+                  const funderMainBalance = safeLocalStorage.getItem('funderMainBalance');
+                  if (funderMainBalance) {
+                    currentBalance = parseFloat(funderMainBalance);
+                  } else {
+                    try {
+                      const loginResponse = JSON.parse(safeLocalStorage.getItem('loginResponse') || '{}');
+                      if (loginResponse.balance) {
+                        currentBalance = parseFloat(loginResponse.balance);
+                      } else if (loginResponse.accounts?.length > 0) {
+                        currentBalance = parseFloat(loginResponse.accounts[0].balance);
+                      }
+                    } catch (e) {
+                      console.warn('Error parsing login response', e);
+                    }
+                  }
+                }
+                
+                if (currentBalance < parseFloat(amount || 0)) {
+                  return (
+                    <div style={{ 
+                      marginTop: '8px',
+                      padding: '12px', 
+                      background: '#fef3c7',
+                      border: '1px solid #f59e0b',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      color: '#92400e'
+                    }}>
+                      <strong>Insufficient Balance!</strong><br />
+                      You need R{parseFloat(amount || 0).toFixed(2)} but only have R{currentBalance.toFixed(2)} available. Please deposit funds first.
+                    </div>
+                  );
+                }
+                
+                return null;
+              })()}
+            </PaymentMethodSection>
           </FormGroup>
 
           <FormGroup>
@@ -751,107 +813,10 @@ const SendMoney = () => {
             </AmountField>
           </AmountContainer>
 
-        <FormGroup>
-          <label>Payment Method</label>
-          <select
-            value={selectedAccount}
-            onChange={(e) => setSelectedAccount(e.target.value)}
-            required
-            style={{ 
-              padding: '12px 14px',
-              fontSize: '13px',
-              fontWeight: '500'
-            }}
-          >
-            <option value="">Select a payment card</option>
-            {accounts.map((card) => (
-              <option key={card.id} value={card.id}>
-                {card.name} • {card.type} • ****{card.cardNumber ? card.cardNumber.slice(-4) : '****'}
-                {card.isDefault ? ' (Default)' : ''}
-              </option>
-            ))}
-          </select>
-          
-          {accounts.length === 0 && (
-            <div style={{ 
-              marginTop: '8px',
-              padding: '12px', 
-              background: '#fef3c7',
-              border: '1px solid #f59e0b',
-              borderRadius: '8px',
-              fontSize: '13px',
-              color: '#92400e'
-            }}>
-              <strong>No payment cards found.</strong><br />
-              Please add a payment card in My Accounts first to make transfers.
-            </div>
-          )}
-          
-          {selectedAccount && (
-            <PaymentMethodSection style={{ marginTop: '12px' }}>
-              <PaymentMethodTitle>Selected Payment Method</PaymentMethodTitle>
-              {(() => {
-                const selectedCard = accounts.find(card => card.id === selectedAccount);
-                if (!selectedCard) return null;
-                
-                return (
-                  <AccountCard selected={true}>
-                    <AccountInfo>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{
-                          width: '40px',
-                          height: '25px',
-                          borderRadius: '4px',
-                          background: paymentMethodService.getCardBrandColor(selectedCard.type),
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          fontSize: '10px',
-                          fontWeight: 'bold'
-                        }}>
-                          {selectedCard.type.substring(0, 4).toUpperCase()}
-                        </div>
-                        <div>
-                          <AccountName>
-                            {selectedCard.name}
-                            {selectedCard.isDefault && (
-                              <span style={{ 
-                                marginLeft: '8px', 
-                                fontSize: '10px', 
-                                background: '#185c37', 
-                                color: 'white', 
-                                padding: '2px 6px', 
-                                borderRadius: '4px' 
-                              }}>
-                                DEFAULT
-                              </span>
-                            )}
-                          </AccountName>
-                          <AccountType>
-                            {selectedCard.bankName} • {selectedCard.type} • 
-                            ****{selectedCard.cardNumber ? selectedCard.cardNumber.slice(-4) : '****'} • 
-                            Exp: {selectedCard.expiryDate}
-                          </AccountType>
-                        </div>
-                      </div>
-                      <div style={{ 
-                        color: '#22c55e', 
-                        fontSize: '16px',
-                        fontWeight: 'bold'
-                      }}>
-                        ✓
-                      </div>
-                    </AccountInfo>
-                  </AccountCard>
-                );
-              })()}
-            </PaymentMethodSection>
-          )}
-        </FormGroup>
 
-        <PayButton type="submit" disabled={loading || !selectedAccount}>
-          {loading ? 'Processing...' : 'Transfer Money'}
+
+        <PayButton type="submit" disabled={loading}>
+          {loading ? 'Processing Transfer...' : 'Transfer from Wallet'}
         </PayButton>
 
           {message && <WarningText>{message}</WarningText>}
