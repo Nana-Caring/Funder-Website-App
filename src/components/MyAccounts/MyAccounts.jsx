@@ -4,6 +4,7 @@ import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import Header from '../Header/Header';
 import accountService from '../../services/accountService';
 import cardBg from '../../assets/images/card-bg.png';
+import config from '../../utils/config';
 
 const Container = styled.div`
   position: relative;
@@ -803,6 +804,19 @@ const MyCards = () => {
   const [paymentStatus, setPaymentStatus] = useState('');
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [balanceUpdateTrigger, setBalanceUpdateTrigger] = useState(0);
+  const [forceRefresh, setForceRefresh] = useState(0);
+
+  // Validate environment configuration on component mount
+  useEffect(() => {
+    try {
+      // This will throw an error if required environment variables are missing
+      // validateConfig(); // Commented out to avoid breaking the app, but you can enable it
+      console.log('🔧 Using API Base URL:', config.API_URL);
+    } catch (error) {
+      console.error('Environment configuration error:', error);
+      setError('Configuration error. Please check environment variables.');
+    }
+  }, []);
   
   // Stripe card element options
   const cardElementOptions = {
@@ -837,26 +851,38 @@ const MyCards = () => {
     console.log('🏦 getCurrentBalance called, trigger:', balanceUpdateTrigger, 'role:', userRole);
     
     if (userRole === 'funder') {
+      // Always get the latest balance from localStorage
       const funderMainBalance = localStorage.getItem('funderMainBalance');
       console.log('💰 Raw funderMainBalance from localStorage:', funderMainBalance);
       
-      if (funderMainBalance) {
-        const formatted = accountService.formatCurrency(funderMainBalance);
-        console.log('💱 Formatted balance:', formatted);
-        return formatted;
+      if (funderMainBalance && funderMainBalance !== 'null' && funderMainBalance !== 'undefined') {
+        // Parse and ensure it's a valid number
+        const balanceNum = parseFloat(funderMainBalance);
+        if (!isNaN(balanceNum)) {
+          const formatted = accountService.formatCurrency(balanceNum);
+          console.log('💱 Formatted balance:', formatted);
+          return formatted;
+        }
       }
       
+      // Fallback to login response data
       try {
         const loginResponse = JSON.parse(localStorage.getItem('loginResponse') || '{}');
         if (loginResponse.balance) {
-          return accountService.formatCurrency(loginResponse.balance);
+          const formatted = accountService.formatCurrency(loginResponse.balance);
+          console.log('💱 Fallback formatted balance:', formatted);
+          return formatted;
         } else if (loginResponse.accounts?.length > 0) {
-          return accountService.formatCurrency(loginResponse.accounts[0].balance);
+          const formatted = accountService.formatCurrency(loginResponse.accounts[0].balance);
+          console.log('💱 Account fallback balance:', formatted);
+          return formatted;
         }
       } catch (e) {
         console.warn('Error parsing login response', e);
       }
     }
+    
+    console.log('💱 Returning default balance: R0.00');
     return 'R0.00';
   };
 
@@ -919,11 +945,14 @@ const MyCards = () => {
   const fetchAccountBalance = async () => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        console.warn('No token found, cannot fetch balance');
+        return;
+      }
 
       console.log('🔄 Fetching updated account balance...');
       
-      const response = await fetch('https://nanacaring-backend.onrender.com/api/funder/deposit/account', {
+      const response = await fetch(`${config.API_URL}/funder/deposit/account`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -937,27 +966,36 @@ const MyCards = () => {
         console.log('💰 Updated balance from server:', balance, 'type:', typeof balance);
         console.log('📊 Full server response:', data);
         
-        // Ensure balance is properly converted to string
-        const balanceString = balance.toString();
-        localStorage.setItem('funderMainBalance', balanceString);
-        
-        console.log('💾 Stored in localStorage as:', balanceString);
-        
-        // Store account number for display
-        if (data.data.accountNumber) {
-          localStorage.setItem('mainAccountNumber', data.data.accountNumber);
+        // Ensure balance is properly converted and validated
+        const balanceNum = parseFloat(balance);
+        if (!isNaN(balanceNum)) {
+          const balanceString = balanceNum.toString();
+          localStorage.setItem('funderMainBalance', balanceString);
+          
+          console.log('💾 Stored in localStorage as:', balanceString);
+          
+          // Store account number for display
+          if (data.data.accountNumber) {
+            localStorage.setItem('mainAccountNumber', data.data.accountNumber);
+          }
+          
+          // Trigger component re-render to show updated balance
+          const newTrigger = Date.now();
+          setBalanceUpdateTrigger(newTrigger);
+          
+          console.log('✅ Balance updated in localStorage and UI should refresh with trigger:', newTrigger);
+          return balanceNum; // Return the balance for use in calling function
+        } else {
+          console.error('Invalid balance received from server:', balance);
         }
-        
-        // Trigger component re-render to show updated balance
-        const newTrigger = Date.now(); // Use timestamp for more unique triggers
-        setBalanceUpdateTrigger(newTrigger);
-        
-        console.log('✅ Balance updated in localStorage and UI should refresh with trigger:', newTrigger);
+      } else {
+        console.error('Failed to fetch balance, status:', response.status);
       }
     } catch (error) {
       console.warn('Could not fetch account balance:', error);
       // Continue with cached balance if API fails
     }
+    return null;
   };
 
   // Load account data on component mount
@@ -975,14 +1013,24 @@ const MyCards = () => {
     }
   }, [stripe]);
 
-  // Effect to log when balance updates
+  // Effect to log when balance updates and force refresh
   useEffect(() => {
     if (balanceUpdateTrigger > 0) {
       console.log('🔄 Balance display should update now, trigger:', balanceUpdateTrigger);
       const currentBalance = localStorage.getItem('funderMainBalance');
       console.log('💰 Current balance in localStorage:', currentBalance);
+      
+      // Force a component refresh to ensure UI updates
+      setForceRefresh(prev => prev + 1);
     }
   }, [balanceUpdateTrigger]);
+
+  // Effect to handle forced refreshes
+  useEffect(() => {
+    if (forceRefresh > 0) {
+      console.log('🔄 Force refresh triggered:', forceRefresh);
+    }
+  }, [forceRefresh]);
 
   // Open deposit modal
   const openDepositModal = () => {
@@ -1028,8 +1076,9 @@ const MyCards = () => {
 
       // Step 1: Create payment intent
       console.log('🔧 Creating payment intent for amount:', amountInCents);
+      console.log('💾 Using token:', token.substring(0, 20) + '...');
       
-      const intentResponse = await fetch('https://nanacaring-backend.onrender.com/api/funder/deposit/create-intent', {
+      const intentResponse = await fetch(`${config.API_URL}/funder/deposit/create-intent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1040,6 +1089,8 @@ const MyCards = () => {
           currency: 'zar'
         })
       });
+      
+      console.log('📡 Intent API Response Status:', intentResponse.status, intentResponse.statusText);
 
       // Check if intent response is JSON
       const intentContentType = intentResponse.headers.get('content-type');
@@ -1083,7 +1134,9 @@ const MyCards = () => {
       setPaymentStatus('Payment successful! Confirming deposit...');
 
       // Step 3: Confirm deposit on backend
-      const confirmResponse = await fetch('https://nanacaring-backend.onrender.com/api/funder/deposit/confirm', {
+      console.log('🔄 Confirming deposit with payment intent:', paymentIntent.id);
+      
+      const confirmResponse = await fetch(`${config.API_URL}/funder/deposit/confirm`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1093,6 +1146,8 @@ const MyCards = () => {
           paymentIntentId: paymentIntent.id
         })
       });
+      
+      console.log('📡 Confirm API Response Status:', confirmResponse.status, confirmResponse.statusText);
 
       const confirmContentType = confirmResponse.headers.get('content-type');
       if (!confirmContentType || !confirmContentType.includes('application/json')) {
@@ -1102,9 +1157,11 @@ const MyCards = () => {
       }
 
       const confirmData = await confirmResponse.json();
+      console.log('📋 Confirm API Response Data:', confirmData);
 
       if (!confirmResponse.ok) {
-        throw new Error(confirmData.message || 'Failed to confirm deposit');
+        console.error('❌ Confirm API Error:', confirmData);
+        throw new Error(confirmData.message || `Failed to confirm deposit (${confirmResponse.status})`);
       }
 
       // Step 4: Update balance and show success
@@ -1118,26 +1175,37 @@ const MyCards = () => {
       localStorage.setItem('funderMainBalance', balanceString);
       console.log('💾 Updated localStorage with balance:', balanceString);
       
-      // Trigger immediate UI update with timestamp
+      // Force multiple UI updates to ensure balance reflects
       const immediateUpdateTrigger = Date.now();
       setBalanceUpdateTrigger(immediateUpdateTrigger);
       console.log('🔄 Immediate UI trigger set:', immediateUpdateTrigger);
       
+      // Show success status in modal
       setPaymentStatus(`✅ Deposit successful! R${depositAmount.toFixed(2)} added to your account.`);
       
       // Clear form
       setAmount('');
       cardElement.clear();
       
-      // Refresh balance display from backend to ensure sync
+      // Refresh balance from backend to ensure sync
       await fetchAccountBalance();
+      
+      // Force another UI update after backend sync
+      setBalanceUpdateTrigger(Date.now() + 1);
 
-      // Close modal after 3 seconds to allow user to see updated balance
+      // Close modal and show alert after a brief delay
       setTimeout(() => {
         closeDepositModal();
-        // Force another balance refresh after modal closes
+        
+        // Show success alert with detailed information
+        alert(`🎉 DEPOSIT SUCCESSFUL! 🎉\n\n💰 Deposited: R${depositAmount.toFixed(2)}\n💳 New Balance: R${newBalance.toFixed(2)}\n📈 Transaction ID: ${paymentIntent.id.substring(0, 20)}...\n\n✅ Your funds are now available in your account!`);
+        
+        // Final balance refresh to ensure UI is up to date
         fetchAccountBalance();
-      }, 3000);
+        
+        // Force one more UI update
+        setBalanceUpdateTrigger(Date.now() + 2);
+      }, 2000); // Show success message for 2 seconds before closing
 
     } catch (error) {
       console.error('💥 Deposit error:', error);
@@ -1183,7 +1251,7 @@ const MyCards = () => {
               <div className="balance-item">
                 <div>
                   <div className="balance-label">Main Account Balance</div>
-                  <div className="balance-amount" key={balanceUpdateTrigger}>
+                  <div className="balance-amount" key={`main-balance-${balanceUpdateTrigger}`}>
                     {getCurrentBalance()}
                   </div>
                 </div>
@@ -1232,7 +1300,7 @@ const MyCards = () => {
             {/* Deposit Button */}
             <div className="deposit-section">
               <button className="deposit-button" onClick={openDepositModal}>
-                💳 Deposit Funds
+                Deposit Funds
               </button>
             </div>
 
@@ -1270,7 +1338,7 @@ const MyCards = () => {
                   
                   <div className="balance-info">
                     <div className="balance-label-external">Available Balance</div>
-                    <div className="balance-amount-external" key={balanceUpdateTrigger}>
+                    <div className="balance-amount-external" key={`card-balance-${balanceUpdateTrigger}`}>
                       {getCurrentBalance()}
                     </div>
                   </div>
@@ -1329,13 +1397,7 @@ const MyCards = () => {
               </PaymentStatus>
             )}
 
-            {/* Test Card Information */}
-            <TestInfo>
-              <h4>🧪 Test Card Numbers (Development)</h4>
-              <p><strong>Success:</strong> 4242 4242 4242 4242</p>
-              <p><strong>Decline:</strong> 4000 0000 0000 0002</p>
-              <p><strong>CVV:</strong> Any 3 digits | <strong>Exp:</strong> Any future date</p>
-            </TestInfo>
+           
           </ModalContent>
         </ModalOverlay>
       )}
