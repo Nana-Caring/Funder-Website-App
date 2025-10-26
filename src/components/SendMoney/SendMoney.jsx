@@ -485,25 +485,68 @@ const SendMoney = () => {
       }
     };
 
-    // Fetch wallet balance
-    const fetchWalletBalance = () => {
+    // Fetch wallet balance with real API
+    const fetchWalletBalance = async () => {
       const userRole = safeLocalStorage.getItem('userRole');
       let currentBalance = 0;
       
       if (userRole === 'funder') {
-        const funderMainBalance = safeLocalStorage.getItem('funderMainBalance');
-        if (funderMainBalance) {
-          currentBalance = parseFloat(funderMainBalance);
-        } else {
+        const token = safeLocalStorage.getItem('token');
+        
+        // Try to get fresh balance from API first
+        if (token) {
           try {
-            const loginResponse = JSON.parse(safeLocalStorage.getItem('loginResponse') || '{}');
-            if (loginResponse.balance) {
-              currentBalance = parseFloat(loginResponse.balance);
-            } else if (loginResponse.accounts?.length > 0) {
-              currentBalance = parseFloat(loginResponse.accounts[0].balance);
+            const response = await fetch('https://nanacaring-backend.onrender.com/api/funder/deposit/account', {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              currentBalance = data.data.rawBalance;
+              // Update localStorage with fresh balance
+              safeLocalStorage.setItem('funderMainBalance', currentBalance.toString());
+            } else {
+              throw new Error('Failed to fetch balance from API');
             }
           } catch (e) {
-            console.warn('Error parsing login response', e);
+            console.warn('Failed to fetch fresh balance from API:', e);
+            
+            // Fallback to cached balance
+            const funderMainBalance = safeLocalStorage.getItem('funderMainBalance');
+            if (funderMainBalance) {
+              currentBalance = parseFloat(funderMainBalance);
+            } else {
+              try {
+                const loginResponse = JSON.parse(safeLocalStorage.getItem('loginResponse') || '{}');
+                if (loginResponse.balance) {
+                  currentBalance = parseFloat(loginResponse.balance);
+                } else if (loginResponse.accounts?.length > 0) {
+                  currentBalance = parseFloat(loginResponse.accounts[0].balance);
+                }
+              } catch (e) {
+                console.warn('Error parsing login response', e);
+              }
+            }
+          }
+        } else {
+          // No token, use cached data
+          const funderMainBalance = safeLocalStorage.getItem('funderMainBalance');
+          if (funderMainBalance) {
+            currentBalance = parseFloat(funderMainBalance);
+          } else {
+            try {
+              const loginResponse = JSON.parse(safeLocalStorage.getItem('loginResponse') || '{}');
+              if (loginResponse.balance) {
+                currentBalance = parseFloat(loginResponse.balance);
+              } else if (loginResponse.accounts?.length > 0) {
+                currentBalance = parseFloat(loginResponse.accounts[0].balance);
+              }
+            } catch (e) {
+              console.warn('Error parsing login response', e);
+            }
           }
         }
       }
@@ -525,7 +568,7 @@ const SendMoney = () => {
     setMessage('');
   };
 
-  // Handle wallet-based transfer
+  // Handle wallet-based transfer using real API
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
@@ -540,61 +583,101 @@ const SendMoney = () => {
         throw new Error('Please enter a valid amount.');
       }
 
-      // 2. Check wallet balance
-      const userRole = safeLocalStorage.getItem('userRole');
+      const token = safeLocalStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication required. Please login again.');
+      }
+
+      // 2. Get current wallet balance from backend
+      const balanceResponse = await fetch('https://nanacaring-backend.onrender.com/api/funder/deposit/account', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
       let currentBalance = 0;
-      
-      if (userRole === 'funder') {
+      if (balanceResponse.ok) {
+        const balanceData = await balanceResponse.json();
+        currentBalance = balanceData.data.rawBalance;
+        // Update localStorage with fresh balance
+        safeLocalStorage.setItem('funderMainBalance', currentBalance.toString());
+      } else {
+        // Fallback to cached balance
         const funderMainBalance = safeLocalStorage.getItem('funderMainBalance');
         if (funderMainBalance) {
           currentBalance = parseFloat(funderMainBalance);
         } else {
-          try {
-            const loginResponse = JSON.parse(safeLocalStorage.getItem('loginResponse') || '{}');
-            if (loginResponse.balance) {
-              currentBalance = parseFloat(loginResponse.balance);
-            } else if (loginResponse.accounts?.length > 0) {
-              currentBalance = parseFloat(loginResponse.accounts[0].balance);
-            }
-          } catch (e) {
-            console.warn('Error parsing login response', e);
-          }
+          throw new Error('Unable to verify account balance. Please try again.');
         }
       }
 
+      // 3. Check sufficient funds
       if (currentBalance < Number(amount)) {
         throw new Error(`Insufficient wallet balance. You have R${currentBalance.toFixed(2)} but need R${Number(amount).toFixed(2)}. Please deposit funds first.`);
       }
 
-      const token = safeLocalStorage.getItem('token');
+      // 4. Find the target account ID for the selected beneficiary and account type
+      // For this we need to get beneficiary account details
+      const beneficiaryAccountsResponse = await fetch(`https://nanacaring-backend.onrender.com/api/funder/beneficiaries/${selectedBeneficiary.id}/accounts`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
-      // 3. Make wallet transfer request to backend
+      let targetAccountId = null;
+      if (beneficiaryAccountsResponse.ok) {
+        const accountsData = await beneficiaryAccountsResponse.json();
+        const targetAccount = accountsData.data?.accounts?.find(
+          account => account.accountType.toLowerCase() === accountType.toLowerCase()
+        );
+        if (targetAccount) {
+          targetAccountId = targetAccount.id;
+        }
+      }
+
+      if (!targetAccountId) {
+        throw new Error(`${selectedBeneficiary.firstName} does not have a ${accountType} account. Please select a different account type.`);
+      }
+
+      // 5. Make the transfer request
       const transferData = {
         beneficiaryId: selectedBeneficiary.id,
+        targetAccountId: targetAccountId,
         amount: Number(amount),
-        accountType: accountType,
-        description: `Wallet transfer to ${selectedBeneficiary.firstName} (${accountType})`
+        description: `Transfer to ${selectedBeneficiary.firstName} (${accountType})`
       };
 
-      console.log('Wallet Transfer Details:', transferData);
+      console.log('Transfer Request:', transferData);
 
-      // For now, simulate the transfer (replace with actual API call)
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate network delay
+      const transferResponse = await fetch('https://nanacaring-backend.onrender.com/api/funder/transfer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(transferData)
+      });
 
-      // Simulate success response
-      const transferResult = {
-        success: true,
-        message: `Transfer successful! R${amount} sent to ${selectedBeneficiary.firstName}`,
-        transactionId: `TXN${Date.now()}`,
-        newBalance: currentBalance - Number(amount)
-      };
+      const transferResult = await transferResponse.json();
 
-      // Update local balance (in a real app, this would come from the backend response)
-      const newBalance = currentBalance - Number(amount);
+      if (!transferResponse.ok) {
+        throw new Error(transferResult.message || 'Transfer failed');
+      }
+
+      // 6. Update local balance with new balance from response
+      const newBalance = transferResult.data.funder.newBalance;
       safeLocalStorage.setItem('funderMainBalance', newBalance.toString());
 
-      // Show success message
-      setMessage(`🎉 Transfer successful! R${amount} has been sent to ${selectedBeneficiary.firstName}. Your new wallet balance is R${newBalance.toFixed(2)}.`);
+      // 7. Show success message
+      setMessage(
+        `🎉 Transfer successful!\n\n` +
+        `Amount: R${transferResult.data.amount.toFixed(2)}\n` +
+        `To: ${selectedBeneficiary.firstName} (${accountType})\n` +
+        `Reference: ${transferResult.data.transferReference}\n` +
+        `Your new balance: R${newBalance.toFixed(2)}`
+      );
       setPopupType('success');
       setShowPopup(true);
       
@@ -610,14 +693,16 @@ const SendMoney = () => {
       
       if (err.message.includes('Insufficient wallet balance')) {
         errorMessage = err.message;
+      } else if (err.message.includes('does not have a')) {
+        errorMessage = err.message;
       } else if (err.message.includes('Please select')) {
         errorMessage = err.message;
       } else if (err.message.includes('Please enter')) {
         errorMessage = err.message;
+      } else if (err.message.includes('Authentication required')) {
+        errorMessage = err.message;
       } else {
-        errorMessage = err.response?.data?.error || 
-                      err.response?.data?.message || 
-                      err.message || 
+        errorMessage = err.message || 
                       'Transfer failed. Please check your details and try again.';
       }
       

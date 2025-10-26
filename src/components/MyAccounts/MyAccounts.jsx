@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import Header from '../Header/Header';
 import accountService from '../../services/accountService';
 import cardBg from '../../assets/images/card-bg.png';
@@ -190,6 +191,310 @@ const BalanceCard = styled.div`
       outline: none;
       box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
     }
+
+    &:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+  }
+
+  .deposit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px 0;
+  }
+
+  .amount-input {
+    padding: 12px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 16px;
+    font-family: 'Inter', sans-serif;
+    transition: border-color 0.2s ease;
+
+    &:focus {
+      outline: none;
+      border-color: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+    }
+  }
+
+  .card-element-container {
+    padding: 12px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    transition: border-color 0.2s ease;
+
+    &:focus-within {
+      border-color: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+    }
+  }
+
+  .payment-status {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+
+    &.success {
+      background: linear-gradient(135deg, #d4edda, #c3e6cb);
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    &.error {
+      background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    &.loading {
+      background: linear-gradient(135deg, #cce7ff, #b3d9ff);
+      color: #0c5aa6;
+      border: 1px solid #b3d9ff;
+    }
+  }
+
+  .test-info {
+    margin-top: 16px;
+    padding: 12px;
+    background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #856404;
+
+    h4 {
+      margin: 0 0 8px 0;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    p {
+      margin: 4px 0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+  }
+`;
+
+// Modal Styles
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  position: relative;
+  animation: modalSlideIn 0.3s ease-out;
+
+  @keyframes modalSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 24px;
+    width: 95%;
+    max-height: 90vh;
+  }
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f1f5f9;
+
+  h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 24px;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+  }
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #64748b;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+  }
+`;
+
+const DepositForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+`;
+
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    font-family: 'Inter', sans-serif;
+  }
+`;
+
+const AmountInput = styled.input`
+  padding: 14px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: 'Inter', sans-serif;
+  transition: border-color 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+`;
+
+const CardElementContainer = styled.div`
+  padding: 14px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  transition: border-color 0.2s ease;
+
+  &:focus-within {
+    border-color: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+  }
+`;
+
+const SubmitButton = styled.button`
+  background: linear-gradient(135deg, #185c37, #22c55e);
+  color: white;
+  border: none;
+  padding: 16px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  &:hover {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+  }
+
+  &:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+  }
+`;
+
+const PaymentStatus = styled.div`
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+
+  &.success {
+    background: linear-gradient(135deg, #d4edda, #c3e6cb);
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+
+  &.error {
+    background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+
+  &.loading {
+    background: linear-gradient(135deg, #cce7ff, #b3d9ff);
+    color: #0c5aa6;
+    border: 1px solid #b3d9ff;
+  }
+`;
+
+const TestInfo = styled.div`
+  margin-top: 20px;
+  padding: 16px;
+  background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #856404;
+
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 6px 0;
+    font-family: 'JetBrains Mono', monospace;
   }
 `;
 
@@ -489,8 +794,28 @@ const ResponsiveWrapper = styled.div`
 
 
 const MyCards = () => {
+  const stripe = useStripe();
+  const elements = useElements();
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [amount, setAmount] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('');
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [balanceUpdateTrigger, setBalanceUpdateTrigger] = useState(0);
+  
+  // Stripe card element options
+  const cardElementOptions = {
+    style: {
+      base: {
+        fontSize: '16px',
+        color: '#424770',
+        '::placeholder': {
+          color: '#aab7c4',
+        },
+      },
+    },
+  };
   
   // Get user information from localStorage (same as Dashboard)
   const userName = localStorage.getItem('userName') || 
@@ -504,6 +829,36 @@ const MyCards = () => {
   const fullUserName = [localStorage.getItem('firstName'), userMiddleName, userSurname]
     .filter(Boolean)
     .join(' ') || userName;
+
+  // Helper function to get current balance (reactive to balanceUpdateTrigger)
+  const getCurrentBalance = () => {
+    // This function will be called whenever balanceUpdateTrigger changes
+    const userRole = localStorage.getItem('userRole');
+    console.log('🏦 getCurrentBalance called, trigger:', balanceUpdateTrigger, 'role:', userRole);
+    
+    if (userRole === 'funder') {
+      const funderMainBalance = localStorage.getItem('funderMainBalance');
+      console.log('💰 Raw funderMainBalance from localStorage:', funderMainBalance);
+      
+      if (funderMainBalance) {
+        const formatted = accountService.formatCurrency(funderMainBalance);
+        console.log('💱 Formatted balance:', formatted);
+        return formatted;
+      }
+      
+      try {
+        const loginResponse = JSON.parse(localStorage.getItem('loginResponse') || '{}');
+        if (loginResponse.balance) {
+          return accountService.formatCurrency(loginResponse.balance);
+        } else if (loginResponse.accounts?.length > 0) {
+          return accountService.formatCurrency(loginResponse.accounts[0].balance);
+        }
+      } catch (e) {
+        console.warn('Error parsing login response', e);
+      }
+    }
+    return 'R0.00';
+  };
 
   // Helper function to get user's initials and surname (same as Dashboard)
   const getUserInitialsAndSurname = () => {
@@ -560,48 +915,234 @@ const MyCards = () => {
     return '';
   };
 
+  // Fetch real account balance from backend
+  const fetchAccountBalance = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      console.log('🔄 Fetching updated account balance...');
+      
+      const response = await fetch('https://nanacaring-backend.onrender.com/api/funder/deposit/account', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const balance = data.data.rawBalance;
+        
+        console.log('💰 Updated balance from server:', balance, 'type:', typeof balance);
+        console.log('📊 Full server response:', data);
+        
+        // Ensure balance is properly converted to string
+        const balanceString = balance.toString();
+        localStorage.setItem('funderMainBalance', balanceString);
+        
+        console.log('💾 Stored in localStorage as:', balanceString);
+        
+        // Store account number for display
+        if (data.data.accountNumber) {
+          localStorage.setItem('mainAccountNumber', data.data.accountNumber);
+        }
+        
+        // Trigger component re-render to show updated balance
+        const newTrigger = Date.now(); // Use timestamp for more unique triggers
+        setBalanceUpdateTrigger(newTrigger);
+        
+        console.log('✅ Balance updated in localStorage and UI should refresh with trigger:', newTrigger);
+      }
+    } catch (error) {
+      console.warn('Could not fetch account balance:', error);
+      // Continue with cached balance if API fails
+    }
+  };
+
   // Load account data on component mount
   useEffect(() => {
-    setLoading(true);
-    
-    // Simulate loading delay like the Dashboard
-    setTimeout(() => {
-      setLoading(false);
-    }, 500);
-  }, []);
-
-  // Handle deposit funds via Stripe
-  const handleDepositFunds = async () => {
-    try {
+    // Only load data if Stripe is ready
+    if (stripe) {
       setLoading(true);
       
-      // Here you would integrate with your Stripe payment processing
-      // For now, we'll show a placeholder implementation
+      const loadAccountData = async () => {
+        await fetchAccountBalance();
+        setLoading(false);
+      };
+
+      loadAccountData();
+    }
+  }, [stripe]);
+
+  // Effect to log when balance updates
+  useEffect(() => {
+    if (balanceUpdateTrigger > 0) {
+      console.log('🔄 Balance display should update now, trigger:', balanceUpdateTrigger);
+      const currentBalance = localStorage.getItem('funderMainBalance');
+      console.log('💰 Current balance in localStorage:', currentBalance);
+    }
+  }, [balanceUpdateTrigger]);
+
+  // Open deposit modal
+  const openDepositModal = () => {
+    setShowDepositModal(true);
+    setError('');
+    setPaymentStatus('');
+  };
+
+  // Close deposit modal
+  const closeDepositModal = () => {
+    setShowDepositModal(false);
+    setAmount('');
+    setError('');
+    setPaymentStatus('');
+    setLoading(false);
+  };
+
+  // Handle real Stripe deposit with card input
+  const handleDepositFunds = async (e) => {
+    e.preventDefault();
+    
+    if (!stripe || !elements || !amount) {
+      setPaymentStatus('Please fill in all fields');
+      return;
+    }
+
+    const amountInCents = Math.round(parseFloat(amount) * 100);
+    
+    if (amountInCents < 1000) { // Minimum R10.00
+      setPaymentStatus('Minimum deposit amount is R10.00');
+      return;
+    }
+
+    setLoading(true);
+    setPaymentStatus('');
+    setError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication required. Please login again.');
+      }
+
+      // Step 1: Create payment intent
+      console.log('🔧 Creating payment intent for amount:', amountInCents);
       
-      // Example Stripe integration would look like this:
-      // const response = await fetch('/api/create-payment-intent', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({
-      //     amount: 10000, // Amount in cents (e.g., $100.00)
-      //     currency: 'zar',
-      //     payment_method_types: ['card'],
-      //   }),
-      // });
+      const intentResponse = await fetch('https://nanacaring-backend.onrender.com/api/funder/deposit/create-intent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          amount: amountInCents,
+          currency: 'zar'
+        })
+      });
+
+      // Check if intent response is JSON
+      const intentContentType = intentResponse.headers.get('content-type');
+      if (!intentContentType || !intentContentType.includes('application/json')) {
+        const intentTextResponse = await intentResponse.text();
+        console.error('Intent endpoint returned non-JSON:', intentTextResponse);
+        throw new Error(`Server error (${intentResponse.status}). Server may be down.`);
+      }
+
+      const intentData = await intentResponse.json();
+
+      if (!intentResponse.ok) {
+        throw new Error(intentData.message || `Failed to create payment intent (${intentResponse.status})`);
+      }
+
+      console.log('✅ Payment intent created:', intentData.data.paymentIntentId);
+      setPaymentStatus('Processing payment with Stripe...');
+
+      // Step 2: Confirm payment with Stripe
+      const cardElement = elements.getElement(CardElement);
       
-      // const { client_secret } = await response.json();
+      const { error, paymentIntent } = await stripe.confirmCardPayment(intentData.data.clientSecret, {
+        payment_method: {
+          card: cardElement,
+          billing_details: {
+            name: fullUserName || 'Funder',
+          },
+        }
+      });
+
+      if (error) {
+        console.error('❌ Stripe payment failed:', error);
+        throw new Error(`Payment failed: ${error.message}`);
+      }
+
+      if (paymentIntent.status !== 'succeeded') {
+        throw new Error('Payment was not completed successfully');
+      }
+
+      console.log('✅ Stripe payment succeeded:', paymentIntent.id);
+      setPaymentStatus('Payment successful! Confirming deposit...');
+
+      // Step 3: Confirm deposit on backend
+      const confirmResponse = await fetch('https://nanacaring-backend.onrender.com/api/funder/deposit/confirm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          paymentIntentId: paymentIntent.id
+        })
+      });
+
+      const confirmContentType = confirmResponse.headers.get('content-type');
+      if (!confirmContentType || !confirmContentType.includes('application/json')) {
+        const confirmTextResponse = await confirmResponse.text();
+        console.error('Confirm endpoint returned non-JSON:', confirmTextResponse);
+        throw new Error(`Confirmation failed (${confirmResponse.status}). Payment succeeded but could not update balance.`);
+      }
+
+      const confirmData = await confirmResponse.json();
+
+      if (!confirmResponse.ok) {
+        throw new Error(confirmData.message || 'Failed to confirm deposit');
+      }
+
+      // Step 4: Update balance and show success
+      const { amount: depositAmount, newBalance } = confirmData.data;
       
-      // Then redirect to Stripe Checkout or use Stripe Elements
-      // window.location.href = `https://checkout.stripe.com/pay/${client_secret}`;
+      console.log('💰 Deposit confirmed! New balance:', newBalance, 'Deposit amount:', depositAmount);
+      console.log('📋 Full confirm response:', confirmData);
       
-      // For demo purposes, we'll simulate a successful deposit
-      alert('Stripe deposit integration would be implemented here. This would redirect to Stripe Checkout for secure payment processing.');
+      // Update localStorage immediately with new balance
+      const balanceString = newBalance.toString();
+      localStorage.setItem('funderMainBalance', balanceString);
+      console.log('💾 Updated localStorage with balance:', balanceString);
       
+      // Trigger immediate UI update with timestamp
+      const immediateUpdateTrigger = Date.now();
+      setBalanceUpdateTrigger(immediateUpdateTrigger);
+      console.log('🔄 Immediate UI trigger set:', immediateUpdateTrigger);
+      
+      setPaymentStatus(`✅ Deposit successful! R${depositAmount.toFixed(2)} added to your account.`);
+      
+      // Clear form
+      setAmount('');
+      cardElement.clear();
+      
+      // Refresh balance display from backend to ensure sync
+      await fetchAccountBalance();
+
+      // Close modal after 3 seconds to allow user to see updated balance
+      setTimeout(() => {
+        closeDepositModal();
+        // Force another balance refresh after modal closes
+        fetchAccountBalance();
+      }, 3000);
+
     } catch (error) {
-      console.error('Error initiating deposit:', error);
-      setError('Failed to initiate deposit. Please try again.');
+      console.error('💥 Deposit error:', error);
+      setError(error.message || 'Failed to process deposit. Please try again.');
+      setPaymentStatus('');
     } finally {
       setLoading(false);
     }
@@ -609,9 +1150,24 @@ const MyCards = () => {
 
 
 
+  // Show loading until Stripe is ready
+  if (!stripe) {
+    return (
+      <ResponsiveWrapper>
+        <Container>
+          <Content>
+            <LoadingState>
+              Loading Stripe payment system...
+            </LoadingState>
+          </Content>
+        </Container>
+        <Header />
+      </ResponsiveWrapper>
+    );
+  }
+
   return (
     <ResponsiveWrapper>
-      <Header />
       <Container>
         <Content>
           
@@ -627,33 +1183,8 @@ const MyCards = () => {
               <div className="balance-item">
                 <div>
                   <div className="balance-label">Main Account Balance</div>
-                  <div className="balance-amount">
-                    {(() => {
-                      // For funder role, display only one balance from localStorage (same logic as Dashboard)
-                      const userRole = localStorage.getItem('userRole');
-                      if (userRole === 'funder') {
-                        // Try to get the funder main balance first
-                        const funderMainBalance = localStorage.getItem('funderMainBalance');
-                        if (funderMainBalance) {
-                          return accountService.formatCurrency(funderMainBalance);
-                        }
-                        
-                        // Try to get from the raw login response
-                        try {
-                          const loginResponse = JSON.parse(localStorage.getItem('loginResponse') || '{}');
-                          if (loginResponse.balance) {
-                            return accountService.formatCurrency(loginResponse.balance);
-                          } else if (loginResponse.accounts?.length > 0) {
-                            return accountService.formatCurrency(loginResponse.accounts[0].balance);
-                          }
-                        } catch (e) {
-                          console.warn('Error parsing login response', e);
-                        }
-                      }
-                      
-                      // Fall back to R0.00 for non-funders or if no specific funder balance found
-                      return 'R0.00';
-                    })()}
+                  <div className="balance-amount" key={balanceUpdateTrigger}>
+                    {getCurrentBalance()}
                   </div>
                 </div>
               </div>
@@ -700,8 +1231,8 @@ const MyCards = () => {
 
             {/* Deposit Button */}
             <div className="deposit-section">
-              <button className="deposit-button" onClick={() => handleDepositFunds()}>
-                Deposit
+              <button className="deposit-button" onClick={openDepositModal}>
+                💳 Deposit Funds
               </button>
             </div>
 
@@ -739,28 +1270,8 @@ const MyCards = () => {
                   
                   <div className="balance-info">
                     <div className="balance-label-external">Available Balance</div>
-                    <div className="balance-amount-external">
-                      {(() => {
-                        const userRole = localStorage.getItem('userRole');
-                        if (userRole === 'funder') {
-                          const funderMainBalance = localStorage.getItem('funderMainBalance');
-                          if (funderMainBalance) {
-                            return accountService.formatCurrency(funderMainBalance);
-                          }
-                          
-                          try {
-                            const loginResponse = JSON.parse(localStorage.getItem('loginResponse') || '{}');
-                            if (loginResponse.balance) {
-                              return accountService.formatCurrency(loginResponse.balance);
-                            } else if (loginResponse.accounts?.length > 0) {
-                              return accountService.formatCurrency(loginResponse.accounts[0].balance);
-                            }
-                          } catch (e) {
-                            console.warn('Error parsing login response', e);
-                          }
-                        }
-                        return 'R0.00';
-                      })()}
+                    <div className="balance-amount-external" key={balanceUpdateTrigger}>
+                      {getCurrentBalance()}
                     </div>
                   </div>
                 </div>
@@ -770,6 +1281,64 @@ const MyCards = () => {
           )}
         </Content>
       </Container>
+      
+      <Header />
+
+      {/* Deposit Modal */}
+      {showDepositModal && (
+        <ModalOverlay onClick={closeDepositModal}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <h3>💳 Deposit Funds</h3>
+              <CloseButton onClick={closeDepositModal}>×</CloseButton>
+            </ModalHeader>
+            
+            <DepositForm onSubmit={handleDepositFunds}>
+              <FormGroup>
+                <label>Amount</label>
+                <AmountInput
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="Enter deposit amount (minimum R10.00)"
+                  min="10"
+                  step="0.01"
+                  disabled={loading}
+                />
+              </FormGroup>
+              
+              <FormGroup>
+                <label>Card Details</label>
+                <CardElementContainer>
+                  <CardElement options={cardElementOptions} />
+                </CardElementContainer>
+              </FormGroup>
+
+              <SubmitButton
+                type="submit"
+                disabled={!stripe || loading || !amount}
+              >
+                {loading ? '⏳ Processing...' : `💳 Deposit R${amount || '0.00'}`}
+              </SubmitButton>
+            </DepositForm>
+
+            {/* Payment Status */}
+            {paymentStatus && (
+              <PaymentStatus className={paymentStatus.includes('✅') ? 'success' : 'loading'}>
+                {paymentStatus}
+              </PaymentStatus>
+            )}
+
+            {/* Test Card Information */}
+            <TestInfo>
+              <h4>🧪 Test Card Numbers (Development)</h4>
+              <p><strong>Success:</strong> 4242 4242 4242 4242</p>
+              <p><strong>Decline:</strong> 4000 0000 0000 0002</p>
+              <p><strong>CVV:</strong> Any 3 digits | <strong>Exp:</strong> Any future date</p>
+            </TestInfo>
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </ResponsiveWrapper>
   );
 };

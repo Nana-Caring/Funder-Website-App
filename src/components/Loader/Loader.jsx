@@ -21,8 +21,8 @@ const LogoContainer = styled.div`
   margin-bottom: 20px;
 
   img {
-    width: 80px;
-    height: 80px;
+    width: 100px;
+    height: 100px;
     border-radius: 50%;
     object-fit: cover;
   }

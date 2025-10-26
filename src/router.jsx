@@ -1,7 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 import App from './App';
 import Dashboard from './components/Dashboard/Dashboard';
-import MyCards from './components/MyAccounts/MyAccounts';
+import MyCards from './components/MyAccounts/MyCardsWrapper';
 import SendMoney from './components/SendMoney/SendMoney';
 import BeneficiaryForm from './components/Beneficiary/Beneficiary';
 import Messages from './components/Messages/Messages';
