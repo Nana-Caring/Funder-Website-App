@@ -297,6 +297,7 @@ const BeneficiaryForm = () => {
   const [showFormModal, setShowFormModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [mainAccountNumber, setMainAccountNumber] = useState('');
 
   // Fetch beneficiaries from backend and persist to localStorage
   const fetchBeneficiaries = async () => {
@@ -392,6 +393,18 @@ const BeneficiaryForm = () => {
       name: beneficiary.name || beneficiary.firstName,
       accountNumber: beneficiary.accountNumber,
     });
+    // Find main account number if available
+    let mainAccNum = '';
+    if (Array.isArray(beneficiary.Accounts) && beneficiary.Accounts.length > 0) {
+      const mainAcc = beneficiary.Accounts.find(
+        acc => (acc.accountType && acc.accountType.toLowerCase() === 'main') ||
+                (acc.accountName && acc.accountName.toLowerCase() === 'main')
+      );
+      if (mainAcc && mainAcc.accountNumber) {
+        mainAccNum = mainAcc.accountNumber;
+      }
+    }
+    setMainAccountNumber(mainAccNum);
     setShowFormModal(true);
     setError('');
   };
@@ -535,9 +548,23 @@ const handleUpdateBeneficiary = async (e) => {
                     </span>
                   </td>
                   <td>
-                    <span style={{ fontFamily: 'monospace', fontWeight: 500, letterSpacing: '0.03em', color: '#185c37', fontSize: '11.5px' }}>
-                      {beneficiary.accountNumber}
-                    </span>
+                    {Array.isArray(beneficiary.Accounts) && beneficiary.Accounts.length > 0 ? (
+                      (() => {
+                        const mainAcc = beneficiary.Accounts.find(
+                          acc => (acc.accountType && acc.accountType.toLowerCase() === 'main') ||
+                                  (acc.accountName && acc.accountName.toLowerCase() === 'main')
+                        );
+                        return (
+                          <span style={{ fontFamily: 'monospace', fontWeight: 500, letterSpacing: '0.03em', color: '#185c37', fontSize: '11.5px' }}>
+                            {mainAcc ? (mainAcc.accountNumber || '-') : (beneficiary.accountNumber || '-')}
+                          </span>
+                        );
+                      })()
+                    ) : (
+                      <span style={{ fontFamily: 'monospace', fontWeight: 500, letterSpacing: '0.03em', color: '#185c37', fontSize: '11.5px' }}>
+                        {beneficiary.accountNumber || '-'}
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -560,6 +587,19 @@ const handleUpdateBeneficiary = async (e) => {
               }}>
                 {isEditing ? 'Edit Beneficiary' : 'Add New Beneficiary'}
               </h3>
+              {isEditing && mainAccountNumber && (
+                <div style={{
+                  marginBottom: '12px',
+                  fontSize: '14px',
+                  color: '#185c37',
+                  fontWeight: 600,
+                  textAlign: 'center',
+                  letterSpacing: '0.02em',
+                  fontFamily: 'monospace'
+                }}>
+                  Main Account Number: {mainAccountNumber}
+                </div>
+              )}
               
               {error && (
                 <div style={{

@@ -23,7 +23,7 @@ const SidebarContainer = styled.div`
   position: fixed; /* Keep sidebar fixed */
   left: 0;
   top: 0;
-  z-index: 100;
+  z-index: 2101;
   overflow-y: auto; /* Allow scrolling if content is too long */
 
   /* Custom scrollbar styling */

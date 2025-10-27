@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { Grid, List, Heart, Baby, GraduationCap, Shirt, Gamepad2, Users } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import sampleProductImage from "../../../assets/sample-product.png";
 import chevronIcon from "../../../assets/icons/Chevron down.png";
+import axios from "axios";
 
 // Export sampleProducts to make it available for import in ProductDetail.jsx
 
@@ -13,6 +14,7 @@ const PageLayout = styled.div`
   width: calc(100% - 175px);
   margin-left: 175px; /* adjust based on your nav */
   padding: 20px;
+  padding-top: 0;
   gap: 20px;
   box-sizing: border-box;
   height: calc(100vh - 60px); /* fill viewport minus header */
@@ -337,24 +339,20 @@ const PageButton = styled.button`
   font-weight: 500;
 `;
 
-const sampleProducts = [
-  { id: 1, name: "Paracetamol 500mg 24 Tablets", price: "R28.00", image: sampleProductImage, onSale: true, brand: "Clicks", description: "Paracetamol 500mg 24 tablets for effective pain relief and fever reduction.", ingredients: "Paracetamol 500mg" },
-  { id: 2, name: "Ibuprofen 200mg 24 Tablets", price: "R35.00", image: sampleProductImage, onSale: false, brand: "Advil", description: "Ibuprofen 200mg 24 tablets for pain relief and anti-inflammatory effects.", ingredients: "Ibuprofen 200mg" },
-  { id: 3, name: "Air Freshener", price: "R99.00", image: sampleProductImage, onSale: true, brand: "Airwick", description: "Long-lasting air freshener for a pleasant home environment.", ingredients: "Fragrance, Propellant" },
-  { id: 4, name: "Baby Diapers Pack", price: "R120.00", image: sampleProductImage, onSale: false, brand: "Pampers", description: "Ultra-absorbent baby diapers for day and night protection.", ingredients: "Absorbent materials, Elastic" },
-  { id: 5, name: "Vitamin C Supplements", price: "R85.00", image: sampleProductImage, onSale: true, brand: "Vital", description: "Vitamin C supplements to boost immune system and overall health.", ingredients: "Vitamin C, Zinc" },
-  { id: 6, name: "Hand Sanitizer 500ml", price: "R45.00", image: sampleProductImage, onSale: false, brand: "Dettol", description: "Effective hand sanitizer that kills 99.9% of germs without water.", ingredients: "Alcohol, Glycerin" },
-  { id: 7, name: "Face Masks Pack of 10", price: "R60.00", image: sampleProductImage, onSale: true, brand: "N95", description: "Protective face masks for daily use and protection.", ingredients: "Non-woven fabric, Elastic bands" },
-  { id: 8, name: "Multivitamin Tablets", price: "R110.00", image: sampleProductImage, onSale: false, brand: "Centrum", description: "Complete multivitamin tablets with essential nutrients for daily health.", ingredients: "Vitamins A, B, C, D, E, Minerals" },
-  { id: 9, name: "Baby Formula 900g", price: "R180.00", image: sampleProductImage, onSale: true, brand: "Nestle", description: "Nutritionally complete baby formula for healthy development.", ingredients: "Milk proteins, Vitamins, Minerals" },
-  { id: 10, name: "Antiseptic Cream 50g", price: "R40.00", image: sampleProductImage, onSale: false, brand: "Savlon", description: "Antiseptic cream for minor cuts, burns and abrasions.", ingredients: "Cetrimide, Chlorhexidine" },
-  { id: 11, name: "Cough Syrup 200ml", price: "R65.00", image: sampleProductImage, onSale: true, brand: "Benylin", description: "Effective cough syrup for relief from dry and tickly coughs.", ingredients: "Dextromethorphan, Menthol" },
-  { id: 12, name: "Digital Thermometer", price: "R95.00", image: sampleProductImage, onSale: false, brand: "Clicks", description: "Accurate digital thermometer for temperature measurement.", ingredients: "N/A" },
-];
-
 const Products = () => {
   const [sortBy, setSortBy] = useState("relevance");
   const [currentPage, setCurrentPage] = useState(1);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [brands, setBrands] = useState([]);
+  const [selectedBrands, setSelectedBrands] = useState([]);
+  const [selectedFilters, setSelectedFilters] = useState({
+    promotionType: [],
+    inStock: true
+  });
   const [openSections, setOpenSections] = useState({
     promotionType: true,
     category: true,
@@ -363,6 +361,91 @@ const Products = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const selectedCategory = location.state?.category || 'Healthcare';
+
+  // Map frontend category names to backend category names
+  const categoryMapping = {
+    'Healthcare': 'Healthcare',
+    'Babycare': 'Groceries', // Map Babycare to Groceries or create a new category in backend
+    'School': 'Education',
+    'Clothing': 'Other',
+    'Entertainment': 'Entertainment',
+    'Pregnancy': 'Healthcare'
+  };
+
+  // Fetch products from backend
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const backendCategory = categoryMapping[selectedCategory] || selectedCategory;
+        
+        // Build query parameters
+        const params = new URLSearchParams({
+          category: backendCategory,
+          page: currentPage,
+          limit: itemsPerPage,
+          inStock: selectedFilters.inStock
+        });
+
+        // Add brand filter if any selected
+        if (selectedBrands.length > 0) {
+          selectedBrands.forEach(brand => params.append('brand', brand));
+        }
+
+        // Add sorting
+        if (sortBy === 'price-low') {
+          params.append('sortBy', 'price');
+          params.append('sortOrder', 'ASC');
+        } else if (sortBy === 'price-high') {
+          params.append('sortBy', 'price');
+          params.append('sortOrder', 'DESC');
+        }
+
+        const response = await axios.get(`https://nanacaring-backend.onrender.com/api/products?${params.toString()}`);
+        
+        console.log('API Response:', response.data); // Debug log
+        
+        if (response.data.success) {
+          // Handle both possible response structures
+          const productsData = response.data.data.products || response.data.data || [];
+          const totalPagesData = response.data.pagination?.totalPages || response.data.data?.totalPages || 1;
+          
+          setProducts(productsData);
+          setTotalPages(totalPagesData);
+          
+          // Extract unique brands from products
+          const uniqueBrands = [...new Set(productsData.map(p => p.brand).filter(Boolean))];
+          setBrands(uniqueBrands);
+        }
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        console.error('Error response:', err.response?.data);
+        setError(err.response?.data?.message || 'Failed to load products. Please try again.');
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [selectedCategory, currentPage, sortBy, itemsPerPage, selectedBrands, selectedFilters]);
+
+  const handleBrandToggle = (brand) => {
+    setSelectedBrands(prev => 
+      prev.includes(brand) 
+        ? prev.filter(b => b !== brand)
+        : [...prev, brand]
+    );
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+
+  const clearAllFilters = () => {
+    setSelectedBrands([]);
+    setSelectedFilters({ promotionType: [], inStock: true });
+    setCurrentPage(1);
+  };
 
   // Category icon mapping
   const categoryIcons = {
@@ -388,7 +471,7 @@ const Products = () => {
         <Sidebar>
           <SidebarHeader>
             <FiltersTitle>Filters</FiltersTitle>
-            <ClearAllButton>Clear all</ClearAllButton>
+            <ClearAllButton onClick={clearAllFilters}>Clear all</ClearAllButton>
           </SidebarHeader>
           <SidebarContent>
         <SidebarSection>
@@ -457,36 +540,20 @@ const Products = () => {
             <SectionTitleIcon src={chevronIcon} alt="dropdown" isOpen={openSections.shopByBrand} />
           </SectionTitle>
           <SectionContent isOpen={openSections.shopByBrand}>
-            <CheckboxLabel>
-              <CheckboxGroup>
-                <Checkbox type="checkbox" /> Cal-C-Vita
-              </CheckboxGroup>
-              <CountBadge>10</CountBadge>
-            </CheckboxLabel>
-            <CheckboxLabel>
-              <CheckboxGroup>
-                <Checkbox type="checkbox" /> Clicks
-              </CheckboxGroup>
-              <CountBadge>20</CountBadge>
-            </CheckboxLabel>
-            <CheckboxLabel>
-              <CheckboxGroup>
-                <Checkbox type="checkbox" /> Clicks Expert
-              </CheckboxGroup>
-              <CountBadge>5</CountBadge>
-            </CheckboxLabel>
-            <CheckboxLabel>
-              <CheckboxGroup>
-                <Checkbox type="checkbox" /> DS Boost
-              </CheckboxGroup>
-              <CountBadge>11</CountBadge>
-            </CheckboxLabel>
-            <CheckboxLabel>
-              <CheckboxGroup>
-                <Checkbox type="checkbox" /> Ensure
-              </CheckboxGroup>
-              <CountBadge>3</CountBadge>
-            </CheckboxLabel>
+            {brands.map((brand, index) => (
+              <CheckboxLabel key={index}>
+                <CheckboxGroup>
+                  <Checkbox 
+                    type="checkbox" 
+                    checked={selectedBrands.includes(brand)}
+                    onChange={() => handleBrandToggle(brand)}
+                  /> 
+                  {brand}
+                </CheckboxGroup>
+                <CountBadge>{products.filter(p => p.brand === brand).length}</CountBadge>
+              </CheckboxLabel>
+            ))}
+            {brands.length === 0 && <div style={{ fontSize: '12px', color: '#999' }}>No brands available</div>}
           </SectionContent>
         </SidebarSection>
           </SidebarContent>
@@ -512,7 +579,10 @@ const Products = () => {
           <FilterGroup>
             <Label>Show</Label>
             <SelectWrapper>
-              <Select>
+              <Select value={itemsPerPage} onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}>
                 <option value="20">20 per page</option>
                 <option value="40">40 per page</option>
                 <option value="60">60 per page</option>
@@ -529,26 +599,64 @@ const Products = () => {
         </FiltersRow>
 
         <ProductGrid>
-          {sampleProducts.map((p) => (
+          {loading && (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '0px', color: '#666' }}>
+              Loading products...
+            </div>
+          )}
+          {error && (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#e63946' }}>
+              {error}
+            </div>
+          )}
+          {!loading && !error && products.length === 0 && (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#666' }}>
+              <p style={{ fontSize: '16px', marginBottom: '10px' }}>No products found for this category.</p>
+              <p style={{ fontSize: '14px', color: '#999' }}>
+                The product database appears to be empty. Please contact the administrator to add products.
+              </p>
+            </div>
+          )}
+          {!loading && !error && products.map((p) => (
             <ProductCard key={p.id} onClick={() => navigate(`/product/${p.id}`)}>
               {p.onSale && <SaleTag>-10%</SaleTag>}
-              <ProductImage src={p.image} alt={p.name} />
+              <ProductImage 
+                src={p.image || sampleProductImage} 
+                alt={p.name}
+                onError={(e) => { e.target.src = sampleProductImage; }}
+              />
               <ProductName>{p.name}</ProductName>
-              <ProductPrice>{p.price}</ProductPrice>
+              <ProductPrice>R{parseFloat(p.price).toFixed(2)}</ProductPrice>
               <AddButton onClick={(e) => {
-                e.stopPropagation(); // Prevent navigation when clicking the button
+                e.stopPropagation();
                 // Add to basket logic here
-              }}>Add To Basket</AddButton>
+                alert(`Added ${p.name} to basket`);
+              }}>
+                {p.inStock ? 'Add To Basket' : 'Out of Stock'}
+              </AddButton>
             </ProductCard>
           ))}
         </ProductGrid>
 
         <Pagination>
-          <PageButton active={currentPage === 1}>1</PageButton>
-          <PageButton>2</PageButton>
-          <PageButton>3</PageButton>
-          <PageButton>4</PageButton>
-          <PageButton>Last</PageButton>
+          {currentPage > 1 && (
+            <PageButton onClick={() => setCurrentPage(1)}>First</PageButton>
+          )}
+          {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+            const page = i + 1;
+            return (
+              <PageButton 
+                key={page} 
+                active={currentPage === page}
+                onClick={() => setCurrentPage(page)}
+              >
+                {page}
+              </PageButton>
+            );
+          })}
+          {currentPage < totalPages && (
+            <PageButton onClick={() => setCurrentPage(totalPages)}>Last</PageButton>
+          )}
         </Pagination>
         </MainContent>
       </ContentWrapper>
@@ -557,4 +665,3 @@ const Products = () => {
 };
 
 export default Products;
-export { sampleProducts };

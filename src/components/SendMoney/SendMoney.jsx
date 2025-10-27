@@ -17,7 +17,67 @@ const safeLocalStorage = {
   },
   setItem: (key, value) => {
     try {
-      localStorage.setItem(key, value);
+      l      // 4. Get beneficiary details and account information for transfer
+      let beneficiaryName = selectedBeneficiary.firstName || selectedBeneficiary.name || '';
+      
+      // Try to find the beneficiary ID from multiple possible fields
+      let beneficiaryId = selectedBeneficiary.id || 
+                          selectedBeneficiary.beneficiaryId ||
+                          selectedBeneficiary.dependentId ||
+                          selectedBeneficiary.dependent_id ||
+                          selectedBeneficiary._id ||
+                          selectedBeneficiary.userId ||
+                          selectedBeneficiary.user_id;
+      
+      let accountNumber = null;
+
+      console.log('🔍 Selected beneficiary FULL object:', JSON.stringify(selectedBeneficiary, null, 2));
+      console.log('📋 Beneficiary Accounts:', selectedBeneficiary.Accounts);
+      console.log('🔑 All beneficiary keys:', Object.keys(selectedBeneficiary));
+      console.log('🆔 Extracted beneficiary ID:', beneficiaryId, '(type:', typeof beneficiaryId, ')');
+
+      // Find the account number - check Accounts array first
+      if (Array.isArray(selectedBeneficiary.Accounts) && selectedBeneficiary.Accounts.length > 0) {
+        const mainAcc = selectedBeneficiary.Accounts.find(
+          acc => (acc.accountType && acc.accountType.toLowerCase() === 'main') ||
+                  (acc.accountName && acc.accountName.toLowerCase() === 'main')
+        );
+        if (mainAcc && mainAcc.accountNumber) {
+          accountNumber = mainAcc.accountNumber;
+          console.log('✅ Found account number in Accounts array:', accountNumber);
+        }
+      }
+      
+      // Fallback to direct account number field
+      if (!accountNumber) {
+        accountNumber = selectedBeneficiary.accountNumber || 
+                       selectedBeneficiary.dependentAccountNumber || 
+                       selectedBeneficiary.account_number;
+        console.log('✅ Using fallback account number:', accountNumber);
+      }
+
+      // Validate we have all required data
+      if (!beneficiaryId) {
+        console.error('❌ No beneficiary ID found in any field:', selectedBeneficiary);
+        console.error('🔑 Tried fields: id, beneficiaryId, dependentId, dependent_id, _id, userId, user_id');
+        console.error('📋 Available fields:', Object.keys(selectedBeneficiary));
+        throw new Error('Invalid beneficiary data - missing ID. The beneficiary data structure may be incomplete. Please contact support.');
+      }
+      
+      if (!accountNumber) {
+        console.error('❌ No account number found for beneficiary:', selectedBeneficiary);
+        throw new Error(`${beneficiaryName} does not have an account number. Please contact support.`);
+      }
+
+      // 5. Make the transfer request
+      // Send both dependentId and beneficiaryId to match backend expectations
+      const transferData = {
+        dependentId: typeof beneficiaryId === 'string' ? parseInt(beneficiaryId, 10) : beneficiaryId,
+        beneficiaryId: typeof beneficiaryId === 'string' ? parseInt(beneficiaryId, 10) : beneficiaryId,
+        accountNumber: accountNumber,
+        amount: Number(amount),
+        description: `Transfer to ${beneficiaryName} (Main Account)`
+      };Item(key, value);
       return true;
     } catch (error) {
       console.log('LocalStorage write blocked, data not persisted');
@@ -454,7 +514,7 @@ const SendMoney = () => {
   const [beneficiary, setBeneficiary] = useState('');
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [accountType, setAccountType] = useState('Main Account');
-  const [amount, setAmount] = useState('5000');
+  const [amount, setAmount] = useState('0.00');
   const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -474,12 +534,79 @@ const SendMoney = () => {
       setError('');
       try {
         const token = safeLocalStorage.getItem('token');
-        const response = await axios.get('https://nanacaring-backend.onrender.com/api/funder/get-beneficiaries', {
-          headers: { 'Authorization': `Bearer ${token}` }
+        const userRole = safeLocalStorage.getItem('userRole');
+        console.log('🔍 Fetching beneficiaries for user role:', userRole);
+        
+        let response;
+        
+        // Try the main beneficiaries endpoint
+        try {
+          response = await axios.get('https://nanacaring-backend.onrender.com/api/funder/get-beneficiaries', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          console.log('📦 Beneficiaries response (get-beneficiaries endpoint):', response.data);
+        } catch (funderErr) {
+          console.warn('⚠️ Get-beneficiaries endpoint failed, trying alternative...', funderErr.response?.status);
+          
+          // Try alternative endpoint
+          try {
+            response = await axios.get('https://nanacaring-backend.onrender.com/api/funder/beneficiaries', {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            console.log('📦 Beneficiaries response (beneficiaries endpoint):', response.data);
+          } catch (altErr) {
+            console.warn('⚠️ Alternative endpoint also failed, using cache...', altErr.response?.status);
+            
+            // If all endpoints fail, try to get from local cache
+            const cachedBeneficiaries = safeLocalStorage.getItem('beneficiaries') || safeLocalStorage.getItem('funder_beneficiaries');
+            if (cachedBeneficiaries) {
+              try {
+                const parsed = JSON.parse(cachedBeneficiaries);
+                console.log('✅ Loaded beneficiaries from cache:', parsed);
+                setBeneficiaries(Array.isArray(parsed) ? parsed : []);
+                setLoading(false);
+                return;
+              } catch (e) {
+                console.error('Failed to parse cached beneficiaries');
+              }
+            }
+            
+            throw funderErr;
+          }
+        }
+        
+        // Extract beneficiaries from the response
+        const beneficiariesData = response.data.beneficiaries || 
+                                  response.data.data?.beneficiaries || 
+                                  response.data.data?.dependents || 
+                                  response.data.dependents || 
+                                  response.data.data || 
+                                  [];
+        
+        console.log('✅ Raw beneficiaries data:', beneficiariesData);
+        console.log('📊 Number of beneficiaries:', beneficiariesData.length);
+        
+        // Log each beneficiary's structure
+        beneficiariesData.forEach((b, idx) => {
+          console.log(`👤 Beneficiary ${idx + 1}:`, {
+            id: b.id,
+            dependentId: b.dependentId,
+            name: b.name || b.firstName,
+            accountNumber: b.accountNumber,
+            hasAccounts: !!b.Accounts,
+            accountsCount: b.Accounts?.length || 0
+          });
         });
-          setBeneficiaries(response.data.beneficiaries || []);
+        
+        setBeneficiaries(beneficiariesData);
+        
+        // Cache for future use
+        safeLocalStorage.setItem('beneficiaries', JSON.stringify(beneficiariesData));
+        safeLocalStorage.setItem('funder_beneficiaries', JSON.stringify(beneficiariesData));
       } catch (err) {
-        showAlert(err.response?.data?.message || 'Failed to fetch beneficiaries');
+        console.error('❌ Failed to fetch beneficiaries:', err);
+        console.error('❌ Error response:', err.response?.data);
+        showAlert(err.response?.data?.message || 'Failed to fetch beneficiaries. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -563,6 +690,15 @@ const SendMoney = () => {
   // Find selected beneficiary object
   const selectedBeneficiary = beneficiaries.find(b => String(b.id) === beneficiary);
 
+  // Debug logging
+  useEffect(() => {
+    if (beneficiary) {
+      console.log('🔍 Beneficiary dropdown value:', beneficiary);
+      console.log('📋 All beneficiaries:', beneficiaries);
+      console.log('✅ Selected beneficiary object:', selectedBeneficiary);
+    }
+  }, [beneficiary, beneficiaries, selectedBeneficiary]);
+
   const closePopup = () => {
     setShowPopup(false);
     setMessage('');
@@ -576,9 +712,26 @@ const SendMoney = () => {
 
     try {
       // 1. Validate inputs
-      if (!selectedBeneficiary || !selectedBeneficiary.accountNumber) {
-        throw new Error('Please select a valid beneficiary.');
+      console.log('🚀 Starting transfer validation...');
+      console.log('📝 Selected beneficiary state value:', beneficiary);
+      console.log('📦 Selected beneficiary object:', selectedBeneficiary);
+      console.log('📊 All beneficiaries:', beneficiaries);
+      
+      if (!beneficiary) {
+        throw new Error('Please select a beneficiary.');
       }
+      
+      if (!selectedBeneficiary) {
+        console.error('❌ Could not find beneficiary with ID:', beneficiary);
+        console.error('📋 Available beneficiaries:', beneficiaries.map(b => ({ id: b.id, name: b.firstName || b.name })));
+        throw new Error('Selected beneficiary not found. Please try selecting again.');
+      }
+      
+      // Log the complete structure
+      console.log('🔍 DEBUG - Complete beneficiary object:', JSON.stringify(selectedBeneficiary, null, 2));
+      console.log('🔑 Available keys in beneficiary:', Object.keys(selectedBeneficiary));
+      console.log('🆔 beneficiary.id:', selectedBeneficiary.id, '(type:', typeof selectedBeneficiary.id, ')');
+      
       if (!amount || Number(amount) <= 0) {
         throw new Error('Please enter a valid amount.');
       }
@@ -617,36 +770,20 @@ const SendMoney = () => {
         throw new Error(`Insufficient wallet balance. You have R${currentBalance.toFixed(2)} but need R${Number(amount).toFixed(2)}. Please deposit funds first.`);
       }
 
-      // 4. Find the target account ID for the selected beneficiary and account type
-      // For this we need to get beneficiary account details
-      const beneficiaryAccountsResponse = await fetch(`https://nanacaring-backend.onrender.com/api/funder/beneficiaries/${selectedBeneficiary.id}/accounts`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      // 4. Get beneficiary details for transfer
+      let beneficiaryName = selectedBeneficiary.firstName || selectedBeneficiary.name || '';
+      let dependentId = selectedBeneficiary.dependentId || selectedBeneficiary.id;
 
-      let targetAccountId = null;
-      if (beneficiaryAccountsResponse.ok) {
-        const accountsData = await beneficiaryAccountsResponse.json();
-        const targetAccount = accountsData.data?.accounts?.find(
-          account => account.accountType.toLowerCase() === accountType.toLowerCase()
-        );
-        if (targetAccount) {
-          targetAccountId = targetAccount.id;
-        }
-      }
+      console.log('� Selected beneficiary:', selectedBeneficiary);
+      console.log('📋 Beneficiary Accounts:', selectedBeneficiary.Accounts);
+      console.log('� Dependent ID:', dependentId);
 
-      if (!targetAccountId) {
-        throw new Error(`${selectedBeneficiary.firstName} does not have a ${accountType} account. Please select a different account type.`);
-      }
-
-      // 5. Make the transfer request
+      // 5. Make the transfer request using dependentId
+      // The backend will use the dependentId to find the linked account
       const transferData = {
-        beneficiaryId: selectedBeneficiary.id,
-        targetAccountId: targetAccountId,
+        dependentId: typeof dependentId === 'string' ? parseInt(dependentId, 10) : dependentId,
         amount: Number(amount),
-        description: `Transfer to ${selectedBeneficiary.firstName} (${accountType})`
+        description: `Transfer to ${beneficiaryName} (Main Account)`
       };
 
       console.log('Transfer Request:', transferData);
@@ -660,10 +797,51 @@ const SendMoney = () => {
         body: JSON.stringify(transferData)
       });
 
-      const transferResult = await transferResponse.json();
+      console.log('📡 Transfer response status:', transferResponse.status);
+      console.log('📡 Transfer response headers:', Object.fromEntries(transferResponse.headers.entries()));
+
+      // Get the response text first to see what's actually being returned
+      const responseText = await transferResponse.text();
+      console.log('📄 Raw response text:', responseText);
+
+      let transferResult = null;
+      let backendError = '';
+      try {
+        transferResult = responseText ? JSON.parse(responseText) : null;
+        console.log('📤 Transfer response:', transferResult);
+      } catch (jsonErr) {
+        backendError = `Server error: ${responseText || 'Unable to parse response.'}`;
+        console.error('❌ JSON parse error:', jsonErr);
+        console.error('❌ Response was:', responseText);
+      }
 
       if (!transferResponse.ok) {
-        throw new Error(transferResult.message || 'Transfer failed');
+        // Show backend error message if available
+        console.error('❌ Transfer failed with status:', transferResponse.status);
+        console.error('❌ Backend error:', transferResult);
+        
+        let errorMsg = 'Transfer failed.';
+        
+        if (transferResult) {
+          if (transferResult.message) {
+            errorMsg = transferResult.message;
+          }
+          if (transferResult.error) {
+            errorMsg += ` (${transferResult.error})`;
+          }
+          if (transferResult.details) {
+            errorMsg += `\n\nDetails: ${JSON.stringify(transferResult.details)}`;
+          }
+        } else {
+          errorMsg = backendError || 'Transfer failed (server error).';
+        }
+        
+        // Add helpful message for validation errors
+        if (transferResult?.error === 'Validation error') {
+          errorMsg += '\n\nThis is a backend validation issue. The backend may not be configured to accept UUID account IDs. Please contact the administrator.';
+        }
+        
+        throw new Error(errorMsg);
       }
 
       // 6. Update local balance with new balance from response
@@ -674,7 +852,7 @@ const SendMoney = () => {
       setMessage(
         `🎉 Transfer successful!\n\n` +
         `Amount: R${transferResult.data.amount.toFixed(2)}\n` +
-        `To: ${selectedBeneficiary.firstName} (${accountType})\n` +
+        `To: ${beneficiaryName} (Main Account)\n` +
         `Reference: ${transferResult.data.transferReference}\n` +
         `Your new balance: R${newBalance.toFixed(2)}`
       );
@@ -687,25 +865,8 @@ const SendMoney = () => {
       setAccountType('Main Account');
 
     } catch (err) {
-      console.error('Transfer Error:', err);
-      
-      let errorMessage = '';
-      
-      if (err.message.includes('Insufficient wallet balance')) {
-        errorMessage = err.message;
-      } else if (err.message.includes('does not have a')) {
-        errorMessage = err.message;
-      } else if (err.message.includes('Please select')) {
-        errorMessage = err.message;
-      } else if (err.message.includes('Please enter')) {
-        errorMessage = err.message;
-      } else if (err.message.includes('Authentication required')) {
-        errorMessage = err.message;
-      } else {
-        errorMessage = err.message || 
-                      'Transfer failed. Please check your details and try again.';
-      }
-      
+      // Show backend error message if available
+      let errorMessage = err.message || 'Transfer failed. Please check your details and try again.';
       setMessage(errorMessage);
       setPopupType('error');
       setShowPopup(true);
@@ -733,12 +894,32 @@ const SendMoney = () => {
               required
             >
               <option value="">Select</option>
-              {beneficiaries.map((b, idx) => (
-                <option key={`${b.id}-${idx}`} value={String(b.id)}>
-                  {b.firstName} {b.middleName ? b.middleName : ''}
+              {beneficiaries.length === 0 && (
+                <option value="" disabled>
+                  {loading ? 'Loading beneficiaries...' : 'No beneficiaries found'}
                 </option>
-              ))}
+              )}
+              {beneficiaries.map((b, idx) => {
+                // Debug: Log each beneficiary's structure
+                console.log(`📝 Beneficiary ${idx + 1} in dropdown:`, {
+                  id: b.id,
+                  name: b.firstName || b.name,
+                  hasId: !!b.id,
+                  allKeys: Object.keys(b)
+                });
+                
+                return (
+                  <option key={`${b.id || idx}-${idx}`} value={String(b.id || '')}>
+                    {b.firstName || b.name || 'Unknown'} {b.middleName ? b.middleName : ''} {b.lastName || ''}
+                  </option>
+                );
+              })}
             </select>
+            {beneficiaries.length === 0 && !loading && (
+              <div style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px' }}>
+                No beneficiaries available. Please add a beneficiary first.
+              </div>
+            )}
           </FormGroup>
 
           <FormGroup>

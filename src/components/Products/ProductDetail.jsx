@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useParams, Link } from 'react-router-dom';
 import { Heart, Share, Star } from 'lucide-react';
-import { sampleProducts } from './Products';
+import axios from 'axios';
+import sampleProductImage from '../../../assets/sample-product.png';
 
 const PageContainer = styled.div`
   width: calc(100% - 175px);
@@ -367,16 +368,30 @@ const ProductDetail = () => {
   const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('description');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   useEffect(() => {
-    // In a real app, you would fetch the product from an API
-    // For now, we'll use the sample products
-    const foundProduct = sampleProducts.find(p => p.id === parseInt(id));
-    if (foundProduct) {
-      // Add detailed description for the product
-      foundProduct.detailedDescription = "Pregnavit M 30 Capsules are formulated for women before, during and after pregnancy. It contains folic acid and a range of essential vitamins and minerals to improve energy, maintain healthy cells, and promote strong bones and teeth.";
-      foundProduct.sku = "ID16453";
-      setProduct(foundProduct);
+    const fetchProduct = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const response = await axios.get(`https://nanacaring-backend.onrender.com/api/products/${id}`);
+        
+        if (response.data.success) {
+          setProduct(response.data.data);
+        }
+      } catch (err) {
+        console.error('Error fetching product:', err);
+        setError(err.response?.data?.message || 'Failed to load product');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchProduct();
     }
   }, [id]);
   
@@ -390,8 +405,34 @@ const ProductDetail = () => {
     setQuantity(quantity + 1);
   };
   
+  if (loading) {
+    return (
+      <PageContainer>
+        <div style={{ textAlign: 'center', padding: '60px', color: '#666' }}>
+          Loading product details...
+        </div>
+      </PageContainer>
+    );
+  }
+  
+  if (error) {
+    return (
+      <PageContainer>
+        <div style={{ textAlign: 'center', padding: '60px', color: '#e63946' }}>
+          {error}
+        </div>
+      </PageContainer>
+    );
+  }
+  
   if (!product) {
-    return <div>Loading...</div>;
+    return (
+      <PageContainer>
+        <div style={{ textAlign: 'center', padding: '60px', color: '#666' }}>
+          Product not found
+        </div>
+      </PageContainer>
+    );
   }
   
   return (
@@ -401,31 +442,56 @@ const ProductDetail = () => {
       <ProductContainer>
         <ImageSection>
           <MainImageContainer>
-            <ProductImage src={product.image} alt={product.name} />
+            <ProductImage 
+              src={product.image || sampleProductImage} 
+              alt={product.name}
+              onError={(e) => { e.target.src = sampleProductImage; }}
+            />
           </MainImageContainer>
           <ThumbnailContainer>
-            <ThumbnailImage src={product.image} alt={`${product.name} view 1`} />
-            <ThumbnailImage src={product.image} alt={`${product.name} view 2`} />
+            {Array.isArray(product.images) && product.images.length > 0 ? (
+              product.images.slice(0, 2).map((img, index) => (
+                <ThumbnailImage 
+                  key={index}
+                  src={img || sampleProductImage} 
+                  alt={`${product.name} view ${index + 1}`}
+                  onError={(e) => { e.target.src = sampleProductImage; }}
+                />
+              ))
+            ) : (
+              <>
+                <ThumbnailImage 
+                  src={product.image || sampleProductImage} 
+                  alt={`${product.name} view 1`}
+                  onError={(e) => { e.target.src = sampleProductImage; }}
+                />
+                <ThumbnailImage 
+                  src={product.image || sampleProductImage} 
+                  alt={`${product.name} view 2`}
+                  onError={(e) => { e.target.src = sampleProductImage; }}
+                />
+              </>
+            )}
           </ThumbnailContainer>
         </ImageSection>
         
         <InfoSection>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <ProductName>{product.brand}</ProductName>
+              <ProductName>{product.brand || 'Brand'}</ProductName>
               <ProductName>{product.name}</ProductName>
             
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
                 <ShareButton><Share size={14} /> Share</ShareButton>
-                <IdButton>{product.sku}</IdButton>
+                <IdButton>{product.sku || 'N/A'}</IdButton>
                 <AddToFavoritesButton><Star size={14} /> Add to favourites</AddToFavoritesButton>
               </div>
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', width: '100%' }}>
-                <Price>{product.price}</Price>
-                <StockTag>In Stock</StockTag>
+                <Price>R{parseFloat(product.price).toFixed(2)}</Price>
+                <StockTag>{product.inStock ? 'In Stock' : 'Out of Stock'}</StockTag>
               </div>
               
               <QuantitySelector>
