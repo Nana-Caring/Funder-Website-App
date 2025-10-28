@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import Header from '../Header/Header';
@@ -805,13 +805,21 @@ const MyCards = () => {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [balanceUpdateTrigger, setBalanceUpdateTrigger] = useState(0);
   const [forceRefresh, setForceRefresh] = useState(0);
+  
+  // Ref to track if component has already loaded data
+  const hasLoadedData = useRef(false);
+  const isInitialized = useRef(false);
+  const isFetchingBalance = useRef(false);
 
-  // Validate environment configuration on component mount
+  // Validate environment configuration on component mount (run only once)
   useEffect(() => {
+    if (isInitialized.current) return;
+    
     try {
       // This will throw an error if required environment variables are missing
       // validateConfig(); // Commented out to avoid breaking the app, but you can enable it
-      console.log('🔧 Using API Base URL:', config.API_URL);
+      console.log('🔧 MyAccounts component initialized - API Base URL:', config.API_URL);
+      isInitialized.current = true;
     } catch (error) {
       console.error('Environment configuration error:', error);
       setError('Configuration error. Please check environment variables.');
@@ -941,9 +949,17 @@ const MyCards = () => {
     return '';
   };
 
-  // Fetch real account balance from backend
+  // Fetch real account balance from backend (prevents concurrent calls)
   const fetchAccountBalance = async () => {
+    // Prevent multiple simultaneous API calls
+    if (isFetchingBalance.current) {
+      console.log('🔄 Balance fetch already in progress, skipping...');
+      return;
+    }
+    
     try {
+      isFetchingBalance.current = true;
+      
       const token = localStorage.getItem('token');
       if (!token) {
         console.warn('No token found, cannot fetch balance');
@@ -994,41 +1010,53 @@ const MyCards = () => {
     } catch (error) {
       console.warn('Could not fetch account balance:', error);
       // Continue with cached balance if API fails
+    } finally {
+      isFetchingBalance.current = false;
     }
     return null;
   };
 
-  // Load account data on component mount
+  // Load account data on component mount (only once)
   useEffect(() => {
-    // Only load data if Stripe is ready
-    if (stripe) {
+    // Only load data if Stripe is ready and we haven't loaded data yet
+    if (stripe && !hasLoadedData.current) {
+      console.log('🔄 Loading MyAccounts data for the first time...');
       setLoading(true);
+      hasLoadedData.current = true;
       
       const loadAccountData = async () => {
-        await fetchAccountBalance();
-        setLoading(false);
+        try {
+          await fetchAccountBalance();
+          console.log('✅ MyAccounts data loaded successfully');
+        } catch (error) {
+          console.error('❌ Failed to load MyAccounts data:', error);
+          // Reset the flag on error so it can retry if needed
+          hasLoadedData.current = false;
+        } finally {
+          setLoading(false);
+        }
       };
 
       loadAccountData();
     }
   }, [stripe]);
 
-  // Effect to log when balance updates and force refresh
+  // Effect to handle balance updates (optimized to prevent unnecessary re-renders)
   useEffect(() => {
-    if (balanceUpdateTrigger > 0) {
-      console.log('🔄 Balance display should update now, trigger:', balanceUpdateTrigger);
+    if (balanceUpdateTrigger > 0 && hasLoadedData.current) {
+      console.log('🔄 Balance display updating, trigger:', balanceUpdateTrigger);
       const currentBalance = localStorage.getItem('funderMainBalance');
-      console.log('💰 Current balance in localStorage:', currentBalance);
+      console.log('💰 Updated balance in localStorage:', currentBalance);
       
-      // Force a component refresh to ensure UI updates
+      // Only force refresh if we have loaded data before
       setForceRefresh(prev => prev + 1);
     }
   }, [balanceUpdateTrigger]);
 
-  // Effect to handle forced refreshes
+  // Effect to handle forced refreshes (optimized)
   useEffect(() => {
     if (forceRefresh > 0) {
-      console.log('🔄 Force refresh triggered:', forceRefresh);
+      console.log('🔄 Component refreshed, count:', forceRefresh);
     }
   }, [forceRefresh]);
 
