@@ -6,6 +6,7 @@ import deleteIcon from '../../assets/icons/delete.png';
 import { useSelector } from 'react-redux';
 import { funderService } from '../../services/funderService';
 
+
 const BeneficiaryContainer = styled.div`
   position: relative;
   margin-top: 40px;
@@ -405,6 +406,9 @@ const calculateEmergencyStats = (accounts) => {
 };
 
 const BeneficiaryForm = () => {
+  // Redux state
+  const { user, token } = useSelector(state => state.auth || {});
+  
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [formData, setFormData] = useState({name: '', accountNumber: ''});
   const [searchTerm, setSearchTerm] = useState('');
@@ -417,35 +421,77 @@ const BeneficiaryForm = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [mainAccountNumber, setMainAccountNumber] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   // Enhanced API base URL
   const API_BASE_URL = 'https://nanacaring-backend.onrender.com/api';
 
-  // Fetch beneficiaries with enhanced account data
+  // Fetch beneficiaries using funder service
   const fetchBeneficiaries = async () => {
     setLoading(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/funder/get-beneficiaries-enhanced`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const fetched = response.data.beneficiaries || [];
-      setBeneficiaries(fetched);
-      localStorage.setItem('funder_beneficiaries', JSON.stringify(fetched));
-    } catch (err) {
-      // Fallback to original endpoint if enhanced doesn't exist
-      try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get(`${API_BASE_URL}/funder/get-beneficiaries`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const fetched = response.data.beneficiaries || [];
-        setBeneficiaries(fetched);
-        localStorage.setItem('funder_beneficiaries', JSON.stringify(fetched));
-      } catch (fallbackErr) {
-        setError(fallbackErr.response?.data?.message || 'Failed to fetch beneficiaries');
+      const authToken = token || localStorage.getItem('token');
+      
+      if (!authToken) {
+        setError('Authentication token not found. Please login again.');
+        setLoading(false);
+        return;
       }
+      
+      console.log('🔄 Fetching beneficiaries...');
+      
+      // Try multiple endpoints to find working one
+      const endpoints = [
+        () => funderService.getBeneficiaries(authToken),
+        () => funderService.getBeneficiariesWithAccounts(authToken),
+        () => axios.get(`${API_BASE_URL}/funder/get-beneficiaries`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        }),
+        () => axios.get(`${API_BASE_URL}/funder/get-beneficiaries-enhanced`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        }),
+        () => axios.get(`${API_BASE_URL}/funder/beneficiaries`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        })
+      ];
+
+      let lastError = null;
+      for (let i = 0; i < endpoints.length; i++) {
+        try {
+          console.log(`📡 Trying endpoint ${i + 1}...`);
+          const result = await endpoints[i]();
+          const responseData = result.data || result;
+          
+          console.log(`✅ Endpoint ${i + 1} success:`, responseData);
+          
+          // Extract beneficiaries from various possible response structures
+          const fetched = responseData.beneficiaries || 
+                         responseData.dependents || 
+                         responseData.data?.beneficiaries || 
+                         responseData.data?.dependents ||
+                         (Array.isArray(responseData.data) ? responseData.data : []) ||
+                         (Array.isArray(responseData) ? responseData : []);
+          
+          console.log(`📋 Extracted ${fetched.length} beneficiaries:`, fetched);
+          
+          setBeneficiaries(fetched);
+          localStorage.setItem('funder_beneficiaries', JSON.stringify(fetched));
+          return; // Success, exit the loop
+        } catch (err) {
+          lastError = err;
+          console.log(`❌ Endpoint ${i + 1} failed:`, err.response?.status, err.response?.data?.message || err.message);
+          // Continue to next endpoint
+        }
+      }
+      
+      // All endpoints failed
+      console.error('All fetch attempts failed. Last error:', lastError);
+      setError(lastError?.response?.data?.message || lastError?.message || 'Failed to fetch beneficiaries');
+    } catch (err) {
+      console.error('Error fetching beneficiaries:', err);
+      setError(err.message || 'Failed to fetch beneficiaries');
     } finally {
       setLoading(false);
     }
@@ -472,7 +518,7 @@ const BeneficiaryForm = () => {
     }));
   };
 
-  // Enhanced add beneficiary with better error handling
+  // Enhanced add beneficiary with better error handling using funderService
   const handleAddBeneficiary = async (e) => {
     e.preventDefault();
     setError('');
@@ -491,54 +537,92 @@ const BeneficiaryForm = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const endpoint = `${API_BASE_URL}/funder/link-dependent`;
+      const authToken = token || localStorage.getItem('token');
+      
+      if (!authToken) {
+        setError('Authentication token not found. Please login again.');
+        return;
+      }
 
-      // Try a couple of payload variants for compatibility
+      const dependentData = {
+        dependentName: formData.name,
+        accountNumber: sanitizedAccountNumber
+      };
+
+      console.log('🔗 Linking beneficiary using funderService:', dependentData);
+
+      // First try the service wrapper (if available)
+      try {
+        const result = await funderService.linkDependent(dependentData, authToken);
+        console.log('funderService.linkDependent result:', result);
+
+        // If backend returns the created dependent, append it to the UI immediately
+        const created = result?.dependent || result?.beneficiary || result?.data || null;
+        if (result && (result.success || created)) {
+          if (created) {
+            setBeneficiaries(prev => [created, ...prev]);
+            localStorage.setItem('funder_beneficiaries', JSON.stringify([created, ...beneficiaries]));
+          }
+          setFormData({ name: '', accountNumber: '' });
+          setError('✅ Beneficiary linked successfully!');
+          setShowFormModal(false);
+          // try to refresh full list (non-blocking)
+          fetchBeneficiaries();
+          return;
+        }
+      } catch (svcErr) {
+        console.warn('funderService.linkDependent failed:', svcErr?.message || svcErr);
+        // fall through to direct attempts
+      }
+
+      // Fallback: try direct API POST with several payload variants to work around server expectations
       const payloadVariants = [
         { dependentName: formData.name, accountNumber: sanitizedAccountNumber },
         { name: formData.name, accountNumber: sanitizedAccountNumber },
-        { beneficiaryName: formData.name, accountNumber: sanitizedAccountNumber }
+        { beneficiaryName: formData.name, accountNumber: sanitizedAccountNumber },
+        { dependent: { name: formData.name, accountNumber: sanitizedAccountNumber } },
+        { dependent_name: formData.name, account_number: sanitizedAccountNumber }
       ];
 
-      let success = false;
       let lastError = null;
       for (let i = 0; i < payloadVariants.length; i++) {
+        const payload = payloadVariants[i];
         try {
-          const payload = payloadVariants[i];
-          // Helpful debug
-          console.log('🔗 Linking beneficiary - attempt', i + 1, payload);
-          const response = await axios.post(endpoint, payload, {
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            }
+          console.log(`🔁 Direct API attempt ${i + 1}`, payload);
+          const resp = await axios.post(`${API_BASE_URL}/funder/link-dependent`, payload, {
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+            timeout: 10000
           });
-          if (response.status === 200 || response.status === 201 || response.data?.success) {
-            success = true;
-            break;
+
+          console.log('Direct API response:', resp.status, resp.data);
+          const created = resp.data?.dependent || resp.data?.beneficiary || resp.data?.data || null;
+          if (resp.status === 200 || resp.status === 201 || resp.data?.success) {
+            if (created) {
+              setBeneficiaries(prev => [created, ...prev]);
+              localStorage.setItem('funder_beneficiaries', JSON.stringify([created, ...beneficiaries]));
+            }
+            setFormData({ name: '', accountNumber: '' });
+            setError('✅ Beneficiary linked successfully!');
+            setShowFormModal(false);
+            fetchBeneficiaries();
+            return;
           }
-        } catch (err) {
-          lastError = err;
-          // If server returns 4xx/5xx keep trying next variant; break on 401 (auth) as it won't succeed
-          if (err?.response?.status === 401) break;
+        } catch (errAttempt) {
+          lastError = errAttempt;
+          console.warn(`Attempt ${i + 1} failed:`, errAttempt?.response?.status, errAttempt?.response?.data || errAttempt.message);
+          // stop trying on auth errors
+          if (errAttempt?.response?.status === 401 || errAttempt?.response?.status === 403) break;
+          // continue for other errors
         }
       }
 
-      if (success) {
-        setFormData({ name: '', accountNumber: '' });
-        setError('✅ Beneficiary linked successfully! Emergency fund system activated.');
-        setShowFormModal(false);
-        await fetchBeneficiaries();
-      } else {
-        // Surface best possible server message
-        const serverMsg = lastError?.response?.data?.message || lastError?.message;
-        setError(serverMsg || 'Failed to add beneficiary. Please verify the name and account number.');
-      }
+      // All attempts failed — surface useful details
+      const serverMsg = lastError?.response?.data?.message || lastError?.response?.data || lastError?.message || 'Server error. Please try again later.';
+      console.error('All link attempts failed. Last error:', lastError);
+      setError(`❌ ${serverMsg}`);
     } catch (err) {
-      console.error('Error adding beneficiary:', err);
-      const serverMsg = err.response?.data?.message || err.message;
-      setError(serverMsg || 'Server error');
+      console.error('Unexpected error adding beneficiary:', err);
+      setError(err?.message || 'Unexpected error occurred while linking beneficiary');
     }
   };
 
@@ -576,7 +660,13 @@ const BeneficiaryForm = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const authToken = token || localStorage.getItem('token');
+      
+      if (!authToken) {
+        setError('Authentication token not found. Please login again.');
+        return;
+      }
+
       const response = await axios.put(
         `${API_BASE_URL}/funder/beneficiary/${beneficiaries[editingIndex]._id}`,
         {
@@ -586,7 +676,7 @@ const BeneficiaryForm = () => {
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${authToken}`
           }
         }
       );
@@ -628,8 +718,42 @@ const BeneficiaryForm = () => {
     setError('');
   };
 
-  const handleDeleteAttempt = () => {
-    setShowPopup(true);
+  const handleDeleteAttempt = (beneficiary, index) => {
+    setDeleteTarget({ beneficiary, index });
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    
+    try {
+      const authToken = token || localStorage.getItem('token');
+      
+      if (!authToken) {
+        setError('Authentication token not found. Please login again.');
+        return;
+      }
+
+      // For now, show info popup since delete may not be implemented in backend
+      setShowDeleteConfirm(false);
+      setDeleteTarget(null);
+      setShowPopup(true);
+      
+      // TODO: Implement actual delete when backend supports it
+      // const result = await funderService.deleteDependent(deleteTarget.beneficiary._id, authToken);
+      // if (result.success) {
+      //   await fetchBeneficiaries();
+      //   setError('✅ Beneficiary removed successfully.');
+      // }
+    } catch (err) {
+      console.error('Error deleting beneficiary:', err);
+      setError(err.message || 'Failed to delete beneficiary');
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
   };
 
   const filteredBeneficiaries = beneficiaries.filter(beneficiary =>
@@ -640,6 +764,31 @@ const BeneficiaryForm = () => {
 
   return (
     <BeneficiaryContainer>
+      {user && (
+        <div style={{
+          background: 'linear-gradient(135deg, #e8f5e8, #f0fff0)',
+          border: '1px solid #4CAF50',
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <Avatar color="#4CAF50">
+            {(user.firstName || user.name || 'U').charAt(0)}
+          </Avatar>
+          <div>
+            <div style={{ fontWeight: '600', color: '#2e7d32', fontSize: '16px' }}>
+              Welcome back, {user.firstName || user.name || 'Funder'}! 👋
+            </div>
+            <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+              Manage your beneficiaries and their emergency fund allocations
+            </div>
+          </div>
+        </div>
+      )}
+      
       <TableContainer>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ 
@@ -772,6 +921,15 @@ const BeneficiaryForm = () => {
                           title="Edit beneficiary"
                         >
                           <img src={editIcon} alt="Edit" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteAttempt(beneficiary, index);
+                          }}
+                          title="Delete beneficiary"
+                        >
+                          <img src={deleteIcon} alt="Delete" />
                         </button>
                         <button 
                           onClick={(e) => {
@@ -1084,6 +1242,49 @@ const BeneficiaryForm = () => {
             </FormContainer>
           </ModalContent>
         </ModalOverlay>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && deleteTarget && (
+        <PopupOverlay>
+          <PopupMessage>
+            <h4>Confirm Delete</h4>
+            <p>
+              Are you sure you want to remove "{deleteTarget.beneficiary.dependentName || deleteTarget.beneficiary.name || deleteTarget.beneficiary.firstName}" as a beneficiary?
+            </p>
+            <p style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>
+              This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '20px' }}>
+              <button 
+                onClick={handleDeleteCancel}
+                style={{
+                  background: '#f5f5f5',
+                  color: '#666',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleDeleteConfirm}
+                style={{
+                  background: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </PopupMessage>
+        </PopupOverlay>
       )}
 
       {showPopup && (

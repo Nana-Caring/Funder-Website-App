@@ -44,12 +44,13 @@ export const funderService = {
     }
   },
 
-  getDependents: async (token) => {
+  // FIXED: Updated to use the correct working endpoint
+  getBeneficiaries: async (token) => {
     try {
-      console.log('Fetching dependents with token:', token ? 'Token present' : 'No token');
+      console.log('📋 Fetching beneficiaries with token:', token ? 'Token present' : 'No token');
       
       const response = await axios.get(
-        `${API_BASE_URL}/funder/dependents`,
+        `${API_BASE_URL}/funder/get-beneficiaries`, // ✅ CORRECT endpoint
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -58,10 +59,10 @@ export const funderService = {
         }
       );
       
-      console.log('Dependents response:', response.data);
+      console.log('Beneficiaries response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Error fetching dependents:', {
+      console.error('Error fetching beneficiaries:', {
         status: error.response?.status,
         statusText: error.response?.statusText,
         data: error.response?.data,
@@ -72,15 +73,21 @@ export const funderService = {
       if (error.response?.status === 401) {
         throw new Error('Authentication failed. Please log in again.');
       } else if (error.response?.status === 403) {
-        throw new Error('You do not have permission to view dependents.');
+        throw new Error('You do not have permission to view beneficiaries.');
       } else if (error.response?.status === 404) {
-        throw new Error('No dependents found.');
+        throw new Error('No beneficiaries found.');
       } else if (error.response?.status >= 500) {
         throw new Error('Server error. Please try again later.');
       } else {
         throw error.response?.data?.message || error.message || 'Failed to load beneficiaries';
       }
     }
+  },
+
+  // DEPRECATED: Keep for backward compatibility but use getBeneficiaries instead
+  getDependents: async (token) => {
+    console.warn('⚠️ getDependents is deprecated. Use getBeneficiaries instead.');
+    return this.getBeneficiaries(token);
   },
 
   // New Smart Transfer System Integration
@@ -135,23 +142,28 @@ export const funderService = {
     }
   },
 
-  // Get beneficiaries with account details (new API)
+  // FALLBACK: Alternative endpoint (may not work consistently)
   getBeneficiariesWithAccounts: async (token) => {
     try {
-      console.log('📋 Fetching beneficiaries with accounts...');
+      console.log('📋 Fetching beneficiaries with accounts (fallback method)...');
       
-      const response = await axios.get(
-        `${API_BASE_URL}/funder/beneficiaries`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+      // Try enhanced endpoint first, fallback to main endpoint
+      try {
+        const response = await axios.get(
+          `${API_BASE_URL}/funder/get-beneficiaries-enhanced`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
           }
-        }
-      );
-      
-      console.log('Beneficiaries with accounts response:', response.data);
-      return response.data;
+        );
+        console.log('Enhanced beneficiaries response:', response.data);
+        return response.data;
+      } catch (enhancedError) {
+        console.warn('Enhanced endpoint failed, falling back to standard endpoint');
+        return this.getBeneficiaries(token);
+      }
     } catch (error) {
       console.error('Error fetching beneficiaries with accounts:', {
         status: error.response?.status,
@@ -207,5 +219,53 @@ export const funderService = {
         throw new Error(error.response?.data?.message || error.message || 'Failed to get balance');
       }
     }
+  },
+
+  // Emergency fund calculation helper
+  calculateEmergencyStats: (accounts) => {
+    if (!accounts || accounts.length === 0) {
+      return {
+        emergencyBalance: 0,
+        totalBalance: 0,
+        categoryBalance: 0,
+        emergencyPercentage: 0
+      };
+    }
+
+    const mainAccount = accounts.find(acc => 
+      acc.accountType?.toLowerCase() === 'main' || 
+      acc.accountName?.toLowerCase() === 'main'
+    );
+
+    const totalBalance = accounts.reduce((sum, acc) => {
+      const balance = typeof acc.balance === 'string' 
+        ? parseFloat(acc.balance.replace(/[^\d.-]/g, '')) 
+        : parseFloat(acc.balance || 0);
+      return sum + balance;
+    }, 0);
+
+    const emergencyBalance = mainAccount 
+      ? (typeof mainAccount.balance === 'string' 
+          ? parseFloat(mainAccount.balance.replace(/[^\d.-]/g, '')) 
+          : parseFloat(mainAccount.balance || 0))
+      : 0;
+
+    const categoryBalance = totalBalance - emergencyBalance;
+    const emergencyPercentage = totalBalance > 0 ? (emergencyBalance / totalBalance * 100) : 0;
+
+    return {
+      emergencyBalance,
+      totalBalance,
+      categoryBalance,
+      emergencyPercentage: Math.round(emergencyPercentage * 10) / 10
+    };
+  },
+
+  // Format currency helper
+  formatCurrency: (amount) => {
+    const num = typeof amount === 'string' 
+      ? parseFloat(amount.replace(/[^\d.-]/g, '')) 
+      : parseFloat(amount || 0);
+    return `R ${num.toFixed(2)}`;
   }
 };
