@@ -21,6 +21,7 @@ import PaymentModal from '../PaymentModal/PaymentModal';
 import ProfileCompletionPopup from '../common/ProfileCompletionPopup';
 import { accountService } from '../../services/accountService';
 import { Avatar, Modal, IconButton } from '@mui/material';
+import { formatDate } from '../shared/StatementsStyles';
 /* 
   Outer container that holds the main dashboard area.
 */
@@ -687,17 +688,23 @@ const SendMoneyModal = styled.div`
 `;
 
 const TransactionHistory = styled.div`
-  margin-top:0;
+  position: relative;
+  margin-top: 0;
   background: white;
-  padding: 4px;
+  padding: 10px 12px;
   border-radius: 12px;
 
-  
   h3 {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 1;
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin: 0 0 8px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
 
     .search-icon {
       cursor: pointer;
@@ -705,48 +712,75 @@ const TransactionHistory = styled.div`
     }
   }
 
+  /* Scrollable list container to show a few items with scroll */
+  .transaction-list {
+    max-height: 260px; /* ~5-6 rows visible */
+    overflow-y: auto;
+    padding-right: 6px; /* space for scrollbar */
+    scroll-behavior: smooth;
+  }
+
+  /* Custom scrollbar */
+  .transaction-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  .transaction-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .transaction-list::-webkit-scrollbar-thumb {
+    background-color: #d4d4d4;
+    border-radius: 8px;
+  }
+  .transaction-list {
+    scrollbar-width: thin;            /* Firefox */
+    scrollbar-color: #d4d4d4 transparent;
+  }
+
   .transaction {
     display: flex;
     align-items: center;
-    margin-bottom: 6px;
-    padding: 4px;
-    background: #e0e0e0;
-    border-radius: 8px;
+    margin-bottom: 8px;
+    padding: 8px;
+    background: #f5f5f5;
+    border-radius: 10px;
     transition: background-color 0.2s ease;
-    gap: 24px;
+    gap: 16px;
 
     &:hover {
-      background: #d0d0d0;
+      background: #eaeaea;
     }
 
     .avatar {
-     
       width: 32px;
       height: 32px;
     }
 
     .details {
       flex: 1;
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      
+      display: grid;
+      grid-template-columns: 1fr auto; /* type/date on left, amount on right */
+      row-gap: 2px;
+      column-gap: 12px;
+
       h4 {
         margin: 0;
         font-size: 14px;
         color: #333;
+        grid-column: 1 / 2;
       }
       p {
         margin: 0;
         font-size: 12px;
         color: #666;
+        grid-column: 1 / 2;
       }
     }
 
     .amount {
-      color: rgb(5, 1, 3);
-     
-     
+      grid-column: 2 / 3;
+      align-self: center;
+      font-weight: 600;
+      color: #050103;
     }
   }
 `;
@@ -964,6 +998,50 @@ const DependentHome = () => {
     setShowDateFilter(false);
   };
 
+  // Safely extract a transaction date-like value and format it; avoids "Invalid Date"
+  const getTransactionDateValue = (t) =>
+    t?.timestamp || t?.createdAt || t?.date || t?.occurredAt || t?.executedAt || t?.updatedAt || null;
+
+  const safeFormatTxDateTime = (t) => {
+    try {
+      const v = getTransactionDateValue(t);
+      if (!v) return '—';
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return '—';
+      return formatDate(d);
+    } catch {
+      return '—';
+    }
+  };
+
+  // Normalize transactions to a common shape used by the UI
+  const normalizeTransactions = (txns) => {
+    if (!Array.isArray(txns)) return [];
+    return txns.map((t, i) => {
+      // Determine amount from multiple possible fields
+      const rawAmount =
+        t?.amount ??
+        t?.value ??
+        (typeof t?.amountCents === 'number' ? t.amountCents / 100 : undefined) ??
+        t?.transactionAmount ?? 0;
+      const amount = parseFloat(rawAmount) || 0;
+
+      // Determine type: prefer explicit, else derive from sign (>=0 => Credit)
+      const type = t?.type || (amount >= 0 ? 'Credit' : 'Debit');
+
+      // Normalize date field
+      const when = getTransactionDateValue(t);
+      const createdAt = when || new Date().toISOString();
+
+      return {
+        ...t,
+        amount,
+        type,
+        createdAt
+      };
+    });
+  };
+
   // Reset filters
   const resetDateFilter = () => {
     setFilteredTransactions(recentTransactions);
@@ -1044,21 +1122,23 @@ const DependentHome = () => {
       if (cachedTransactions) {
         const { data, timestamp } = JSON.parse(cachedTransactions);
         if (Date.now() - timestamp < CACHE_DURATION) {
-          setRecentTransactions(data);
-          setFilteredTransactions(data);
+          const normalized = normalizeTransactions(data);
+          setRecentTransactions(normalized);
+          setFilteredTransactions(normalized);
           return;
         }
       }
       
       // Fetch fresh transactions if not cached or expired
       const summaryData = await accountService.getAccountSummary(accountId);
-      const transactions = summaryData.account?.transactions || [];
-      setRecentTransactions(transactions);
-      setFilteredTransactions(transactions);
+  const transactions = summaryData.account?.transactions || [];
+  const normalized = normalizeTransactions(transactions);
+  setRecentTransactions(normalized);
+  setFilteredTransactions(normalized);
       
       // Cache the transactions
       localStorage.setItem(`transactions_${accountId}`, JSON.stringify({
-        data: transactions,
+        data: normalized,
         timestamp: Date.now()
       }));
     } catch (error) {
@@ -1125,8 +1205,9 @@ const DependentHome = () => {
           if (cachedTransactions) {
             const { data, timestamp } = JSON.parse(cachedTransactions);
             if (Date.now() - timestamp < CACHE_DURATION) {
-              setRecentTransactions(data);
-              setFilteredTransactions(data);
+              const normalized = normalizeTransactions(data);
+              setRecentTransactions(normalized);
+              setFilteredTransactions(normalized);
               return;
             }
           }
@@ -1136,12 +1217,13 @@ const DependentHome = () => {
             try {
               const summaryData = await accountService.getAccountSummary(selectedAccount.id);
               const transactions = summaryData.account?.transactions || [];
-              setRecentTransactions(transactions);
-              setFilteredTransactions(transactions);
+              const normalized = normalizeTransactions(transactions);
+              setRecentTransactions(normalized);
+              setFilteredTransactions(normalized);
               
               // Cache the transactions
               localStorage.setItem(`transactions_${selectedAccount.id}`, JSON.stringify({
-                data: transactions,
+                data: normalized,
                 timestamp: Date.now()
               }));
             } catch (error) {
@@ -1285,12 +1367,14 @@ const DependentHome = () => {
         if (selectedAccountId) {
           try {
             const summaryData = await accountService.getAccountSummary(selectedAccountId);
-            setRecentTransactions(summaryData.account?.transactions || []);
-            setFilteredTransactions(summaryData.account?.transactions || []);
+            const txns = summaryData.account?.transactions || [];
+            const normalized = normalizeTransactions(txns);
+            setRecentTransactions(normalized);
+            setFilteredTransactions(normalized);
             
             // Update cached transactions
             localStorage.setItem(`transactions_${selectedAccountId}`, JSON.stringify({
-              data: summaryData.account?.transactions || [],
+              data: normalized,
               timestamp: Date.now()
             }));
           } catch (error) {
@@ -2172,40 +2256,36 @@ const DependentHome = () => {
 
             <TransactionHistory>
               <h3>Latest Transactions</h3>
-              {recentTransactions.length > 0 ? (
-                recentTransactions.slice(0, 6).map((transaction) => (
-                  <div className="transaction" key={transaction.id}>
-                    <LetterAvatar color={transaction.type === 'Credit' ? '#185c37' : '#e74c3c'}>
-                      {transaction.type === 'Credit' ? '+' : '-'}
-                    </LetterAvatar>
-                    <div className="details">
-                      <span>{transaction.type}</span>
-                      <span>
-                        {new Date(transaction.createdAt || transaction.timestamp).toLocaleDateString('en-ZA')} {' '}
-                        {new Date(transaction.createdAt || transaction.timestamp).toLocaleTimeString('en-ZA', { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </span>
-                      <span className="amount" style={{ 
-                        color: transaction.type === 'Credit' ? '#185c37' : '#e74c3c' 
-                      }}>
-                        {transaction.type === 'Credit' ? '+' : '-'}{accountService.formatCurrency(transaction.amount)}
-                      </span>
+              <div className="transaction-list">
+                {recentTransactions.length > 0 ? (
+                  recentTransactions.slice(0, 20).map((transaction) => (
+                    <div className="transaction" key={transaction.id}>
+                      <LetterAvatar color={transaction.type === 'Credit' ? '#185c37' : '#e74c3c'}>
+                        {transaction.type === 'Credit' ? '+' : '-'}
+                      </LetterAvatar>
+                      <div className="details">
+                        <h4>{transaction.type}</h4>
+                        <p>{safeFormatTxDateTime(transaction)}</p>
+                        <span className="amount" style={{ 
+                          color: transaction.type === 'Credit' ? '#185c37' : '#e74c3c' 
+                        }}>
+                          {transaction.type === 'Credit' ? '+' : '-'}{accountService.formatCurrency(transaction.amount)}
+                        </span>
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  // Show message when no real transactions are available
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '20px', 
+                    color: '#666', 
+                    fontSize: '14px' 
+                  }}>
+                    No recent transactions found for this account.
                   </div>
-                ))
-              ) : (
-                // Show message when no real transactions are available
-                <div style={{ 
-                  textAlign: 'center', 
-                  padding: '20px', 
-                  color: '#666', 
-                  fontSize: '14px' 
-                }}>
-                  No recent transactions found for this account.
-                </div>
-              )}
+                )}
+              </div>
             </TransactionHistory>
           </RightPanel>
         </MainContent>

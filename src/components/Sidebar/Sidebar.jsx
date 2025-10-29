@@ -9,6 +9,7 @@ import sendMoneyIcon from '../../assets/icons/send-money-icon.png';
 import beneficiaryIcon from '../../assets/icons/beneficiary-icon.png';
 import statementsIcon from '../../assets/icons/statements-icon.png';
 import messagesIcon from '../../assets/icons/messages.png';
+import statementsIcon2 from '../../assets/icons/statements-icon.png';
 
 const SidebarContainer = styled.div`
   width: 250px; /* Fixed width */
@@ -116,6 +117,11 @@ const Sidebar = () => {
       <MenuItem to="/beneficiary" active={location.pathname === "/beneficiary" ? 1 : 0}>
         <img src={beneficiaryIcon} alt="Beneficiary" />
         Beneficiary
+      </MenuItem>
+
+      <MenuItem to="/expenses" active={location.pathname === "/expenses" ? 1 : 0}>
+        <img src={statementsIcon2} alt="Expenses" />
+        Expenses
       </MenuItem>
 
       <MenuItem to="/statements" active={location.pathname === "/statements" ? 1 : 0}>

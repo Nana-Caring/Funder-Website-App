@@ -50,6 +50,7 @@ import FunderSettings from './components/Settings/FunderSettings';
 import DependentProfile from './components/Profile/DependentProfile';
 import CaregiverProfile from './components/Profile/CaregiverProfile';
 import FunderProfile from './components/Profile/FunderProfile';
+import FunderExpenses from './components/FunderExpenses';
 import { initializeBeneficiaries } from './store/slices/beneficiaries';
 
 import { Elements } from '@stripe/react-stripe-js';
@@ -265,6 +266,7 @@ function App() {
                   </Elements>
                 } />
               <Route path="beneficiary" element={<BeneficiaryForm />} />
+              <Route path="expenses" element={<FunderExpenses />} />
               <Route path="messages" element={<Messages />} />
               <Route path="statements" element={<Statements />} />
               <Route path="profile" element={<FunderProfile />} />
