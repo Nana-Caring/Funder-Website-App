@@ -36,9 +36,10 @@ const ModalContent = styled.div`
   padding: 32px;
   border-radius: 16px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.15);
-  max-width: 450px;
+  max-width: 500px;
   width: 90%;
-  max-height: fit-content;
+  max-height: 90vh;
+  overflow-y: auto;
 `;
 
 const FormContainer = styled.form`
@@ -74,16 +75,17 @@ const AddButton = styled.button`
     transform: translateY(0);
   }
 `;
+
 const TableContainer = styled.div`
   width: 90%;
-  max-width: 800px;
+  max-width: 1000px;
   background: #fff;
   border-radius: 16px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.10);
   padding: 32px 24px 24px 24px;
   margin-top: 24px;
   margin-bottom: 32px;
-  height: 480px; /* Fixed height for scroll effect */
+  height: 480px;
   transition: box-shadow 0.2s;
   display: flex;
   flex-direction: column;
@@ -117,7 +119,7 @@ const TableContainer = styled.div`
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    font-size: 11.5px; /* Further decreased font size for more rows */
+    font-size: 11.5px;
     background: transparent;
     color: #222;
     letter-spacing: 0.01em;
@@ -156,8 +158,6 @@ const TableContainer = styled.div`
     transition: background 0.15s;
     &:hover td {
       background: #f5f7fa;
-    }
-  }
     }
   }
 
@@ -282,9 +282,126 @@ const PopupMessage = styled.div`
   }
 `;
 
+const AccountsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+`;
+
+const AccountCard = styled.div`
+  background: ${props => props.isMain ? 'linear-gradient(135deg, #e8f5e8, #f0fff0)' : '#f8f9fa'};
+  border: ${props => props.isMain ? '2px solid #4CAF50' : '1px solid #e0e0e0'};
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  position: relative;
+
+  ${props => props.isMain && `
+    &::before {
+      content: '🚨 Emergency Fund';
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #4CAF50;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+  `}
+`;
+
+const BalanceAmount = styled.div`
+  font-size: 16px;
+  font-weight: 700;
+  color: ${props => props.isMain ? '#2e7d32' : '#185c37'};
+  margin-top: 8px;
+`;
+
+const AccountType = styled.div`
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+  text-transform: capitalize;
+`;
+
+const EmergencyInfo = styled.div`
+  background: linear-gradient(135deg, #e3f2fd, #f0f8ff);
+  border: 1px solid #2196F3;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 20px 0;
+  
+  h4 {
+    color: #1976D2;
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .emergency-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  
+  .stat-item {
+    text-align: center;
+    
+    .stat-label {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    
+    .stat-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1976D2;
+    }
+  }
+`;
+
 const getRandomPastelColor = () => {
   const hue = Math.floor(Math.random() * 360);
   return `hsl(${hue}, 70%, 75%)`;
+};
+
+// Safely format currency when API may return strings like "R 123" or null
+const safeParseAmount = (value) => {
+  if (value === null || value === undefined) return 0;
+  const num = Number(String(value).replace(/[^0-9.-]/g, ''));
+  return Number.isFinite(num) ? num : 0;
+};
+
+const formatCurrency = (amount) => {
+  const n = safeParseAmount(amount);
+  return `R ${n.toFixed(2)}`;
+};
+
+const calculateEmergencyStats = (accounts) => {
+  const mainAccount = accounts?.find(acc => 
+    acc.accountType?.toLowerCase() === 'main' || 
+    acc.accountName?.toLowerCase() === 'main'
+  );
+  
+  const totalBalance = accounts?.reduce((sum, acc) => sum + safeParseAmount(acc.balance), 0) || 0;
+  const emergencyBalance = safeParseAmount(mainAccount?.balance);
+  const emergencyPercentage = totalBalance > 0 ? (emergencyBalance / totalBalance * 100) : 0;
+  
+  return {
+    emergencyBalance,
+    totalBalance,
+    emergencyPercentage: Math.round(emergencyPercentage),
+    categoryBalance: totalBalance - emergencyBalance
+  };
 };
 
 const BeneficiaryForm = () => {
@@ -295,34 +412,47 @@ const BeneficiaryForm = () => {
   const [editingIndex, setEditingIndex] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
+  const [showAccountDetails, setShowAccountDetails] = useState(false);
+  const [selectedBeneficiary, setSelectedBeneficiary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [mainAccountNumber, setMainAccountNumber] = useState('');
 
-  // Fetch beneficiaries from backend and persist to localStorage
+  // Enhanced API base URL
+  const API_BASE_URL = 'https://nanacaring-backend.onrender.com/api';
+
+  // Fetch beneficiaries with enhanced account data
   const fetchBeneficiaries = async () => {
     setLoading(true);
     setError('');
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('https://nanacaring-backend.onrender.com/api/funder/get-beneficiaries', {
+      const response = await axios.get(`${API_BASE_URL}/funder/get-beneficiaries-enhanced`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const fetched = response.data.beneficiaries || [];
       setBeneficiaries(fetched);
-      // Persist to localStorage
       localStorage.setItem('funder_beneficiaries', JSON.stringify(fetched));
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch beneficiaries');
+      // Fallback to original endpoint if enhanced doesn't exist
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${API_BASE_URL}/funder/get-beneficiaries`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const fetched = response.data.beneficiaries || [];
+        setBeneficiaries(fetched);
+        localStorage.setItem('funder_beneficiaries', JSON.stringify(fetched));
+      } catch (fallbackErr) {
+        setError(fallbackErr.response?.data?.message || 'Failed to fetch beneficiaries');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-
-  // Load beneficiaries from localStorage once, then fetch from backend in background
+  // Load beneficiaries on component mount
   useEffect(() => {
-    // Try to load from localStorage first
     const stored = localStorage.getItem('funder_beneficiaries');
     if (stored) {
       try {
@@ -331,10 +461,8 @@ const BeneficiaryForm = () => {
         // Ignore parse error, fallback to fetch
       }
     }
-    // Always fetch fresh in background (but only once)
     fetchBeneficiaries();
   }, []);
-
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -344,45 +472,73 @@ const BeneficiaryForm = () => {
     }));
   };
 
-  // Add beneficiary via backend
+  // Enhanced add beneficiary with better error handling
   const handleAddBeneficiary = async (e) => {
     e.preventDefault();
     setError('');
 
+    // Basic validation
     if (!formData.name || !formData.accountNumber){
       setError('Please fill in all fields');
       return;
     }
 
-    console.log('Sending data to backend:', formData);
-    
+    // Sanitize account number: digits only
+    const sanitizedAccountNumber = String(formData.accountNumber).replace(/\D/g, '');
+    if (sanitizedAccountNumber.length < 6) {
+      setError('Account number looks invalid. Please check and try again.');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('https://nanacaring-backend.onrender.com/api/funder/link-dependent', {
-        dependentName: formData.name,
-        accountNumber: formData.accountNumber
+      const endpoint = `${API_BASE_URL}/funder/link-dependent`;
 
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+      // Try a couple of payload variants for compatibility
+      const payloadVariants = [
+        { dependentName: formData.name, accountNumber: sanitizedAccountNumber },
+        { name: formData.name, accountNumber: sanitizedAccountNumber },
+        { beneficiaryName: formData.name, accountNumber: sanitizedAccountNumber }
+      ];
+
+      let success = false;
+      let lastError = null;
+      for (let i = 0; i < payloadVariants.length; i++) {
+        try {
+          const payload = payloadVariants[i];
+          // Helpful debug
+          console.log('🔗 Linking beneficiary - attempt', i + 1, payload);
+          const response = await axios.post(endpoint, payload, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (response.status === 200 || response.status === 201 || response.data?.success) {
+            success = true;
+            break;
+          }
+        } catch (err) {
+          lastError = err;
+          // If server returns 4xx/5xx keep trying next variant; break on 401 (auth) as it won't succeed
+          if (err?.response?.status === 401) break;
         }
-      }  
-      );
+      }
 
-      
-      if (response.status === 200 || response.status === 201) {
+      if (success) {
         setFormData({ name: '', accountNumber: '' });
-        setError('✅ Beneficiary added successfully.');
+        setError('✅ Beneficiary linked successfully! Emergency fund system activated.');
         setShowFormModal(false);
-        await fetchBeneficiaries(); // Refresh beneficiaries list
+        await fetchBeneficiaries();
       } else {
-        setError(response.data.message || 'Failed to add beneficiary');
+        // Surface best possible server message
+        const serverMsg = lastError?.response?.data?.message || lastError?.message;
+        setError(serverMsg || 'Failed to add beneficiary. Please verify the name and account number.');
       }
     } catch (err) {
       console.error('Error adding beneficiary:', err);
-      setError(err.response?.data?.message || 'Server error');
+      const serverMsg = err.response?.data?.message || err.message;
+      setError(serverMsg || 'Server error');
     }
   };
 
@@ -390,10 +546,11 @@ const BeneficiaryForm = () => {
     setIsEditing(true);
     setEditingIndex(index);
     setFormData({
-      name: beneficiary.name || beneficiary.firstName,
+      name: beneficiary.dependentName || beneficiary.name || beneficiary.firstName,
       accountNumber: beneficiary.accountNumber,
     });
-    // Find main account number if available
+    
+    // Enhanced main account detection
     let mainAccNum = '';
     if (Array.isArray(beneficiary.Accounts) && beneficiary.Accounts.length > 0) {
       const mainAcc = beneficiary.Accounts.find(
@@ -408,54 +565,57 @@ const BeneficiaryForm = () => {
     setShowFormModal(true);
     setError('');
   };
-const handleUpdateBeneficiary = async (e) => {
-  e.preventDefault();
-  setError('');
 
-  if (!formData.name || !formData.accountNumber) {
-    setError('Please fill in all fields');
-    return;
-  }
+  const handleUpdateBeneficiary = async (e) => {
+    e.preventDefault();
+    setError('');
 
-  try {
-    const token = localStorage.getItem('token');
-    const response = await axios.put(
-      `/api/funder/beneficiary/${beneficiaries[editingIndex]._id}`,
-      {
-        dependentName: formData.name,
-        accountNumber: formData.accountNumber
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      }
-    );
-
-    if (response.status === 200) {
-      setFormData({ name: '', accountNumber: '' });
-      setError('✅ Beneficiary updated successfully.');
-      setShowFormModal(false);
-      setIsEditing(false);
-      setEditingIndex(null);
-      await fetchBeneficiaries(); // refresh + update localStorage
-    } else {
-      setError(response.data.message || 'Failed to update beneficiary');
+    if (!formData.name || !formData.accountNumber) {
+      setError('Please fill in all fields');
+      return;
     }
-  } catch (err) {
-    console.error('Error updating beneficiary:', err);
-    setError(err.response?.data?.message || 'Server error');
-  }
-};
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.put(
+        `${API_BASE_URL}/funder/beneficiary/${beneficiaries[editingIndex]._id}`,
+        {
+          dependentName: formData.name,
+          accountNumber: formData.accountNumber
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.status === 200) {
+        setFormData({ name: '', accountNumber: '' });
+        setError('✅ Beneficiary updated successfully.');
+        setShowFormModal(false);
+        setIsEditing(false);
+        setEditingIndex(null);
+        await fetchBeneficiaries();
+      } else {
+        setError(response.data.message || 'Failed to update beneficiary');
+      }
+    } catch (err) {
+      console.error('Error updating beneficiary:', err);
+      setError(err.response?.data?.message || 'Server error');
+    }
+  };
+
+  const handleViewAccountDetails = (beneficiary) => {
+    setSelectedBeneficiary(beneficiary);
+    setShowAccountDetails(true);
+  };
 
   const handleCancel = () => {
     setIsEditing(false);
     setEditingIndex(null);
-    setFormData({
-      name: '',
-      accountNumber: '',
-    });
+    setFormData({ name: '', accountNumber: '' });
     setShowFormModal(false);
     setError('');
   };
@@ -473,7 +633,7 @@ const handleUpdateBeneficiary = async (e) => {
   };
 
   const filteredBeneficiaries = beneficiaries.filter(beneficiary =>
-    (beneficiary.name || beneficiary.firstName || '')
+    (beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '')
     .toLowerCase()
     .includes(searchTerm.toLowerCase())
   );
@@ -488,11 +648,11 @@ const handleUpdateBeneficiary = async (e) => {
             color: '#222',
             margin: 0
           }}>
-            Beneficiaries
+            Beneficiaries ({beneficiaries.length})
           </h3>
           <AddButton onClick={handleOpenModal}>
             <span style={{ fontSize: '16px' }}>+</span>
-            Add Beneficiary
+            Link Beneficiary
           </AddButton>
         </div>
         
@@ -510,74 +670,257 @@ const handleUpdateBeneficiary = async (e) => {
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Account number</th>
+                <th>Main Account</th>
+                <th>Emergency Fund</th>
+                <th>Total Balance</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredBeneficiaries.map((beneficiary, index) => (
-                <tr key={index}>
-                  <td 
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '8px', 
-                      background: 'inherit', 
-                      border: 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      padding: '10px 6px',
-                      borderRadius: '6px'
-                    }}
-                    onClick={() => handleEdit(beneficiary, index)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#f0f8ff';
-                      e.currentTarget.style.transform = 'scale(1.02)';
-                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(24, 92, 55, 0.1)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'inherit';
-                      e.currentTarget.style.transform = 'scale(1)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    <Avatar color={getRandomPastelColor()}>
-                      {(beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '?').charAt(0)}
-                    </Avatar>
-                    <span style={{ fontWeight: 600, fontSize: '11.5px', color: '#222' }}>
-                      {beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '?'}
-                    </span>
-                  </td>
-                  <td>
-                    {Array.isArray(beneficiary.Accounts) && beneficiary.Accounts.length > 0 ? (
-                      (() => {
-                        const mainAcc = beneficiary.Accounts.find(
-                          acc => (acc.accountType && acc.accountType.toLowerCase() === 'main') ||
-                                  (acc.accountName && acc.accountName.toLowerCase() === 'main')
-                        );
-                        return (
-                          <span style={{ fontFamily: 'monospace', fontWeight: 500, letterSpacing: '0.03em', color: '#185c37', fontSize: '11.5px' }}>
-                            {mainAcc ? (mainAcc.accountNumber || '-') : (beneficiary.accountNumber || '-')}
-                          </span>
-                        );
-                      })()
-                    ) : (
-                      <span style={{ fontFamily: 'monospace', fontWeight: 500, letterSpacing: '0.03em', color: '#185c37', fontSize: '11.5px' }}>
-                        {beneficiary.accountNumber || '-'}
-                      </span>
-                    )}
+              {loading ? (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                    Loading beneficiaries...
                   </td>
                 </tr>
-              ))}
+              ) : filteredBeneficiaries.length === 0 ? (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                    No beneficiaries found
+                  </td>
+                </tr>
+              ) : (
+                filteredBeneficiaries.map((beneficiary, index) => {
+                  const accounts = beneficiary.Accounts || [];
+                  const mainAccount = accounts.find(acc => 
+                    acc.accountType?.toLowerCase() === 'main' || 
+                    acc.accountName?.toLowerCase() === 'main'
+                  );
+                  const emergencyStats = calculateEmergencyStats(accounts);
+                  
+                  return (
+                    <tr key={index}>
+                      <td 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px', 
+                          background: 'inherit', 
+                          border: 'none',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          padding: '10px 6px',
+                          borderRadius: '6px'
+                        }}
+                        onClick={() => handleViewAccountDetails(beneficiary)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#f0f8ff';
+                          e.currentTarget.style.transform = 'scale(1.02)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(24, 92, 55, 0.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'inherit';
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <Avatar color={getRandomPastelColor()}>
+                          {(beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '?').charAt(0)}
+                        </Avatar>
+                        <span style={{ fontWeight: 600, fontSize: '11.5px', color: '#222' }}>
+                          {beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '?'}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ 
+                          fontFamily: 'monospace', 
+                          fontWeight: 500, 
+                          letterSpacing: '0.03em', 
+                          color: '#185c37', 
+                          fontSize: '11.5px' 
+                        }}>
+                          {mainAccount?.accountNumber || beneficiary.accountNumber || '-'}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ 
+                          fontWeight: 600, 
+                          color: '#4CAF50', 
+                          fontSize: '11.5px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          🚨 {formatCurrency(emergencyStats.emergencyBalance)}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ 
+                          fontWeight: 600, 
+                          color: '#185c37', 
+                          fontSize: '11.5px' 
+                        }}>
+                          {formatCurrency(emergencyStats.totalBalance)}
+                        </span>
+                      </td>
+                      <td className="action-btns">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(beneficiary, index);
+                          }}
+                          title="Edit beneficiary"
+                        >
+                          <img src={editIcon} alt="Edit" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewAccountDetails(beneficiary);
+                          }}
+                          title="View account details"
+                          style={{ 
+                            background: '#e3f2fd', 
+                            borderRadius: '4px',
+                            padding: '6px 8px',
+                            fontSize: '10px',
+                            fontWeight: '600',
+                            color: '#1976D2'
+                          }}
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
       </TableContainer>
 
+      {/* Account Details Modal */}
+      {showAccountDetails && selectedBeneficiary && (
+        <ModalOverlay onClick={() => setShowAccountDetails(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ 
+              marginBottom: '20px', 
+              fontSize: '18px', 
+              fontWeight: '700',
+              color: '#222',
+              textAlign: 'center'
+            }}>
+              {selectedBeneficiary.dependentName || selectedBeneficiary.name || selectedBeneficiary.firstName}'s Account Details
+            </h3>
+            
+            {selectedBeneficiary.Accounts && selectedBeneficiary.Accounts.length > 0 ? (
+              <>
+                {/* Emergency Fund Statistics */}
+                <EmergencyInfo>
+                  <h4>🚨 Emergency Fund System</h4>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#666', lineHeight: '1.4' }}>
+                    20% of all transfers automatically allocated to emergency savings
+                  </p>
+                  <div className="emergency-stats">
+                    {(() => {
+                      const stats = calculateEmergencyStats(selectedBeneficiary.Accounts);
+                      return (
+                        <>
+                          <div className="stat-item">
+                            <div className="stat-label">Emergency Fund</div>
+                            <div className="stat-value">{formatCurrency(stats.emergencyBalance)}</div>
+                          </div>
+                          <div className="stat-item">
+                            <div className="stat-label">Emergency %</div>
+                            <div className="stat-value">{stats.emergencyPercentage}%</div>
+                          </div>
+                          <div className="stat-item">
+                            <div className="stat-label">Category Balance</div>
+                            <div className="stat-value">{formatCurrency(stats.categoryBalance)}</div>
+                          </div>
+                          <div className="stat-item">
+                            <div className="stat-label">Total Balance</div>
+                            <div className="stat-value">{formatCurrency(stats.totalBalance)}</div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </EmergencyInfo>
+
+                {/* Accounts Grid */}
+                <AccountsGrid>
+                  {selectedBeneficiary.Accounts.map((account, idx) => {
+                    const isMain = account.accountType?.toLowerCase() === 'main' || 
+                                   account.accountName?.toLowerCase() === 'main';
+                    return (
+                      <AccountCard key={idx} isMain={isMain}>
+                        <AccountType>
+                          {isMain ? 'Main Account (Emergency)' : 
+                           (account.accountType || account.accountName || 'Account')}
+                        </AccountType>
+                        <BalanceAmount isMain={isMain}>
+                          {formatCurrency(account.balance)}
+                        </BalanceAmount>
+                        <div style={{ 
+                          fontSize: '10px', 
+                          color: '#999', 
+                          marginTop: '4px',
+                          fontFamily: 'monospace'
+                        }}>
+                          {account.accountNumber}
+                        </div>
+                      </AccountCard>
+                    );
+                  })}
+                </AccountsGrid>
+
+                <div style={{ 
+                  marginTop: '20px', 
+                  padding: '12px', 
+                  background: '#f8f9fa', 
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  color: '#666',
+                  textAlign: 'center'
+                }}>
+                  💡 <strong>Smart Distribution:</strong> Each transfer automatically allocates 20% to emergency savings 
+                  and distributes 80% across category accounts based on priority.
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+                No account details available
+              </div>
+            )}
+            
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+              <button
+                onClick={() => setShowAccountDetails(false)}
+                style={{
+                  background: 'linear-gradient(135deg, #185c37, #1e6b42)',
+                  color: 'white',
+                  padding: '12px 24px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
       {/* Form Modal */}
       {showFormModal && (
         <ModalOverlay onClick={() => setShowFormModal(false)}>
           <ModalContent onClick={(e) => e.stopPropagation()}>
-          <FormContainer onSubmit={isEditing ? handleUpdateBeneficiary : handleAddBeneficiary}>
+            <FormContainer onSubmit={isEditing ? handleUpdateBeneficiary : handleAddBeneficiary}>
               <h3 style={{ 
                 marginBottom: '20px', 
                 fontSize: '18px', 
@@ -585,8 +928,31 @@ const handleUpdateBeneficiary = async (e) => {
                 color: '#222',
                 textAlign: 'center'
               }}>
-                {isEditing ? 'Edit Beneficiary' : 'Add New Beneficiary'}
+                {isEditing ? 'Edit Beneficiary' : 'Link New Beneficiary'}
               </h3>
+              
+              {!isEditing && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #e3f2fd, #f0f8ff)',
+                  border: '1px solid #2196F3',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  marginBottom: '16px',
+                  fontSize: '13px',
+                  color: '#1976D2',
+                  lineHeight: '1.4'
+                }}>
+                  <div style={{ fontWeight: '600', marginBottom: '8px' }}>🚨 Emergency Fund System</div>
+                  When you link a beneficiary, our intelligent system automatically:
+                  <ul style={{ margin: '8px 0 0 16px', padding: 0 }}>
+                    <li>Allocates <strong>20% to emergency savings</strong> (Main account)</li>
+                    <li>Distributes <strong>80% across category budgets</strong></li>
+                    <li>Prevents overspending with <strong>category limits</strong></li>
+                    <li>Builds <strong>long-term financial discipline</strong></li>
+                  </ul>
+                </div>
+              )}
+
               {isEditing && mainAccountNumber && (
                 <div style={{
                   marginBottom: '12px',
@@ -595,9 +961,12 @@ const handleUpdateBeneficiary = async (e) => {
                   fontWeight: 600,
                   textAlign: 'center',
                   letterSpacing: '0.02em',
-                  fontFamily: 'monospace'
+                  fontFamily: 'monospace',
+                  background: '#e8f5e8',
+                  padding: '8px',
+                  borderRadius: '6px'
                 }}>
-                  Main Account Number: {mainAccountNumber}
+                  Main Account: {mainAccountNumber}
                 </div>
               )}
               
@@ -624,16 +993,16 @@ const handleUpdateBeneficiary = async (e) => {
                     fontWeight: '600',
                     marginBottom: '8px'
                   }}>
-                    Name
+                    Beneficiary Name
                   </label>
                   <input
                     type="text"
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
-                    placeholder="Enter beneficiary name"
+                    placeholder="Enter beneficiary full name"
                     style={{ 
-                      width: '280px',
+                      width: '100%',
                       padding: '12px 16px',
                       border: '2px solid #e0e0e0',
                       borderRadius: '8px',
@@ -660,16 +1029,17 @@ const handleUpdateBeneficiary = async (e) => {
                     name="accountNumber"
                     value={formData.accountNumber}
                     onChange={handleInputChange}
-                    placeholder="Enter account number"
+                    placeholder="Enter main account number"
                     style={{ 
-                      width: '280px',
+                      width: '100%',
                       padding: '12px 16px',
                       border: '2px solid #e0e0e0',
                       borderRadius: '8px',
                       fontSize: '14px',
                       outline: 'none',
                       transition: 'border-color 0.2s',
-                      boxSizing: 'border-box'
+                      boxSizing: 'border-box',
+                      fontFamily: 'monospace'
                     }}
                   />
                 </div>
@@ -708,7 +1078,7 @@ const handleUpdateBeneficiary = async (e) => {
                     boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                   }}
                 >
-                  {isEditing ? 'Update Beneficiary' : 'Add Beneficiary'}
+                  {isEditing ? 'Update Beneficiary' : 'Link Beneficiary'}
                 </button>
               </div>
             </FormContainer>

@@ -136,20 +136,20 @@ function App() {
 
   // Initialize beneficiaries when app starts or user authentication changes
   useEffect(() => {
-    console.log('🚀 App component mounted, initializing beneficiaries...');
-    
-    // Small delay to ensure authentication state is properly set
+    console.log('🚀 App component mounted, evaluating beneficiaries initialization...');
+    // Only initialize caregiver-specific beneficiaries data for caregiver role
     const initTimer = setTimeout(() => {
-      dispatch(initializeBeneficiaries({ forceRefresh: false }));
+      if (user?.role === 'caregiver') {
+        dispatch(initializeBeneficiaries({ forceRefresh: false }));
+      }
     }, 500);
-
     return () => clearTimeout(initTimer);
-  }, [dispatch]);
+  }, [dispatch, user?.role]);
 
   // Re-initialize when user authentication state changes
   useEffect(() => {
-    if (isAuthenticated && user) {
-      console.log('👤 User authenticated, re-initializing beneficiaries...', user.role);
+    if (isAuthenticated && user?.role === 'caregiver') {
+      console.log('👤 Caregiver authenticated, (re)initializing beneficiaries...');
       dispatch(initializeBeneficiaries({ forceRefresh: false }));
     }
   }, [isAuthenticated, user?.id, user?.role, dispatch]);
