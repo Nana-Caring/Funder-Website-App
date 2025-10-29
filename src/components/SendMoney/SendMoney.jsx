@@ -21,7 +21,7 @@ const safeLocalStorage = {
   }
 };
 
-// Available account types for direct transfers (as per API documentation)
+// Available account types for direct transfers (matching backend)
 const ACCOUNT_TYPES = [
   { value: 'Main', label: 'Main Account (Auto-Distribution)', isMain: true },
   { value: 'Healthcare', label: 'Healthcare & Medical', isMain: false },
@@ -164,38 +164,6 @@ const WalletBalance = styled.div`
   font-size: 11px;
   color: #6b7280;
   margin-top: 2px;
-`;
-
-const AccountCard = styled.div`
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 12px;
-  margin: 4px 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-`;
-
-const AccountInfo = styled.div`
-  flex: 1;
-`;
-
-const AccountType = styled.div`
-  font-weight: 600;
-  color: #1e293b;
-`;
-
-const AccountNumber = styled.div`
-  color: #64748b;
-  font-family: monospace;
-  font-size: 10px;
-`;
-
-const AccountBalance = styled.div`
-  color: #22c55e;
-  font-weight: 600;
 `;
 
 const AmountField = styled.div`
@@ -454,35 +422,17 @@ const SendMoney = () => {
       }
 
       const result = await response.json();
+      console.log('📋 Raw beneficiaries response:', result);
       
-      // Handle different response structures
-      let beneficiariesData = [];
-      if (result.success && result.data) {
-        beneficiariesData = result.data;
-      } else if (result.beneficiaries) {
-        beneficiariesData = result.beneficiaries;
-      } else if (Array.isArray(result)) {
-        beneficiariesData = result;
-      } else {
-        throw new Error('Invalid response format');
-      }
+      // Backend returns { beneficiaries: [...] }
+      const beneficiariesData = result.beneficiaries || [];
       
-      // Log the structure of loaded beneficiaries for debugging
-      console.log('📋 Raw beneficiaries data:', beneficiariesData);
-      if (beneficiariesData.length > 0) {
-        console.log('📋 First beneficiary structure:', beneficiariesData[0]);
-        console.log('📋 Available ID fields:', Object.keys(beneficiariesData[0]).filter(key => key.toLowerCase().includes('id')));
-        if (beneficiariesData[0].Accounts && beneficiariesData[0].Accounts.length > 0) {
-          console.log('📋 First account structure:', beneficiariesData[0].Accounts[0]);
-        }
-      }
-      
+      console.log('📋 Loaded beneficiaries:', beneficiariesData);
       setBeneficiaries(beneficiariesData);
       
       // Cache beneficiaries with account info
       safeLocalStorage.setItem('beneficiaries_cache', JSON.stringify(beneficiariesData));
       
-      console.log('✅ Loaded beneficiaries:', beneficiariesData.length);
     } catch (err) {
       console.error('Failed to fetch beneficiaries:', err);
       
@@ -508,7 +458,7 @@ const SendMoney = () => {
     }
 
     try {
-      console.log('🔄 Fetching balance from new API...');
+      console.log('🔄 Fetching balance from API...');
       const response = await fetch(
         'https://nanacaring-backend.onrender.com/api/funder/balance',
         { 
@@ -523,8 +473,9 @@ const SendMoney = () => {
         const result = await response.json();
         console.log('💰 Balance API Response:', result);
         
-        if (result.success && result.data && typeof result.data.balance === 'number') {
-          const newBalance = result.data.balance;
+        // Backend returns { success: true, balance: number, currency: "ZAR", accountNumber: string }
+        if (result.success && typeof result.balance === 'number') {
+          const newBalance = result.balance;
           console.log('✅ Setting balance:', newBalance);
           setBalance(newBalance);
           safeLocalStorage.setItem('funderMainBalance', newBalance.toString());
@@ -532,45 +483,19 @@ const SendMoney = () => {
         }
       }
       
-      throw new Error('New API failed or returned invalid data');
+      throw new Error('Balance API failed or returned invalid data');
     } catch (err) {
-      console.warn('New balance API failed, trying fallback:', err.message);
+      console.error('Balance API failed:', err);
       
-      // Fallback to old endpoint for backward compatibility
-      try {
-        console.log('🔄 Trying fallback balance API...');
-        const response = await fetch(
-          'https://nanacaring-backend.onrender.com/api/funder/deposit/account',
-          { headers: { 'Authorization': `Bearer ${token}` } }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log('💰 Fallback Balance API Response:', data);
-          
-          if (data.data && typeof data.data.rawBalance === 'number') {
-            const newBalance = data.data.rawBalance;
-            console.log('✅ Setting fallback balance:', newBalance);
-            setBalance(newBalance);
-            safeLocalStorage.setItem('funderMainBalance', newBalance.toString());
-            return;
-          }
-        }
-        
-        throw new Error('Fallback API also failed');
-      } catch (fallbackErr) {
-        console.error('All balance APIs failed:', fallbackErr);
-        
-        // Use cached balance as last resort
-        const cached = safeLocalStorage.getItem('funderMainBalance');
-        if (cached && !isNaN(parseFloat(cached))) {
-          const cachedBalance = parseFloat(cached);
-          console.log('📱 Using cached balance:', cachedBalance);
-          setBalance(cachedBalance);
-        } else {
-          console.error('No valid cached balance found');
-          setBalance(0); // Default to 0 if nothing else works
-        }
+      // Use cached balance as last resort
+      const cached = safeLocalStorage.getItem('funderMainBalance');
+      if (cached && !isNaN(parseFloat(cached))) {
+        const cachedBalance = parseFloat(cached);
+        console.log('📱 Using cached balance:', cachedBalance);
+        setBalance(cachedBalance);
+      } else {
+        console.error('No valid cached balance found');
+        setBalance(0); // Default to 0 if nothing else works
       }
     }
   };
@@ -616,55 +541,32 @@ const SendMoney = () => {
         throw new Error('Beneficiary not found. Please select a valid recipient.');
       }
 
-      // Find the account with the selected account type
-      const selectedAccount = beneficiary.Accounts?.find(acc => acc.accountType === selectedAccountType);
-      
-      if (!selectedAccount) {
-        console.error('❌ Account not found. Selected account type:', selectedAccountType, 'Available accounts:', beneficiary.Accounts);
-        throw new Error(`${selectedAccountType} account not found for this beneficiary.`);
-      }
-
       console.log('✅ Found beneficiary:', beneficiary);
-      console.log('✅ Found target account:', selectedAccount);
 
       const token = safeLocalStorage.getItem('token');
       if (!token) {
         throw new Error('Authentication token not found. Please log in again.');
       }
 
-      // Use the correct beneficiary ID field
-      const beneficiaryId = beneficiary.id;
-      if (!beneficiaryId) {
-        console.error('❌ No valid ID found for beneficiary:', beneficiary);
-        throw new Error('Invalid beneficiary data. Please refresh and try again.');
-      }
-
       // Validate beneficiary ID is a valid number
-      const parsedBeneficiaryId = parseInt(beneficiaryId, 10);
+      const parsedBeneficiaryId = parseInt(beneficiary.id, 10);
       if (isNaN(parsedBeneficiaryId) || parsedBeneficiaryId <= 0) {
-        console.error('❌ Invalid beneficiary ID format:', beneficiaryId, '- parsed as:', parsedBeneficiaryId);
+        console.error('❌ Invalid beneficiary ID format:', beneficiary.id, '- parsed as:', parsedBeneficiaryId);
         throw new Error('Invalid beneficiary ID. Please select a valid recipient.');
       }
 
-      // Prepare transfer data using correct API structure (matching backend validation)
+      // Prepare transfer data using correct API structure (matching backend)
       const transferData = {
-        beneficiaryId: parsedBeneficiaryId,
-        accountNumber: selectedAccount.accountNumber,
+        beneficiaryUserId: parsedBeneficiaryId,  // Backend expects this field name
+        accountType: selectedAccountType,        // Backend expects this field name
         amount: transferAmount,
+        currency: 'ZAR',
+        type: 'TRANSFER',                        // Required by backend - Transaction.type cannot be null
         description: `${selectedAccountType === 'Main' ? 'General support with auto-distribution' : `Direct ${selectedAccountType} support`} - ${beneficiary.name || 'Unknown'}`
       };
 
-      // Enhanced logging for debugging
-      console.log('📤 Transfer Data Preparation:');
-      console.log('  - Beneficiary ID:', parsedBeneficiaryId, typeof parsedBeneficiaryId);
-      console.log('  - Account Number:', selectedAccount.accountNumber, typeof selectedAccount.accountNumber);
-      console.log('  - Account Type:', selectedAccount.accountType);
-      console.log('  - Amount:', transferAmount, typeof transferAmount);
-      console.log('  - Beneficiary object:', beneficiary);
-      console.log('  - Selected account object:', selectedAccount);
       console.log('📤 Final Transfer Request:', JSON.stringify(transferData, null, 2));
 
-      // Make transfer request using correct API endpoint
       const response = await fetch(
         'https://nanacaring-backend.onrender.com/api/funder/transfer',
         {
@@ -678,57 +580,23 @@ const SendMoney = () => {
       );
 
       const result = await response.json();
-      
       console.log('📡 Backend response:', result);
 
-      if (!response.ok || !result.success) {
+      if (!response.ok) {
         console.error('❌ Transfer failed - Full response:', {
           status: response.status,
           statusText: response.statusText,
           result: result,
-          resultType: typeof result,
-          resultKeys: Object.keys(result || {}),
         });
         
-        // Enhanced error handling with debugging
-        if (result.errors && Array.isArray(result.errors)) {
-          console.log('🔍 Processing validation errors:', result.errors);
-          const errorMessages = result.errors.map(err => {
-            console.log('🔍 Individual error:', err, typeof err);
-            if (typeof err === 'string') {
-              return err;
-            }
-            if (err && typeof err === 'object') {
-              const field = err.field || err.path || err.property || err.param || 'field';
-              const message = err.message || err.msg || err.error || 'validation error';
-              return `${field}: ${message}`;
-            }
-            return 'Unknown validation error';
-          }).filter(msg => msg && msg.trim() !== '' && msg !== 'undefined: undefined');
-          
-          if (errorMessages.length > 0) {
-            throw new Error(`Validation failed:\n${errorMessages.join('\n')}`);
-          }
-        }
-        
-        // Check for different error structures
-        if (result.error) {
-          console.log('🔍 Found result.error:', result.error);
-          throw new Error(result.error);
-        }
-        
-        if (result.message === 'Insufficient funds') {
-          throw new Error(`Insufficient funds. Available: R${result.data?.availableBalance || balance}, Requested: R${result.data?.requestedAmount || transferAmount}`);
-        }
-
-        if (result.message === 'Not authorized to transfer to this beneficiary') {
-          throw new Error('You are not authorized to transfer to this beneficiary. Please contact support.');
+        // Enhanced error handling based on backend response
+        if (result.message) {
+          throw new Error(result.message);
         }
         
         // Handle HTTP status codes
         if (response.status === 400) {
-          const errorMsg = result.message || 'Bad request - please check your input data';
-          throw new Error(errorMsg);
+          throw new Error('Bad request - please check your input data');
         }
         
         if (response.status === 401) {
@@ -747,37 +615,20 @@ const SendMoney = () => {
           throw new Error('Server error. Please try again later.');
         }
         
-        const errorMsg = result.message || `Transfer failed (HTTP ${response.status})`;
-        throw new Error(errorMsg);
+        throw new Error(`Transfer failed (HTTP ${response.status})`);
       }
 
-      // Store transfer result for display
-      console.log('📊 Transfer result data structure:', result.data);
-      if (result.data.autoDistribution) {
-        console.log('🏦 Emergency fund value:', result.data.autoDistribution.emergencyFund, 'type:', typeof result.data.autoDistribution.emergencyFund);
-        console.log('🏦 Categories:', result.data.autoDistribution.categories);
-      }
-      setTransferResult(result.data);
+      // Backend returns: { message: "Transfer completed successfully with smart distribution", transferDetails: {...} }
+      setTransferResult(result.transferDetails || result);
 
-      // Update balance
-      const newBalance = result.data.funder.newBalance;
-      setBalance(newBalance);
-      safeLocalStorage.setItem('funderMainBalance', newBalance.toString());
+      // Update balance (since backend doesn't return new balance, fetch it)
+      await fetchBalance();
 
-      // Show success popup with concise details
-      if (result.data.autoDistribution) {
+      // Show success popup based on transfer type
+      if (selectedAccountType === 'Main') {
         // Main account transfer success message
-        const categoriesCount = (result.data.autoDistribution.categories || [])
-          .filter(cat => cat && typeof cat.amount === 'number' && cat.amount > 0).length;
-        
-        // Calculate emergency fund with proper fallback (20% of transfer amount)
-        const emergencyFund = result.data.autoDistribution.emergencyFund;
-        const emergencyAmount = (emergencyFund !== undefined && !isNaN(Number(emergencyFund))) 
-          ? Number(emergencyFund).toFixed(2)
-          : (transferAmount * 0.2).toFixed(2); // 20% fallback
-        
         setPopupMessage(
-          `R${transferAmount.toFixed(2)} sent successfully!\n\nSmart distribution applied to ${categoriesCount} categories\nEmergency fund: R${emergencyAmount}`
+          `R${transferAmount.toFixed(2)} sent successfully!\n\nSmart distribution activated\nFunds distributed across spending categories with 20% emergency fund`
         );
       } else {
         // Direct transfer success message  
@@ -813,11 +664,11 @@ const SendMoney = () => {
     
     const transferAmount = parseFloat(amount);
     
-    // FIXED: Use correct distribution percentages as per API (80% distributed, 20% emergency fund)
+    // Use correct distribution percentages as per backend (80% distributed, 20% emergency fund)
     const emergencyFund = transferAmount * 0.20; // 20% emergency fund
     const totalForDistribution = transferAmount * 0.80; // 80% distributed
     
-    // Distribution percentages from the actual API (of the 80% distribution amount)
+    // Distribution percentages from the backend (of the 80% distribution amount)
     const distributionPattern = [
       { category: 'Healthcare', percentage: 25, amount: (totalForDistribution * 0.25).toFixed(2) },
       { category: 'Groceries', percentage: 20, amount: (totalForDistribution * 0.20).toFixed(2) },
@@ -859,14 +710,11 @@ const SendMoney = () => {
               required
             >
               <option value="">Choose a beneficiary...</option>
-              {beneficiaries.map((b) => {
-                const beneficiaryId = b.id;
-                return (
-                  <option key={beneficiaryId} value={String(beneficiaryId)}>
-                    {b.name} {b.relationship ? `(${b.relationship})` : ''}
-                  </option>
-                );
-              })}
+              {beneficiaries.map((b) => (
+                <option key={b.id} value={String(b.id)}>
+                  {b.name}
+                </option>
+              ))}
             </select>
           </FormGroup>
 
@@ -994,8 +842,8 @@ const SendMoney = () => {
                     <SuccessValue>R{Number(transferResult.amount || 0).toFixed(2)}</SuccessValue>
                   </SuccessItem>
                   <SuccessItem>
-                    <SuccessLabel>New Balance</SuccessLabel>
-                    <SuccessValue>R{Number(transferResult.funder?.newBalance || 0).toFixed(2)}</SuccessValue>
+                    <SuccessLabel>Target Account</SuccessLabel>
+                    <SuccessValue>{transferResult.targetAccount || selectedAccountType}</SuccessValue>
                   </SuccessItem>
                 </SuccessGrid>
                 
@@ -1008,16 +856,11 @@ const SendMoney = () => {
                   textAlign: 'center'
                 }}>
                   <div style={{ fontWeight: '600', color: '#475569', marginBottom: '4px' }}>
-                    Reference: {String(transferResult.transferReference || 'N/A')}
+                    Beneficiary ID: {transferResult.beneficiaryId || selectedBeneficiaryId}
                   </div>
-                  {transferResult.autoDistribution && (
+                  {selectedAccountType === 'Main' && (
                     <div style={{ color: '#64748b', fontSize: '11px' }}>
-                      🧠 {(transferResult.autoDistribution.categories || []).filter(c => c && typeof c.amount === 'number' && c.amount > 0).length} categories funded + R{(() => {
-                        const emergencyFund = transferResult.autoDistribution.emergencyFund;
-                        return (emergencyFund !== undefined && !isNaN(Number(emergencyFund))) 
-                          ? Number(emergencyFund).toFixed(2)
-                          : (Number(transferResult.amount || 0) * 0.2).toFixed(2);
-                      })()} emergency
+                      🧠 Smart distribution activated with emergency fund
                     </div>
                   )}
                 </div>
