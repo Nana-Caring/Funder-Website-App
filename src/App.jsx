@@ -139,7 +139,7 @@ function App() {
     
     // Small delay to ensure authentication state is properly set
     const initTimer = setTimeout(() => {
-      dispatch(initializeBeneficiaries());
+      dispatch(initializeBeneficiaries({ forceRefresh: false }));
     }, 500);
 
     return () => clearTimeout(initTimer);
@@ -149,7 +149,7 @@ function App() {
   useEffect(() => {
     if (isAuthenticated && user) {
       console.log('👤 User authenticated, re-initializing beneficiaries...', user.role);
-      dispatch(initializeBeneficiaries());
+      dispatch(initializeBeneficiaries({ forceRefresh: false }));
     }
   }, [isAuthenticated, user?.id, user?.role, dispatch]);
 

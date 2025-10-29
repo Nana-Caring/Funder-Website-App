@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://nanacaring-backend.onrender.com/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://nanacaring-backend.onrender.com';
 
 export const caregiverService = {
   // ===== PRIMARY CAREGIVER ROUTES =====
@@ -10,23 +10,36 @@ export const caregiverService = {
     try {
       console.log('Fetching dependents with params:', params);
       
-      const response = await axios.get(`${API_BASE_URL}/caregiver/dependents`, {
+      const queryParams = {
+        page: params.page || 1,
+        limit: Math.min(params.limit || 10, 100), // Max 100 as per backend limits
+        search: params.search || '',
+        status: params.status || 'active',
+        sortBy: params.sortBy || 'createdAt',
+        sortOrder: params.sortOrder || 'DESC'
+      };
+      
+      const response = await axios.get(`${API_BASE_URL}/api/caregiver/dependents`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        params: {
-          page: params.page || 1,
-          limit: Math.min(params.limit || 10, 100), // Max 100 as per docs
-          search: params.search || '',
-          status: params.status || 'active',
-          sortBy: params.sortBy || 'createdAt',
-          sortOrder: params.sortOrder || 'DESC'
-        }
+        params: queryParams
       });
       
       console.log('Dependents response:', response.data);
-      return response.data;
+      
+      // Handle the new API response structure
+      if (response.data.success) {
+        return {
+          success: true,
+          dependents: response.data.data.dependents || [],
+          pagination: response.data.data.pagination || {},
+          message: response.data.message
+        };
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch dependents');
+      }
     } catch (error) {
       console.error('Error fetching dependents:', {
         status: error.response?.status,
@@ -35,7 +48,7 @@ export const caregiverService = {
         message: error.message
       });
       
-      // More specific error handling based on docs
+      // Enhanced error handling based on API documentation
       if (error.response?.status === 401) {
         throw new Error('Authentication failed. Please log in again.');
       } else if (error.response?.status === 403) {
@@ -55,7 +68,7 @@ export const caregiverService = {
     try {
       console.log('Fetching dependent by ID:', dependentId);
       
-      const response = await axios.get(`${API_BASE_URL}/caregiver/dependents/${dependentId}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/caregiver/dependents/${dependentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -63,7 +76,19 @@ export const caregiverService = {
       });
       
       console.log('Dependent details response:', response.data);
-      return response.data;
+      
+      // Handle the new API response structure
+      if (response.data.success) {
+        return {
+          success: true,
+          dependent: response.data.data.dependent || {},
+          accounts: response.data.data.accounts || [],
+          summary: response.data.data.summary || {},
+          message: response.data.message
+        };
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch dependent details');
+      }
     } catch (error) {
       console.error('Error fetching dependent details:', {
         status: error.response?.status,
@@ -90,7 +115,7 @@ export const caregiverService = {
     try {
       console.log('Fetching caregiver statistics');
       
-      const response = await axios.get(`${API_BASE_URL}/caregiver/stats`, {
+      const response = await axios.get(`${API_BASE_URL}/api/caregiver/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -98,7 +123,23 @@ export const caregiverService = {
       });
       
       console.log('Caregiver stats response:', response.data);
-      return response.data;
+      
+      // Handle the new API response structure
+      if (response.data.success) {
+        return {
+          success: true,
+          stats: response.data.data || {},
+          totalDependents: response.data.data.totalDependents || 0,
+          totalAccountBalance: response.data.data.totalBalance || 0,
+          currency: 'ZAR',
+          dependentsByStatus: response.data.data.dependentsByStatus || {},
+          accountSummary: response.data.data.accountSummary || {},
+          recentActivity: response.data.data.recentActivity || {},
+          message: response.data.message
+        };
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch statistics');
+      }
     } catch (error) {
       console.error('Error fetching caregiver stats:', {
         status: error.response?.status,
@@ -123,19 +164,34 @@ export const caregiverService = {
     try {
       console.log('Fetching recent activity with params:', params);
       
-      const response = await axios.get(`${API_BASE_URL}/caregiver/activity`, {
+      const queryParams = {
+        limit: params.limit || 20,
+        days: params.days || 7
+      };
+      
+      const response = await axios.get(`${API_BASE_URL}/api/caregiver/activity`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        params: {
-          limit: params.limit || 20,
-          days: params.days || 7
-        }
+        params: queryParams
       });
       
       console.log('Activity response:', response.data);
-      return response.data;
+      
+      // Handle the new API response structure
+      if (response.data.success) {
+        return {
+          success: true,
+          activities: response.data.data.activities || [],
+          summary: response.data.data.summary || {},
+          transactions: response.data.data.activities || [], // for backward compatibility
+          totalTransactions: response.data.data.summary?.totalActivities || 0,
+          message: response.data.message
+        };
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch activity');
+      }
     } catch (error) {
       console.error('Error fetching activity:', {
         status: error.response?.status,
@@ -302,25 +358,40 @@ export const caregiverService = {
     try {
       console.log('Fetching all caregiver transactions with params:', params);
       
-      const response = await axios.get(`${API_BASE_URL}/caregiver/transactions`, {
+      const queryParams = {
+        page: params.page || 1,
+        limit: params.limit || 20,
+        ...(params.startDate && { startDate: params.startDate }),
+        ...(params.endDate && { endDate: params.endDate }),
+        ...(params.accountType && { accountType: params.accountType }),
+        ...(params.transactionType && { transactionType: params.transactionType }),
+        ...(params.dependentId && { dependentId: params.dependentId }),
+        sortBy: params.sortBy || 'createdAt',
+        sortOrder: params.sortOrder || 'DESC'
+      };
+      
+      const response = await axios.get(`${API_BASE_URL}/api/caregiver/transactions`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        params: {
-          page: params.page || 1,
-          limit: params.limit || 20,
-          startDate: params.startDate,
-          endDate: params.endDate,
-          category: params.category,
-          dependentId: params.dependentId,
-          sortBy: params.sortBy || 'createdAt',
-          sortOrder: params.sortOrder || 'DESC'
-        }
+        params: queryParams
       });
       
       console.log('All transactions response:', response.data);
-      return response.data;
+      
+      // Handle the new API response structure
+      if (response.data.success) {
+        return {
+          success: true,
+          transactions: response.data.data.transactions || [],
+          summary: response.data.data.summary || {},
+          pagination: response.data.data.pagination || {},
+          message: response.data.message
+        };
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch transactions');
+      }
     } catch (error) {
       console.error('Error fetching all transactions:', {
         status: error.response?.status,
@@ -347,24 +418,39 @@ export const caregiverService = {
     try {
       console.log('Fetching transactions for dependent:', dependentId, 'with params:', params);
       
-      const response = await axios.get(`${API_BASE_URL}/caregiver/dependents/${dependentId}/transactions`, {
+      const queryParams = {
+        page: params.page || 1,
+        limit: params.limit || 20,
+        ...(params.accountType && { accountType: params.accountType }),
+        ...(params.startDate && { startDate: params.startDate }),
+        ...(params.endDate && { endDate: params.endDate }),
+        sortBy: params.sortBy || 'createdAt',
+        sortOrder: params.sortOrder || 'DESC'
+      };
+      
+      const response = await axios.get(`${API_BASE_URL}/api/caregiver/dependents/${dependentId}/transactions`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        params: {
-          page: params.page || 1,
-          limit: params.limit || 20,
-          startDate: params.startDate,
-          endDate: params.endDate,
-          category: params.category,
-          sortBy: params.sortBy || 'createdAt',
-          sortOrder: params.sortOrder || 'DESC'
-        }
+        params: queryParams
       });
       
       console.log('Dependent transactions response:', response.data);
-      return response.data;
+      
+      // Handle the new API response structure
+      if (response.data.success) {
+        return {
+          success: true,
+          dependent: response.data.data.dependent || {},
+          transactions: response.data.data.transactions || [],
+          summary: response.data.data.summary || {},
+          pagination: response.data.data.pagination || {},
+          message: response.data.message
+        };
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch dependent transactions');
+      }
     } catch (error) {
       console.error('Error fetching dependent transactions:', {
         status: error.response?.status,
@@ -391,22 +477,40 @@ export const caregiverService = {
     try {
       console.log('Fetching transaction analytics with params:', params);
       
-      const response = await axios.get(`${API_BASE_URL}/caregiver/transactions/analytics`, {
+      const queryParams = {
+        period: params.period || 'month', // week, month, quarter, year
+        ...(params.dependentId && { dependentId: params.dependentId })
+      };
+      
+      const response = await axios.get(`${API_BASE_URL}/api/caregiver/transactions/analytics`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        params: {
-          period: params.period || 'month', // month, week, year
-          dependentId: params.dependentId,
-          category: params.category,
-          startDate: params.startDate,
-          endDate: params.endDate
-        }
+        params: queryParams
       });
       
       console.log('Transaction analytics response:', response.data);
-      return response.data;
+      
+      // Handle the new API response structure
+      if (response.data.success) {
+        return {
+          success: true,
+          analytics: response.data.data || {},
+          period: response.data.data.period || params.period,
+          dateRange: response.data.data.dateRange || {},
+          totalSpending: response.data.data.totalSpending || 0,
+          totalIncome: response.data.data.totalIncome || 0,
+          netBalance: response.data.data.netBalance || 0,
+          transactionCount: response.data.data.transactionCount || 0,
+          spendingByCategory: response.data.data.spendingByCategory || {},
+          spendingTrend: response.data.data.spendingTrend || [],
+          topMerchants: response.data.data.topMerchants || [],
+          message: response.data.message
+        };
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch transaction analytics');
+      }
     } catch (error) {
       console.error('Error fetching transaction analytics:', {
         status: error.response?.status,
@@ -539,20 +643,20 @@ export const caregiverService = {
         'Content-Type': 'application/json'
       };
 
-      console.log('Attempting registration with endpoint:', `${API_BASE_URL}/auth/register-dependent`);
+      console.log('Attempting registration with endpoint:', `${API_BASE_URL}/api/auth/register-dependent`);
       
       try {
-        response = await axios.post(`${API_BASE_URL}/auth/register-dependent`, requestData, { headers });
+        response = await axios.post(`${API_BASE_URL}/api/auth/register-dependent`, requestData, { headers });
       } catch (primaryError) {
-        console.log('Auth endpoint failed, trying alternative endpoint:', `${API_BASE_URL}/register-dependent`);
+        console.log('Auth endpoint failed, trying alternative endpoint:', `${API_BASE_URL}/api/register-dependent`);
         
         try {
-          response = await axios.post(`${API_BASE_URL}/register-dependent`, requestData, { headers });
+          response = await axios.post(`${API_BASE_URL}/api/register-dependent`, requestData, { headers });
         } catch (fallbackError) {
-          console.log('Fallback endpoint failed, trying users endpoint:', `${API_BASE_URL}/users/dependents`);
+          console.log('Fallback endpoint failed, trying users endpoint:', `${API_BASE_URL}/api/users/dependents`);
           
           try {
-            response = await axios.post(`${API_BASE_URL}/users/dependents`, requestData, { headers });
+            response = await axios.post(`${API_BASE_URL}/api/users/dependents`, requestData, { headers });
           } catch (usersError) {
             console.log('All endpoints failed. Auth error:', primaryError.response?.status, primaryError.response?.data);
             console.log('Fallback error:', fallbackError.response?.status, fallbackError.response?.data);

@@ -6,9 +6,8 @@ import expensesIcon from '../assets/icons/expenses.png';
 import arrowIcon from '../assets/icons/arrow.png';
 import ProfileCompletionPopup from './common/ProfileCompletionPopup';
 import { 
-  fetchDependents, 
-  fetchCaregiverStats, 
-  fetchRecentActivity 
+  initializeBeneficiaries,
+  setCurrentUser 
 } from '../store/slices/beneficiaries';
 
 // Styled components
@@ -306,18 +305,39 @@ const CareGiverHome = () => {
   
   const token = localStorage.getItem('token');
 
-  // Fetch data on component mount
+  // Initialize data on component mount with smart caching
   useEffect(() => {
-    if (token) {
-      dispatch(fetchCaregiverStats(token));
-      dispatch(fetchDependents({ token, params: { limit: 5 } }));
-      dispatch(fetchRecentActivity({ token, params: { limit: 4, days: 30 } }));
+    if (token && user) {
+      // Set current user for proper data segmentation
+      dispatch(setCurrentUser(user.id));
+      
+      // Initialize beneficiaries with smart caching
+      dispatch(initializeBeneficiaries({ forceRefresh: false }));
     }
-  }, [dispatch, token]);
+  }, [dispatch, token, user?.id]);
 
-  // Calculate dynamic account data based on dependents
+  // Calculate dynamic account data based on dependents and their actual account balances
   const getAccountsData = () => {
-    if (!dependents.length) {
+    // Calculate total balance from dependents' accounts or use stats fallback
+    const calculateTotalBalance = () => {
+      if (dependents && dependents.length > 0) {
+        // Sum up all dependents' account balances
+        const dependentTotalBalance = dependents.reduce((total, dependent) => {
+          const accountBalance = dependent.account?.balance || 0;
+          return total + accountBalance;
+        }, 0);
+        
+        // Use dependent accounts total if available, otherwise fallback to stats
+        return dependentTotalBalance > 0 ? dependentTotalBalance : (stats?.totalAccountBalance || 0);
+      }
+      
+      // Fallback to stats if no dependents
+      return stats?.totalAccountBalance || 0;
+    };
+
+    const totalBalance = calculateTotalBalance();
+    
+    if (totalBalance === 0) {
       return [
         { color: '#a084ee', label: 'Baby Care Account', percent: 0, balance: 0 },
         { color: '#3b82f6', label: 'Entertainment Account', percent: 0, balance: 0 },
@@ -326,46 +346,47 @@ const CareGiverHome = () => {
       ];
     }
 
-    const totalBalance = stats?.totalAccountBalance || 0;
-    const accountCount = dependents.length;
-    const avgBalance = accountCount > 0 ? totalBalance / accountCount : 0;
-
-    return [
-      { 
-        color: '#a084ee', 
-        label: 'Baby Care Account', 
-        percent: totalBalance > 0 ? 25 : 0, 
-        balance: avgBalance * 0.3 
-      },
-      { 
-        color: '#3b82f6', 
-        label: 'Entertainment Account', 
-        percent: totalBalance > 0 ? 20 : 0, 
-        balance: avgBalance * 0.2 
-      },
-      { 
-        color: '#ffb84c', 
-        label: 'Healthcare Account', 
-        percent: totalBalance > 0 ? 35 : 0, 
-        balance: avgBalance * 0.35 
-      },
-      { 
-        color: '#4ade80', 
-        label: 'Education Account', 
-        percent: totalBalance > 0 ? 20 : 0, 
-        balance: avgBalance * 0.15 
-      },
+    // Account distribution based on typical family spending patterns
+    const accountDistributions = [
+      { color: '#a084ee', label: 'Baby Care Account', percent: 25, ratio: 0.25 },
+      { color: '#3b82f6', label: 'Entertainment Account', percent: 20, ratio: 0.20 },
+      { color: '#ffb84c', label: 'Healthcare Account', percent: 35, ratio: 0.35 },
+      { color: '#4ade80', label: 'Education Account', percent: 20, ratio: 0.20 },
     ];
+
+    return accountDistributions.map(account => ({
+      ...account,
+      balance: totalBalance * account.ratio
+    }));
   };
 
   const accountsData = getAccountsData();
   const recentTransactions = recentActivity?.transactions || [];
   
+  // Calculate total balance for display and calculations
+  const getTotalBalance = () => {
+    if (dependents && dependents.length > 0) {
+      // Sum up all dependents' account balances
+      const dependentTotalBalance = dependents.reduce((total, dependent) => {
+        const accountBalance = dependent.account?.balance || 0;
+        return total + accountBalance;
+      }, 0);
+      
+      // Use dependent accounts total if available, otherwise fallback to stats
+      return dependentTotalBalance > 0 ? dependentTotalBalance : (stats?.totalAccountBalance || 0);
+    }
+    
+    // Fallback to stats if no dependents
+    return stats?.totalAccountBalance || 0;
+  };
+
+  const totalBalance = getTotalBalance();
+  
   // Mock requests data - replace with real API when available
   const requests = [
-    { name: 'Healthcare Request', reason: 'Medical expenses', amount: `R${(stats?.totalAccountBalance * 0.1 || 1000).toFixed(0)}` },
-    { name: 'Education Request', reason: 'School fees', amount: `R${(stats?.totalAccountBalance * 0.15 || 1500).toFixed(0)}` },
-    { name: 'Emergency Request', reason: 'Urgent care', amount: `R${(stats?.totalAccountBalance * 0.05 || 500).toFixed(0)}` },
+    { name: 'Healthcare Request', reason: 'Medical expenses', amount: `R${(totalBalance * 0.1 || 1000).toFixed(0)}` },
+    { name: 'Education Request', reason: 'School fees', amount: `R${(totalBalance * 0.15 || 1500).toFixed(0)}` },
+    { name: 'Emergency Request', reason: 'Urgent care', amount: `R${(totalBalance * 0.05 || 500).toFixed(0)}` },
   ];
 
   useEffect(() => {
@@ -471,7 +492,7 @@ const CareGiverHome = () => {
             
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '20px', fontWeight: '700', marginBottom: '4px' }}>
-                {stats?.currency || 'ZAR'} {stats?.totalAccountBalance?.toFixed(2) || '0.00'}
+                {stats?.currency || 'ZAR'} {totalBalance.toFixed(2)}
               </div>
               <div style={{ fontSize: '12px', opacity: 0.8 }}>Total Balance</div>
             </div>
@@ -505,7 +526,7 @@ const CareGiverHome = () => {
             <FlexRow style={{ justifyContent: 'space-between', marginBottom: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ color: '#222', fontWeight: 500, fontSize: 16 }}>
-                  Total Balance: {stats?.currency || 'ZAR'} {stats?.totalAccountBalance?.toFixed(2) || '0.00'}
+                  Total Balance: {stats?.currency || 'ZAR'} {totalBalance.toFixed(2)}
                 </div>
                 <img src={expensesIcon} alt="Expenses" style={{ width: 24, height: 24 }} />
               </div>

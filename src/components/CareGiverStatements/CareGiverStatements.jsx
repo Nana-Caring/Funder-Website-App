@@ -1,12 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import styled from 'styled-components';
 import { 
   fetchCaregiverTransactions, 
   fetchDependents,
   fetchTransactionAnalytics 
 } from '../../store/slices/beneficiaries';
 import { caregiverService } from '../../services/caregiverService';
+import {
+  Container,
+  Content, 
+  Title,
+  DownloadButton,
+  FilterRow,
+  Select,
+  SearchInput,
+  TableWrapper,
+  Table,
+  Th,
+  Td,
+  MainContent,
+  LoadingSpinner,
+  ErrorMessage,
+  DownloadModal,
+  ModalContent,
+  ModalHeader,
+  CloseButton,
+  ModalField,
+  ModalSelect,
+  ModalActions,
+  ModalButton,
+  formatDate,
+  downloadCSV
+} from '../shared/StatementsStyles';
 
 const mockData = [
   { id: 1, date: '25-mar-2025 11:05 AM', amount: 'R500.00', beneficiary: 'Son', account: 'Savings Account' },
@@ -18,336 +43,6 @@ const mockData = [
   { id: 7, date: '25-mar-2025 11:05 AM', amount: 'R800.00', beneficiary: 'Son', account: 'Savings Account' },
   { id: 8, date: '25-mar-2025 11:05 AM', amount: 'R900.00', beneficiary: 'Daughter', account: 'Medication Account' },
 ];
-
-const Container = styled.div`
-  width: 100%;
-  height: calc(100vh - 100px); /* Adjust for header margin */
-  display: flex;
-  flex-direction: column;
-  align-items: center; /* Center horizontally */
-  justify-content: flex-start;
- 
-  box-sizing: border-box;
-`;
-
-const Content = styled.div`
-  width: 100%;
- 
-  
-  padding: 0 12px;
-  box-sizing: border-box;
-`;
-
-const Title = styled.h3`
-  font-size: 15px;
-  font-weight: 600;
-  color: #222;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-`;
-
-const DownloadButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: #185c37;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: #1e6b42;
-    transform: translateY(-1px);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-
-  &:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  svg {
-    width: 14px;
-    height: 14px;
-  }
-`;
-
-const LoadingSpinner = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  color: #666;
-  font-size: 14px;
-`;
-
-const ErrorMessage = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  color: #ef4444;
-  font-size: 14px;
-  text-align: center;
-`;
-
-const DownloadModal = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const ModalContent = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  width: 90%;
-  max-width: 400px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-`;
-
-const ModalHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  
-  h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: #222;
-  }
-`;
-
-const CloseButton = styled.button`
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #666;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: #f0f0f0;
-    color: #333;
-  }
-`;
-
-const ModalField = styled.div`
-  margin-bottom: 16px;
-  
-  label {
-    display: block;
-    margin-bottom: 6px;
-    font-size: 14px;
-    font-weight: 500;
-    color: #333;
-  }
-`;
-
-const ModalSelect = styled.select`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 14px;
-  background: white;
-  
-  &:focus {
-    outline: none;
-    border-color: #185c37;
-    box-shadow: 0 0 0 3px rgba(24, 92, 55, 0.1);
-  }
-`;
-
-const ModalActions = styled.div`
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  margin-top: 24px;
-`;
-
-const ModalButton = styled.button`
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  
-  &.primary {
-    background: #185c37;
-    color: white;
-    
-    &:hover {
-      background: #1e6b42;
-    }
-    
-    &:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
-  }
-  
-  &.secondary {
-    background: #f8f9fa;
-    color: #333;
-    border: 1px solid #d1d5db;
-    
-    &:hover {
-      background: #e9ecef;
-    }
-  }
-`;
-
-const FilterRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px; /* Reduced from 16px */
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-`;
-
-const Select = styled.select`
-  padding: 4px 8px; /* Reduced padding */
-  border-radius: 4px;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  font-size: 13px;
-`;
-
-const SearchInput = styled.input`
-  margin-left: auto;
-  padding: 4px 8px; /* Reduced padding */
-  border-radius: 4px;
-  border: 1px solid #d1d5db;
-  font-size: 13px;
-  width: 160px; /* Reduced from 180px */
-`;
-
-const TableWrapper = styled.div`
-  background: #fff;
-  border-radius: 16px;
-  overflow-y: auto;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  height: calc(100vh - 280px); /* Fixed height for scrolling */
-  margin-top: 16px;
-
-  /* Custom scrollbar styling */
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #ddd;
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: #ccc;
-  }
-`;
-
-const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-
-  thead {
-    position: sticky;
-    top: 0;
-    background: #f3f7f1;
-    z-index: 1;
-    
-    tr {
-      th {
-        padding: 12px 16px;
-        background: #f3f7f1; /* Ensure header background is solid */
-      }
-    }
-  }
-
-  tbody {
-    tr {
-      &:hover {
-        background: #f8f9fa;
-      }
-    }
-  }
-`;
-
-const Th = styled.th`
-  background: #f3f7f1;
-  color: #222;
-  font-weight: 500;
-  padding: 8px 6px; /* Reduced padding */
-  text-align: left;
-`;
-
-const Td = styled.td`
-  padding: 8px 6px; /* Reduced padding */
-  border-top: 1px solid #f0f0f0;
-  color: #333;
-`;
-
-const Page = styled.div`
-  min-height: 100vh;
-  height: 100vh;
-  background: #f7faf7;
-  padding: 0;
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  overflow: hidden;
-`;
-
-const MainContent = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: calc(100% - 250px);
-  margin-left: auto;
-  margin-top: 80px; /* Add margin to move content below header */
-  box-sizing: border-box;
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`;
 
 const CareGiverStatements = () => {
   const dispatch = useDispatch();
@@ -391,32 +86,75 @@ const CareGiverStatements = () => {
     }
   }, [dispatch, token]);
 
-  // Process transactions for display
+  // Process transactions for display - supports both old and new API response formats
   const processTransactions = () => {
-    if (!transactions?.all || !Array.isArray(transactions.all)) {
+    // Handle new API response structure: { success: true, data: { dependent, transactions, summary, pagination } }
+    let transactionList = [];
+    
+    if (transactions?.all && Array.isArray(transactions.all)) {
+      // Old format - transactions are in transactions.all
+      transactionList = transactions.all;
+    } else if (transactions?.data?.transactions && Array.isArray(transactions.data.transactions)) {
+      // New format - transactions are in transactions.data.transactions
+      transactionList = transactions.data.transactions;
+    } else if (Array.isArray(transactions)) {
+      // Direct array format
+      transactionList = transactions;
+    }
+
+    if (!transactionList.length) {
       return [];
     }
 
-    return transactions.all.map((tx, index) => {
-      const dependent = dependents.find(dep => dep.id === tx.userId || dep.userId === tx.userId);
+    return transactionList.map((tx, index) => {
+      // Handle both old and new transaction structure
+      const dependent = dependents.find(dep => 
+        dep.id === tx.userId || 
+        dep.userId === tx.userId ||
+        dep.id === tx.dependentId ||
+        (tx.dependent && dep.id === tx.dependent.id)
+      );
+      
       const txDate = new Date(tx.timestamp || tx.createdAt || tx.date);
+      
+      // Handle new transaction fields
+      const senderName = tx.senderName || 
+                        (tx.type === 'Debit' ? (user?.name || 'You') : '') ||
+                        'Unknown Sender';
+
+      const beneficiaryName = tx.dependent?.name || 
+                             tx.recipientName ||
+                             dependent?.name || 
+                             `${dependent?.firstName || ''} ${dependent?.surname || ''}`.trim() ||
+                             'Unknown Beneficiary';
+      
+      const accountName = tx.account?.accountType || 
+                         tx.account?.name ||
+                         tx.transactionCategory || 
+                         tx.category || 
+                         tx.description || 
+                         'General Account';
+      
+      const reference = tx.reference || tx.transferReference || tx.id || `TXN-${index + 1}`;
       
       return {
         id: tx.id || index + 1,
-        date: txDate.toLocaleDateString('en-ZA', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        amount: tx.type === 'Credit' ? `+R${tx.amount?.toFixed(2) || '0.00'}` : `-R${tx.amount?.toFixed(2) || '0.00'}`,
-        beneficiary: dependent ? 
-          (dependent.name || `${dependent.firstName || ''} ${dependent.surname || ''}`.trim()) : 
-          'Unknown',
-        account: tx.category || tx.description || 'General Account',
+        reference: reference,
+        date: formatDate(txDate),
+        amount: tx.type === 'Credit' ? `+R${Math.abs(tx.amount || 0).toFixed(2)}` : `-R${Math.abs(tx.amount || 0).toFixed(2)}`,
+        sender: senderName,
+        beneficiary: beneficiaryName,
+        account: accountName,
+        merchantName: tx.merchantName || tx.recipientName || '',
+        status: tx.status || 'completed',
+        currency: tx.currency || 'ZAR',
         rawDate: txDate,
-        dependentId: tx.userId
+        dependentId: tx.userId || tx.dependentId || tx.dependent?.id,
+        // Additional fields from new structure
+        accountBalance: tx.account?.balance,
+        senderAccountNumber: tx.senderAccountNumber,
+        recipientAccountNumber: tx.recipientAccountNumber,
+        transactionCategory: tx.transactionCategory
       };
     });
   };
@@ -429,6 +167,7 @@ const CareGiverStatements = () => {
       // Search filter
       const searchMatch = !search || 
         tx.beneficiary.toLowerCase().includes(search.toLowerCase()) ||
+        tx.sender.toLowerCase().includes(search.toLowerCase()) ||
         tx.account.toLowerCase().includes(search.toLowerCase());
       
       // Dependent filter
@@ -611,7 +350,7 @@ const CareGiverStatements = () => {
             </Select>
             <SearchInput
               type="text"
-              placeholder="Search by name or account"
+              placeholder="Search by sender, beneficiary, or account"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -620,29 +359,79 @@ const CareGiverStatements = () => {
             <Table>
               <thead>
                 <tr>
-                  <Th>ID</Th>
+                  <Th>Reference</Th>
                   <Th>Date and time</Th>
                   <Th>Money in/out</Th>
+                  <Th>Sender</Th>
                   <Th>Beneficiary</Th>
                   <Th>Account name</Th>
+                  <Th>Status</Th>
                 </tr>
               </thead>
               <tbody>
                 {filteredData.length > 0 ? (
                   filteredData.map(row => (
                     <tr key={row.id}>
-                      <Td>{row.id}</Td>
+                      <Td>{row.reference}</Td>
                       <Td>{row.date}</Td>
                       <Td style={{ color: row.amount.startsWith('+') ? '#22c55e' : '#ef4444', fontWeight: '600' }}>
                         {row.amount}
+                        {row.currency && row.currency !== 'ZAR' && (
+                          <div style={{ fontSize: '0.8em', color: '#666' }}>{row.currency}</div>
+                        )}
                       </Td>
-                      <Td>{row.beneficiary}</Td>
-                      <Td>{row.account}</Td>
+                      <Td>
+                        {row.sender}
+                        {row.senderAccountNumber && (
+                          <div style={{ fontSize: '0.8em', color: '#666' }}>
+                            A/C: {row.senderAccountNumber}
+                          </div>
+                        )}
+                      </Td>
+                      <Td>
+                        {row.beneficiary}
+                        {row.merchantName && row.merchantName !== row.beneficiary && (
+                          <div style={{ fontSize: '0.8em', color: '#666' }}>
+                            via {row.merchantName}
+                          </div>
+                        )}
+                        {row.recipientAccountNumber && (
+                          <div style={{ fontSize: '0.8em', color: '#666' }}>
+                            A/C: {row.recipientAccountNumber}
+                          </div>
+                        )}
+                      </Td>
+                      <Td>
+                        {row.account}
+                        {row.accountBalance !== undefined && (
+                          <div style={{ fontSize: '0.8em', color: '#666' }}>
+                            Balance: R{row.accountBalance.toFixed(2)}
+                          </div>
+                        )}
+                      </Td>
+                      <Td>
+                        <span 
+                          style={{ 
+                            padding: '4px 8px',
+                            borderRadius: '12px',
+                            fontSize: '0.8em',
+                            fontWeight: '500',
+                            backgroundColor: row.status === 'completed' ? '#dcfce7' : 
+                                           row.status === 'pending' ? '#fef3c7' :
+                                           row.status === 'failed' ? '#fecaca' : '#f3f4f6',
+                            color: row.status === 'completed' ? '#16a34a' : 
+                                   row.status === 'pending' ? '#d97706' :
+                                   row.status === 'failed' ? '#dc2626' : '#374151'
+                          }}
+                        >
+                          {row.status || 'completed'}
+                        </span>
+                      </Td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
                       {isLoading ? 'Loading transactions...' : 'No transactions found matching your criteria'}
                     </td>
                   </tr>

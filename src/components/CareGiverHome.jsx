@@ -6,9 +6,9 @@ import expensesIcon from '../assets/icons/expenses.png';
 import arrowIcon from '../assets/icons/arrow.png';
 import ProfileCompletionPopup from './common/ProfileCompletionPopup';
 import { 
-  fetchDependents, 
-  fetchCaregiverStats, 
-  fetchRecentActivity 
+  initializeBeneficiaries,
+  setCurrentUser,
+  forceRefresh 
 } from '../store/slices/beneficiaries';
 
 // Styled components
@@ -721,14 +721,25 @@ const CareGiverHome = () => {
   
   const token = localStorage.getItem('token');
 
-  // Fetch data on component mount
+  // Initialize data on component mount with smart caching
   useEffect(() => {
-    if (token) {
-      dispatch(fetchCaregiverStats(token));
-      dispatch(fetchDependents({ token, params: { limit: 5 } }));
-      dispatch(fetchRecentActivity({ token, params: { limit: 11, days: 30 } }));
+    if (token && user) {
+      // Set current user for proper data segmentation
+      dispatch(setCurrentUser(user.id));
+      
+      // Initialize beneficiaries with smart caching
+      dispatch(initializeBeneficiaries({ forceRefresh: false }));
     }
-  }, [dispatch, token]);
+  }, [dispatch, token, user?.id]); // Added user.id to dependencies
+
+  // Function to manually refresh data
+  const handleRefreshData = () => {
+    if (token && user) {
+      console.log('🔄 Manually refreshing caregiver data...');
+      dispatch(forceRefresh());
+      dispatch(initializeBeneficiaries({ forceRefresh: true }));
+    }
+  };
 
   // Generate mock daily expenses based on selected date and dependent
   const getDailyExpenses = (selectedDependent, date) => {

@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { caregiverService } from '../../services/caregiverService';
+import { getCacheKey, isCacheFresh, setCacheTimestamp, CACHE_SETTINGS } from '../../utils/dataManager';
 
 // Helper function to get user-specific storage key
 const getUserStorageKey = (userId) => {
@@ -112,62 +113,31 @@ const fetchDependents = createAsyncThunk(
       
       console.log('🔍 Fetching dependents with params:', params);
       const response = await caregiverService.getDependents(token, params);
-      console.log('📋 Raw caregiver API response:', response);
-      console.log('📋 Response keys:', Object.keys(response || {}));
-      console.log('📋 Response.data keys:', Object.keys(response?.data || {}));
+      console.log('📋 Caregiver service response:', response);
       
-      // Handle the correct response structure - the API returns nested data
-      let dependents = [];
-      let pagination = null;
-      
-      // Try multiple possible structures
-      if (response?.data?.data?.dependents) {
-        // Nested structure: { data: { data: { dependents: [...], pagination: {...} } } }
-        dependents = response.data.data.dependents;
-        pagination = response.data.data.pagination;
-        console.log('📊 Using nested data.data structure, found:', dependents.length, 'dependents');
-      } else if (response?.data?.dependents) {
-        // Direct structure: { data: { dependents: [...], pagination: {...} } }
-        dependents = response.data.dependents;
-        pagination = response.data.pagination;
-        console.log('📊 Using data.dependents structure, found:', dependents.length, 'dependents');
-      } else if (response?.dependents) {
-        // Root level: { dependents: [...], pagination: {...} }
-        dependents = response.dependents;
-        pagination = response.pagination;
-        console.log('📊 Using root level structure, found:', dependents.length, 'dependents');
-      } else if (Array.isArray(response?.data)) {
-        // Direct array: { data: [...] }
-        dependents = response.data;
-        pagination = null;
-        console.log('📊 Using direct array structure, found:', dependents.length, 'dependents');
-      } else if (Array.isArray(response)) {
-        // Response is directly an array: [...]
-        dependents = response;
-        pagination = null;
-        console.log('📊 Using response as array, found:', dependents.length, 'dependents');
+      // The updated caregiverService now returns a normalized structure
+      if (response?.success) {
+        const dependents = response.dependents || [];
+        const pagination = response.pagination || {};
+        
+        console.log('📊 Found', dependents.length, 'dependents');
+        
+        // Transform the dependents data
+        const transformedDependents = dependents.map(transformDependentToBeneficiary);
+        
+        console.log('✅ Transformed dependents:', transformedDependents.length, 'items');
+        
+        return {
+          dependents: transformedDependents,
+          pagination: pagination,
+          stats: {
+            totalDependents: pagination?.totalDependents || transformedDependents.length,
+            currentPageCount: transformedDependents.length
+          }
+        };
       } else {
-        console.log('❌ Could not find dependents in response structure');
-        console.log('📋 Full response structure:', JSON.stringify(response, null, 2));
+        throw new Error(response?.message || 'Failed to fetch dependents');
       }
-      
-      console.log('📊 Final extracted dependents:', dependents);
-      
-      // Transform the dependents data
-      const transformedDependents = dependents.map(transformDependentToBeneficiary) || [];
-      
-      console.log('✅ Transformed dependents:', transformedDependents.length, 'items');
-      
-      return {
-        dependents: transformedDependents,
-        pagination: pagination,
-        stats: {
-          // Note: This is the total count across all pages (from pagination.total)
-          // or current page count if pagination is not available
-          totalDependents: pagination?.total || transformedDependents.length,
-          currentPageCount: transformedDependents.length
-        }
-      };
     } catch (error) {
       console.error('❌ fetchDependents error:', error);
       return rejectWithValue(error.message);
@@ -184,9 +154,17 @@ const fetchDependentById = createAsyncThunk(
       const response = await caregiverService.getDependentById(token, dependentId);
       console.log('📋 Dependent details response:', response);
       
-      // Handle the correct response structure
-      const dependentData = response.data || response;
-      return transformDependentToBeneficiary(dependentData);
+      // The updated caregiverService now returns a normalized structure
+      if (response?.success) {
+        const dependentData = response.dependent;
+        return {
+          dependent: transformDependentToBeneficiary(dependentData),
+          accounts: response.accounts || [],
+          summary: response.summary || {}
+        };
+      } else {
+        throw new Error(response?.message || 'Failed to fetch dependent details');
+      }
     } catch (error) {
       console.error('❌ fetchDependentById error:', error);
       return rejectWithValue(error.message);
@@ -203,9 +181,20 @@ const fetchCaregiverStats = createAsyncThunk(
       const response = await caregiverService.getStats(token);
       console.log('📊 Stats response:', response);
       
-      // Handle the correct response structure
-      const statsData = response.data || response;
-      return statsData;
+      // The updated caregiverService now returns a normalized structure
+      if (response?.success) {
+        return {
+          totalDependents: response.totalDependents,
+          totalAccountBalance: response.totalAccountBalance,
+          currency: response.currency,
+          dependentsByStatus: response.dependentsByStatus,
+          accountSummary: response.accountSummary,
+          recentActivity: response.recentActivity,
+          stats: response.stats // Full stats object
+        };
+      } else {
+        throw new Error(response?.message || 'Failed to fetch caregiver stats');
+      }
     } catch (error) {
       console.error('❌ fetchCaregiverStats error:', error);
       return rejectWithValue(error.message);
@@ -222,9 +211,17 @@ const fetchRecentActivity = createAsyncThunk(
       const response = await caregiverService.getActivity(token, params);
       console.log('📋 Activity response:', response);
       
-      // Handle the correct response structure
-      const activityData = response.data || response;
-      return activityData;
+      // The updated caregiverService now returns a normalized structure
+      if (response?.success) {
+        return {
+          activities: response.activities || [],
+          transactions: response.transactions || [], // for backward compatibility
+          totalTransactions: response.totalTransactions,
+          summary: response.summary || {}
+        };
+      } else {
+        throw new Error(response?.message || 'Failed to fetch recent activity');
+      }
     } catch (error) {
       console.error('❌ fetchRecentActivity error:', error);
       return rejectWithValue(error.message);
@@ -241,9 +238,16 @@ const fetchCaregiverTransactions = createAsyncThunk(
       const response = await caregiverService.getAllTransactions(token, params);
       console.log('📋 Transactions response:', response);
       
-      // Handle the correct response structure
-      const transactionsData = response.data || response;
-      return transactionsData;
+      // The updated caregiverService now returns a normalized structure
+      if (response?.success) {
+        return {
+          transactions: response.transactions || [],
+          summary: response.summary || {},
+          pagination: response.pagination || {}
+        };
+      } else {
+        throw new Error(response?.message || 'Failed to fetch transactions');
+      }
     } catch (error) {
       console.error('❌ fetchCaregiverTransactions error:', error);
       return rejectWithValue(error.message);
@@ -260,9 +264,18 @@ const fetchDependentTransactions = createAsyncThunk(
       const response = await caregiverService.getDependentTransactions(token, dependentId, params);
       console.log('📋 Dependent transactions response:', response);
       
-      // Handle the correct response structure
-      const transactionsData = response.data || response;
-      return { dependentId, ...transactionsData };
+      // The updated caregiverService now returns a normalized structure
+      if (response?.success) {
+        return {
+          dependentId,
+          dependent: response.dependent || {},
+          transactions: response.transactions || [],
+          summary: response.summary || {},
+          pagination: response.pagination || {}
+        };
+      } else {
+        throw new Error(response?.message || 'Failed to fetch dependent transactions');
+      }
     } catch (error) {
       console.error('❌ fetchDependentTransactions error:', error);
       return rejectWithValue(error.message);
@@ -279,9 +292,23 @@ const fetchTransactionAnalytics = createAsyncThunk(
       const response = await caregiverService.getTransactionAnalytics(token, params);
       console.log('📊 Analytics response:', response);
       
-      // Handle the correct response structure
-      const analyticsData = response.data || response;
-      return analyticsData;
+      // The updated caregiverService now returns a normalized structure
+      if (response?.success) {
+        return {
+          period: response.period,
+          dateRange: response.dateRange,
+          totalSpending: response.totalSpending,
+          totalIncome: response.totalIncome,
+          netBalance: response.netBalance,
+          transactionCount: response.transactionCount,
+          spendingByCategory: response.spendingByCategory,
+          spendingTrend: response.spendingTrend,
+          topMerchants: response.topMerchants,
+          analytics: response.analytics // Full analytics object
+        };
+      } else {
+        throw new Error(response?.message || 'Failed to fetch transaction analytics');
+      }
     } catch (error) {
       console.error('❌ fetchTransactionAnalytics error:', error);
       return rejectWithValue(error.message);
@@ -412,12 +439,12 @@ const registerDependent = createAsyncThunk(
   }
 );
 
-// Async thunk to initialize beneficiaries on app startup
+// Enhanced async thunk to initialize beneficiaries with smart caching and coordination
 const initializeBeneficiaries = createAsyncThunk(
   'beneficiaries/initializeBeneficiaries',
-  async (_, { dispatch, getState, rejectWithValue }) => {
+  async ({ forceRefresh = false } = {}, { dispatch, getState, rejectWithValue }) => {
     try {
-      console.log('🚀 Initializing beneficiaries on app startup...');
+      console.log('🚀 Initializing beneficiaries on app startup...', { forceRefresh });
       
       // Helper function to get safe localStorage wrapper
       const safeLocalStorage = {
@@ -428,12 +455,19 @@ const initializeBeneficiaries = createAsyncThunk(
             console.log('LocalStorage access blocked, using fallback');
             return null;
           }
+        },
+        setItem: (key, value) => {
+          try {
+            localStorage.setItem(key, value);
+          } catch (error) {
+            console.log('LocalStorage write blocked');
+          }
         }
       };
       
       // Get authentication state
       const state = getState();
-      const { authentication } = state;
+      const { authentication, beneficiaries } = state;
       
       // Check if user is authenticated
       const token = authentication.token || 
@@ -456,42 +490,125 @@ const initializeBeneficiaries = createAsyncThunk(
       if (currentUserId) {
         // Set current user for proper data segmentation
         dispatch(setCurrentUser(currentUserId));
-        
-        // Load existing data from localStorage first for instant UI
-        dispatch(loadUserData(currentUserId));
       }
       
       // Check user role to determine if we should load beneficiaries
       const userRole = user?.role || safeLocalStorage.getItem('role');
-      if (userRole === 'caregiver' || userRole === 'funder') {
-        console.log('👤 User is caregiver/funder, loading beneficiaries...');
-        
-        // Fetch fresh data from API
-        const fetchResult = await dispatch(fetchDependents({ 
+      if (userRole !== 'caregiver' && userRole !== 'funder') {
+        console.log('👤 User role does not require beneficiary loading:', userRole);
+        return { message: 'User role does not require beneficiary data' };
+      }
+      
+      console.log('👤 User is caregiver/funder, loading beneficiaries...');
+      
+      // Check if we already have fresh data and don't need to fetch
+      const hasData = beneficiaries.list && beneficiaries.list.length > 0;
+      
+      // Check cache freshness using data manager
+      const cacheKey = getCacheKey('last_fetch', currentUserId);
+      const isDataFresh = isCacheFresh(cacheKey, CACHE_SETTINGS.DEPENDENTS);
+      
+      // Load existing data from localStorage first for instant UI
+      if (currentUserId) {
+        const cachedData = loadBeneficiariesFromStorage(currentUserId);
+        if (cachedData.length > 0 && beneficiaries.list.length === 0) {
+          console.log('📱 Loading cached data for instant UI:', cachedData.length, 'dependents');
+          dispatch(setBeneficiaries(cachedData));
+        }
+      }
+      
+      // Skip API call if we have fresh data and not forcing refresh
+      if (hasData && isDataFresh && !forceRefresh) {
+        console.log('✅ Using existing fresh data from Redux state, skipping API call');
+        return {
+          fromCache: true,
+          dependentsCount: beneficiaries.list.length,
+          message: `Using ${beneficiaries.list.length} dependents from current state`,
+          skipFetch: true
+        };
+      }
+      
+      if (beneficiaries.list.length > 0 && isDataFresh && !forceRefresh) {
+        console.log('✅ Using fresh cached data, skipping API call');
+        return {
+          fromCache: true,
+          dependentsCount: beneficiaries.list.length,
+          message: `Using ${beneficiaries.list.length} cached dependents`,
+          skipFetch: true
+        };
+      }
+      
+      // If no fresh data or force refresh, fetch from API
+      console.log('🌐 Fetching fresh data from API (cache miss or forced refresh)');
+      
+      // Make coordinated API calls with proper error handling
+      const results = {
+        dependents: null,
+        stats: null,
+        activity: null,
+        errors: []
+      };
+      
+      try {
+        // Fetch dependents (critical - must succeed)
+        console.log('📋 Fetching all dependents...');
+        const dependentsResponse = await dispatch(fetchDependents({ 
           token, 
           params: { 
             page: 1, 
-            limit: 50, 
+            limit: 50, // Get all active dependents
             status: 'active' 
           } 
         }));
         
-        // Also fetch stats
-        const statsResult = await dispatch(fetchCaregiverStats(token));
-        
-        console.log('✅ Beneficiaries initialization completed');
-        console.log('📊 Dependents loaded:', fetchResult.payload?.dependents?.length || 0);
-        console.log('📊 Stats API result:', statsResult.payload);
-        
-        return { 
-          message: 'Beneficiaries loaded successfully', 
-          dependentsCount: fetchResult.payload?.dependents?.length || 0,
-          statsData: statsResult.payload
-        };
-      } else {
-        console.log('👤 User role does not require beneficiary loading');
-        return { message: 'User role does not require beneficiary data' };
+        if (fetchDependents.fulfilled.match(dependentsResponse)) {
+          results.dependents = dependentsResponse.payload;
+          console.log('✅ Dependents fetched successfully:', results.dependents.dependents.length);
+          
+          // Mark successful fetch using data manager
+          setCacheTimestamp(getCacheKey('last_fetch', currentUserId));
+        } else {
+          throw new Error('Failed to fetch dependents: ' + (dependentsResponse.error?.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('❌ Critical error fetching dependents:', error);
+        results.errors.push({ type: 'dependents', message: error.message });
+        throw error; // Rethrow critical errors
       }
+      
+      // Fetch stats (non-critical, run in background)
+      dispatch(fetchCaregiverStats(token)).then(statsResponse => {
+        if (fetchCaregiverStats.fulfilled.match(statsResponse)) {
+          console.log('✅ Stats fetched successfully (background)');
+          results.stats = statsResponse.payload;
+        }
+      }).catch(error => {
+        console.log('📊 Stats fetch failed (non-critical):', error.message);
+        results.errors.push({ type: 'stats', message: error.message });
+      });
+      
+      // Fetch recent activity (non-critical, run in background)
+      dispatch(fetchRecentActivity({ 
+        token, 
+        params: { limit: 20, days: 30 } 
+      })).then(activityResponse => {
+        if (fetchRecentActivity.fulfilled.match(activityResponse)) {
+          console.log('✅ Recent activity fetched successfully (background)');
+          results.activity = activityResponse.payload;
+        }
+      }).catch(error => {
+        console.log('� Activity fetch failed (non-critical):', error.message);
+        results.errors.push({ type: 'activity', message: error.message });
+      });
+      
+      console.log('✅ Beneficiaries initialization completed');
+      
+      return {
+        fromCache: false,
+        dependentsCount: results.dependents?.dependents?.length || 0,
+        message: `Fetched ${results.dependents?.dependents?.length || 0} dependents from API`,
+        errors: results.errors
+      };
       
     } catch (error) {
       console.error('❌ Error initializing beneficiaries:', error);
@@ -728,6 +845,18 @@ const beneficiariesSlice = createSlice({
       state.ui.confirmPassword = '';
       state.ui.feedback = null;
       state.ui.isSubmitting = false;
+    },
+    
+    // Action to force refresh data
+    forceRefresh: (state) => {
+      // Clear cache timestamp to force refresh on next load
+      const userId = state.currentUserId;
+      try {
+        localStorage.removeItem(`caregiver_last_fetch_${userId || 'default'}`);
+        console.log('🔄 Forced refresh - cache cleared');
+      } catch (error) {
+        console.log('Cache clear failed (storage blocked)');
+      }
     }
   },
   extraReducers: (builder) => {
@@ -743,18 +872,36 @@ const beneficiariesSlice = createSlice({
         state.list = action.payload.dependents || [];
         state.pagination = action.payload.pagination;
         
+        // Calculate total balance from dependents' accounts
+        const totalAccountBalance = state.list.reduce((total, dependent) => {
+          const accountBalance = dependent.account?.balance || 0;
+          return total + accountBalance;
+        }, 0);
+        
+        // Count active dependents
+        const activeDependents = state.list.filter(dep => dep.status === 'active').length;
+        
         // Use pagination total for totalDependents if available (across all pages)
         // Otherwise use current loaded list length
         const totalDependentsCount = action.payload.pagination?.total || state.list.length;
+        
+        // Update stats with calculated values
         state.stats = { 
           ...state.stats, 
           ...action.payload.stats,
-          totalDependents: totalDependentsCount
+          totalDependents: totalDependentsCount,
+          totalAccountBalance: totalAccountBalance,
+          dependentsByStatus: {
+            active: activeDependents,
+            inactive: state.list.length - activeDependents,
+            ...state.stats.dependentsByStatus
+          }
         };
         
         console.log('📊 Updated state.list length:', state.list.length);
         console.log('📊 Total dependents (across all pages):', totalDependentsCount);
-        console.log('📊 Current page dependents:', state.list.length);
+        console.log('📊 Calculated total balance:', totalAccountBalance);
+        console.log('📊 Active dependents:', activeDependents);
         saveBeneficiariesToStorage(action.payload.dependents || [], state.currentUserId);
       })
       .addCase(fetchDependents.rejected, (state, action) => {
@@ -795,20 +942,33 @@ const beneficiariesSlice = createSlice({
       .addCase(fetchCaregiverStats.fulfilled, (state, action) => {
         state.isLoading = false;
         state.statsError = null; // Clear stats error on success
-        // Merge stats but be careful about totalDependents
-        // Only update totalDependents from stats API if we don't have dependents loaded yet
+        
+        // Determine which values to use
         const shouldUseDependentsCount = state.list.length > 0;
         const totalDependentsCount = shouldUseDependentsCount 
           ? (state.pagination?.total || state.list.length)
           : (action.payload.totalDependents || 0);
+        
+        // Calculate balance from dependents if available, otherwise use API stats
+        const calculatedBalance = state.list.reduce((total, dependent) => {
+          const accountBalance = dependent.account?.balance || 0;
+          return total + accountBalance;
+        }, 0);
+        
+        const shouldUseCalculatedBalance = calculatedBalance > 0;
+        const totalAccountBalance = shouldUseCalculatedBalance 
+          ? calculatedBalance 
+          : (action.payload.totalAccountBalance || 0);
           
         state.stats = { 
           ...state.stats, 
           ...action.payload,
-          totalDependents: totalDependentsCount
+          totalDependents: totalDependentsCount,
+          totalAccountBalance: totalAccountBalance
         };
         
-        console.log(`📊 Updated stats from API - using dependents count: ${shouldUseDependentsCount}, totalDependents: ${totalDependentsCount}`);
+        console.log(`📊 Updated stats from API - using dependents count: ${shouldUseDependentsCount}, using calculated balance: ${shouldUseCalculatedBalance}`);
+        console.log('📊 Total balance used:', totalAccountBalance);
         console.log('📊 Stats API response:', action.payload);
       })
       .addCase(fetchCaregiverStats.rejected, (state, action) => {
@@ -1016,25 +1176,34 @@ const beneficiariesSlice = createSlice({
       
       // Initialize beneficiaries on app startup
       .addCase(initializeBeneficiaries.pending, (state) => {
-        state.isLoading = true;
+        // Only show loading if we don't have cached data
+        if (state.list.length === 0) {
+          state.isLoading = true;
+        }
         state.error = null;
       })
       .addCase(initializeBeneficiaries.fulfilled, (state, action) => {
         state.isLoading = false;
         console.log('🎉 Beneficiaries initialization successful:', action.payload);
         
-        // If dependents were loaded, update the list and stats
-        if (action.payload.dependentsCount > 0) {
-          // Fetch fresh stats
-          //dispatch(fetchCaregiverStats(state.authentication.token));
-          
-          // Optionally, you can refetch dependents to ensure latest data
-          //dispatch(fetchDependents({ token: state.authentication.token, params: { page: 1, limit: 50, status: 'active' } }));
+        // Don't overwrite existing data if we're using cache
+        if (action.payload.skipFetch) {
+          console.log('✅ Using cached data, no state changes needed');
+        } else if (action.payload.dependentsCount > 0) {
+          console.log('📊 Fresh data loaded, stats will be updated by other reducers');
         }
+        
+        // Always clear any previous errors on successful initialization
+        state.error = null;
+        state.statsError = null;
       })
       .addCase(initializeBeneficiaries.rejected, (state, action) => {
-        state.isLoading = false;
+        // Only hide loading if we don't have any data to show
+        if (state.list.length === 0) {
+          state.isLoading = false;
+        }
         state.error = action.payload || 'Failed to initialize beneficiaries';
+        console.error('❌ Beneficiaries initialization failed:', state.error);
       });
   },
 });
@@ -1054,6 +1223,7 @@ export const {
   setSearchParams,
   clearSelectedDependent,
   clearRecentActivity,
+  forceRefresh,
   // UI State actions
   showModal,
   hideModal,
