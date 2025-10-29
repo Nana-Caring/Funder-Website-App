@@ -4,6 +4,8 @@ import { ExpandMore } from '@mui/icons-material';
 import cardBg from '../../assets/card.jpg';
 import accountService from '../../services/accountService';
 
+// Updated: Fixed AccountService.getUserDisplayName error - using local getUserInitialsAndSurname function
+
 const Container = styled.div`
 display: flex;
   flex-direction: column;
@@ -28,7 +30,8 @@ const Content = styled.div`
 
 const AccountCard = styled.div`
   background-color: #e0e0e0;
-  padding: 16px 32px;
+  padding: 12px 24px;
+  min-height: 64px; /* consistent item height to allow predictable scrolling */
   border-radius: 12px;
   margin-bottom: 12px;
   display: flex;
@@ -125,9 +128,12 @@ const AccountsListWrapper = styled.div`
   background: #fff;
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  padding: 0 0 12px 0;
-  max-height: 400px;
+  padding: 8px 8px 28px 8px; /* add bottom padding so last item isn't hidden behind scrollbar/border */
+  /* Show 4 items, then scroll. Each item: min-height (64px) + margin-bottom (12px) = 76px per item */
+  max-height: calc((64px + 12px) * 4 + 12px); /* extra 12px for top padding */
   overflow-y: auto;
+  box-sizing: border-box;
+  padding-right: 12px; /* give some room for scrollbar */
   
   /* Custom scrollbar styling */
   &::-webkit-scrollbar {
@@ -146,6 +152,11 @@ const AccountsListWrapper = styled.div`
     &:hover {
       background: #a1a1a1;
     }
+  }
+
+  /* Ensure last child has enough space to be fully visible when scrolled */
+  > *:last-child {
+    margin-bottom: 20px;
   }
 `;
 
@@ -461,16 +472,22 @@ const DependentMyAccounts = () => {
                   transition: 'all 0.2s ease'
                 }}
               >
-                <span style={{ 
-                  fontSize: '15px', 
-                  fontWeight: 500, 
-                  whiteSpace: 'nowrap', 
-                  overflow: 'hidden', 
-                  textOverflow: 'ellipsis', 
-                  maxWidth: '200px' 
+                <div style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  minWidth: 0,
                 }}>
-                  {formatAccountName(account.accountType)}
-                </span>
+                  <span style={{ 
+                    fontSize: '15px', 
+                    fontWeight: 600, 
+                    whiteSpace: 'nowrap', 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis', 
+                    maxWidth: '260px' 
+                  }}>
+                    {account.emergencyFund ? '🚨 ' : ''}{account.accountName || formatAccountName(account.accountType)}
+                  </span>
+                </div>
                 <AccountNumber>
                   <span>{formatAccountNumber(account.accountNumber)}</span>
                   <span>{accountService.formatCurrency(account.balance)}</span>
@@ -497,4 +514,4 @@ const DependentMyAccounts = () => {
   );
 };
 
-export default DependentMyAccounts; 
+export default DependentMyAccounts;

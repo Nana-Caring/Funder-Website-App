@@ -1798,7 +1798,7 @@ const DependentHome = () => {
               <AccountInfo>
                 <span>
                   {selectedAccount ? 
-                    `${selectedAccount.accountType} Account` : 
+                    `${selectedAccount.accountName || selectedAccount.accountType} Account` : 
                     'Select Account'
                   }
                 </span>
@@ -1877,7 +1877,7 @@ const DependentHome = () => {
                     );
                   }
                   
-                  return allAvailableAccounts.map(account => (
+                    return allAvailableAccounts.map(account => (
                     <span 
                       key={account.id}
                       onClick={async () => {
@@ -1893,7 +1893,7 @@ const DependentHome = () => {
                         backgroundColor: selectedAccountId === account.id ? '#f0f0f0' : 'transparent'
                       }}
                     >
-                      {account.accountType} - {accountService.formatCurrency(account.balance)}
+                      {account.accountName || normalizeAccountType(account.accountType)} - {accountService.formatCurrency(account.balance)}
                     </span>
                   ));
                 })()}
@@ -1943,8 +1943,8 @@ const DependentHome = () => {
                     <option value="">Select Source Account</option>
                     {stats.allAccounts.map(account => (
                       <option key={account.id} value={account.id}>
-                        {account.accountType} - {accountService.formatCurrency(account.balance)}
-                      </option>
+                          {account.accountName || normalizeAccountType(account.accountType)} - {accountService.formatCurrency(account.balance)}
+                        </option>
                     ))}
                   </select>
                   <div style={{ textAlign: 'center', color: '#666', fontSize: '12px', margin: '8px 0' }}>to</div>
@@ -1952,7 +1952,7 @@ const DependentHome = () => {
                     <option value="">Select Destination Account</option>
                     {stats.allAccounts.map(account => (
                       <option key={account.id} value={account.id}>
-                        {account.accountType} - {accountService.formatCurrency(account.balance)}
+                        {account.accountName || normalizeAccountType(account.accountType)} - {accountService.formatCurrency(account.balance)}
                       </option>
                     ))}
                   </select>
@@ -2002,8 +2002,8 @@ const DependentHome = () => {
                           <option value="">Select Source Account</option>
                           {stats.allAccounts.map(account => (
                             <option key={account.id} value={account.id}>
-                              {account.accountType} - {accountService.formatCurrency(account.balance)}
-                            </option>
+                                {account.accountName || normalizeAccountType(account.accountType)} - {accountService.formatCurrency(account.balance)}
+                              </option>
                           ))}
                         </select>
                       </div>
@@ -2013,7 +2013,7 @@ const DependentHome = () => {
                           <option value="">Select Destination Account</option>
                           {stats.allAccounts.map(account => (
                             <option key={account.id} value={account.id}>
-                              {account.accountType} - {accountService.formatCurrency(account.balance)}
+                              {account.accountName || normalizeAccountType(account.accountType)} - {accountService.formatCurrency(account.balance)}
                             </option>
                           ))}
                         </select>
