@@ -7,11 +7,32 @@ import schoolIcon from '../../assets/icons/school.png';
 import babycareIcon from '../../assets/icons/babycare.png';
 import entertainmentIcon from '../../assets/icons/entertainment.png';
 import pregnancyIcon from '../../assets/icons/pregnancy.png';
+// Additional icons for backend categories
+import buyIcon from '../../assets/icons/buy.png'; // For Groceries
+import trackIcon from '../../assets/icons/track.png'; // For Transport
+import setupIcon from '../../assets/icons/setup.png'; // For Other
 
 const categories = [
+  // Primary backend categories
   { label: 'Healthcare', icon: (
     <img src={healthcareIcon} alt="Healthcare" width={40} height={40} style={{borderRadius: '50%'}} />
   ) },
+  { label: 'Education', icon: (
+    <img src={schoolIcon} alt="Education" width={40} height={40} style={{borderRadius: '50%'}} />
+  ) },
+  { label: 'Groceries', icon: (
+    <img src={buyIcon} alt="Groceries" width={40} height={40} style={{borderRadius: '50%'}} />
+  ) },
+  { label: 'Transport', icon: (
+    <img src={trackIcon} alt="Transport" width={40} height={40} style={{borderRadius: '50%'}} />
+  ) },
+  { label: 'Entertainment', icon: (
+    <img src={entertainmentIcon} alt="Entertainment" width={40} height={40} style={{borderRadius: '50%'}} />
+  ) },
+  { label: 'Other', icon: (
+    <img src={setupIcon} alt="Other" width={40} height={40} style={{borderRadius: '50%'}} />
+  ) },
+  // Frontend legacy categories (mapped to backend categories)
   { label: 'Clothing', icon: (
     <img src={clothingIcon} alt="Clothing" width={40} height={40} style={{borderRadius: '50%'}} />
   ) },
@@ -20,9 +41,6 @@ const categories = [
   ) },
   { label: 'Babycare', icon: (
     <img src={babycareIcon} alt="Babycare" width={40} height={40} style={{borderRadius: '50%'}} />
-  ) },
-  { label: 'Entertainment', icon: (
-    <img src={entertainmentIcon} alt="Entertainment" width={40} height={40} style={{borderRadius: '50%'}} />
   ) },
   { label: 'Pregnancy', icon: (
     <img src={pregnancyIcon} alt="Pregnancy" width={40} height={40} style={{borderRadius: '50%'}} />

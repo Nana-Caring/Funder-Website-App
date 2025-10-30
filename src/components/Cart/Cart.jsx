@@ -1,14 +1,67 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
-import sampleProductImage from '../../../assets/sample-product.png';
+import { useDispatch, useSelector } from 'react-redux';
 import cartIcon from '../../../assets/icons/cart.png';
-import cartService from '../../services/cartService';
+
+// Redux actions and selectors
+import {
+  addToCart,
+  removeFromCart,
+  updateQuantity,
+  clearCart,
+  toggleCart,
+  setCartOpen,
+  selectCartItems,
+  selectCartLoading,
+  selectCartError,
+  selectCartTotalItems,
+  selectCartTotalAmount,
+  selectCartFinalTotal,
+  selectShippingEstimate,
+  selectTaxEstimate
+} from '../../store/slices/cart';
+
+import {
+  fetchProducts,
+  selectAllProducts,
+  selectProductsLoading
+} from '../../store/slices/products';
+
+// Helper function to handle product image URLs (same as Products.jsx)
+const getImageUrl = (imageData) => {
+  if (!imageData) return null;
+  
+  // Handle string URLs (direct image URLs from Google Images or retailer CDNs)
+  if (typeof imageData === 'string') {
+    // If it's already a full URL (Google Images, retailer CDNs, etc.)
+    if (imageData.startsWith('http://') || imageData.startsWith('https://')) {
+      return imageData;
+    }
+    // If it's just a filename, construct retailer CDN URL
+    if (imageData && !imageData.includes('/')) {
+      return `https://cdn.babycity.co.za/images/products/large/${imageData}`;
+    }
+    return null;
+  }
+  
+  // Handle object format with url property
+  if (imageData && typeof imageData === 'object') {
+    if (imageData.url) return imageData.url;
+    if (imageData.src) return imageData.src;
+    if (imageData.href) return imageData.href;
+  }
+  
+  return null;
+};
+
+// Default fallback image for cart items
+const defaultProductImage = "https://via.placeholder.com/200x200/f8f9fa/6b7280?text=No+Image";
 
 const PageContainer = styled.div`
   width: calc(100% - 175px);
   margin-left: 175px;
-  padding: 20px;
+  margin-top: -30px;
   background-color: #f8f9fa;
   min-height: 100vh;
   max-height: 100vh;
@@ -609,175 +662,104 @@ const TotalSection = styled.div`
 `;
 
 const Cart = () => {
+  // Redux setup
+  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [cartItems, setCartItems] = useState([]);
-  const [recommendedItems, setRecommendedItems] = useState([]);
+  
+  // Redux selectors
+  const cartItems = useSelector(selectCartItems);
+  const loading = useSelector(selectCartLoading);
+  const error = useSelector(selectCartError);
+  const totalItems = useSelector(selectCartTotalItems);
+  const totalPrice = useSelector(selectCartTotalAmount); // Fixed: use selectCartTotalAmount instead
+  const finalTotal = useSelector(selectCartFinalTotal);
+  const shipping = useSelector(selectShippingEstimate);
+  const tax = useSelector(selectTaxEstimate);
+  // Note: These selectors don't exist in the new cart slice - using defaults for now
+  const updatingItem = false; // TODO: Add to new cart slice
+  const removingItem = false; // TODO: Add to new cart slice  
+  const purchasing = loading; // Use general loading state for now
+  const purchaseSuccess = false; // TODO: Add purchase functionality
+  const recommendedItems = []; // TODO: Add recommended products
+  const recommendedLoading = false; // TODO: Add recommended products loading
+
+  // Local state for UI
   const [promoCode, setPromoCode] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [selectedAccountType, setSelectedAccountType] = useState('Main');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
 
   // Load cart and recommendations on component mount
   useEffect(() => {
-    loadCartItems();
-    loadRecommendations();
-  }, []);
+    // dispatch(fetchCartItems()); // TODO: Cart is client-side now, no need to fetch
+    // dispatch(fetchRecommendedProducts(6)); // TODO: Add recommended products
+  }, [dispatch]);
 
-  const loadCartItems = async () => {
-    try {
-      setLoading(true);
-      const response = await cartService.getCart();
-      
-      if (response.success) {
-        // Transform backend data to match component structure
-        const transformedItems = response.data.items.map(item => ({
-          id: item.id,
-          productId: item.productId,
-          name: item.product?.brand || item.product?.name || 'Product',
-          description: item.product?.name || item.product?.description || 'Product Description',
-          price: parseFloat(item.price),
-          quantity: item.quantity,
-          totalPrice: parseFloat(item.totalPrice),
-          accountType: item.accountType,
-          image: item.product?.image || sampleProductImage,
-          stockQuantity: item.product?.stockQuantity || 0
-        }));
-        setCartItems(transformedItems);
-      } else {
-        setError(response.message || 'Failed to load cart');
-      }
-    } catch (err) {
-      console.error('Error loading cart:', err);
-      setError('Failed to load cart items');
-    } finally {
-      setLoading(false);
+  // Handle purchase success
+  useEffect(() => {
+    if (purchaseSuccess) {
+      setShowCheckoutModal(false);
+      setDeliveryAddress('');
+      // Show success message or redirect
+      console.log('Purchase completed successfully!');
+      // dispatch(resetPurchaseSuccess()); // TODO: Add to new cart slice
     }
-  };
+  }, [purchaseSuccess, dispatch]);
 
-  const loadRecommendations = async () => {
-    try {
-      const response = await cartService.getProducts('Healthcare', 4);
-      
-      if (response.success) {
-        const transformedRecommendations = response.data.products.map(product => ({
-          id: product.id,
-          name: product.brand || product.name,
-          price: parseFloat(product.price),
-          image: product.image || sampleProductImage,
-          inStock: product.inStock,
-          stockQuantity: product.stockQuantity
-        }));
-        setRecommendedItems(transformedRecommendations);
-      }
-    } catch (err) {
-      console.error('Error loading recommendations:', err);
-    }
-  };
-
-  const updateQuantity = async (cartItemId, newQuantity) => {
+  // Redux-based handlers
+  const updateQuantity = (cartItemId, newQuantity) => {
     if (newQuantity < 1) {
-      await removeItem(cartItemId);
+      dispatch(removeFromCart(cartItemId));
       return;
     }
-
-    try {
-      const response = await cartService.updateCartItem(cartItemId, newQuantity);
-      
-      if (response.success) {
-        // Update local state immediately for better UX
-        setCartItems(items => 
-          items.map(item => 
-            item.id === cartItemId ? { ...item, quantity: newQuantity, totalPrice: item.price * newQuantity } : item
-          )
-        );
-      } else {
-        setError(response.message || 'Failed to update quantity');
-      }
-    } catch (err) {
-      console.error('Error updating quantity:', err);
-      setError('Failed to update item quantity');
-    }
+    dispatch(updateCartItem({ cartItemId, quantity: newQuantity }));
   };
 
-  const removeItem = async (cartItemId) => {
-    try {
-      const response = await cartService.removeFromCart(cartItemId);
-      
-      if (response.success) {
-        // Remove item from local state immediately for better UX
-        setCartItems(items => items.filter(item => item.id !== cartItemId));
-      } else {
-        setError(response.message || 'Failed to remove item');
-      }
-    } catch (err) {
-      console.error('Error removing item:', err);
-      setError('Failed to remove item from cart');
-    }
+  const removeItem = (cartItemId) => {
+    dispatch(removeFromCart(cartItemId));
   };
 
   const addRecommendedItem = async (item) => {
     try {
-      const response = await cartService.addToCart({
+      await dispatch(addToCart({
         productId: item.id,
         quantity: 1,
         accountType: selectedAccountType
-      });
-      
-      if (response.success) {
-        // Reload cart to show new item
-        await loadCartItems();
-      } else {
-        setError(response.message || 'Failed to add item to cart');
-      }
-    } catch (err) {
-      console.error('Error adding to cart:', err);
-      setError('Failed to add item to cart');
+      })).unwrap();
+    } catch (error) {
+      console.error('Failed to add item to cart:', error);
     }
   };
 
   const handleCheckout = async () => {
     if (cartItems.length === 0) {
-      setError('Your cart is empty');
       return;
     }
 
     if (!deliveryAddress.trim()) {
-      setError('Please enter a delivery address');
       return;
     }
 
     try {
-      setPurchaseLoading(true);
-      const response = await cartService.purchaseCart({
+      // TODO: Implement purchase functionality with new cart slice
+      console.log('Purchase cart:', {
         accountType: selectedAccountType,
-        deliveryAddress: deliveryAddress.trim()
+        deliveryAddress: deliveryAddress.trim(),
+        items: cartItems,
+        total: totalPrice
       });
       
-      if (response.success) {
-        // Clear cart and show success
-        setCartItems([]);
-        setShowCheckoutModal(false);
-        setDeliveryAddress('');
-        alert('Order placed successfully! Check your order history for details.');
-        
-        // Navigate to order history or dashboard
-        navigate('/dependent-dashboard');
-      } else {
-        setError(response.message || 'Failed to complete purchase');
-      }
+      // Temporary: Just show success for now
+      alert('Purchase functionality coming soon!');
+      setShowCheckoutModal(false);
+      
+      // Success handling is done in useEffect
     } catch (err) {
       console.error('Error during checkout:', err);
-      setError('Failed to complete purchase');
-    } finally {
-      setPurchaseLoading(false);
     }
   };
 
-  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
 
   // Account type options for purchasing
   const accountTypes = [
@@ -798,7 +780,7 @@ const Cart = () => {
         {error && (
           <ErrorMessage>
             {error}
-            <button onClick={() => setError('')}>✕</button>
+            <button onClick={() => dispatch(clearCartErrors())}>✕</button>
           </ErrorMessage>
         )}
 
@@ -853,7 +835,7 @@ const Cart = () => {
         )}  {/* End of loading condition */}
 
         <RecommendedSection>
-          <h3>You might also like</h3>
+          <h3>What others are buying</h3>
           <RecommendedItems>
             {recommendedItems.map((item) => (
               <RecommendedItem key={item.id}>
@@ -961,10 +943,10 @@ const Cart = () => {
               </button>
               <button 
                 onClick={handleCheckout}
-                disabled={purchaseLoading || !deliveryAddress.trim()}
+                disabled={purchasing || !deliveryAddress.trim()}
                 className="confirm-btn"
               >
-                {purchaseLoading ? 'Processing...' : `Pay R${totalPrice.toFixed(2)}`}
+                {purchasing ? 'Processing...' : `Pay R${totalPrice.toFixed(2)}`}
               </button>
             </ModalFooter>
           </ModalContent>

@@ -28,6 +28,7 @@ import DependentBuy from './components/DependentBuy/DependentBuy';
 import Products from './components/Products/Products';
 import ProductDetail from './components/Products/ProductDetail';
 import Cart from './components/Cart/Cart';
+import DebugPage from './components/Debug/DebugPageFixed';
 import DependentStatements from './components/DependentStatements/DependentStatements';
 import CareGiverStatements from './components/CareGiverStatements/CareGiverStatements';
 import CareGiverRequests from './components/CareGiverRequests/CareGiverRequests';
@@ -190,6 +191,7 @@ function App() {
         <Route path="products" element={<Products />} />
         <Route path="product/:id" element={<Suspense fallback={<Loader />}><ProductDetail /></Suspense>} />
         <Route path="cart" element={<Cart />} />
+        <Route path="debug-products" element={<DebugPage />} />
         <Route path="dependent-myaccounts" element={<DependentMyAccounts />} />
         <Route path="dependent-transfer" element={<DependentTransfer />} />
         <Route path="dependent-statements" element={<DependentStatements />} />

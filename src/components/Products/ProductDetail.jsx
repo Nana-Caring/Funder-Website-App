@@ -1,13 +1,55 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { Heart, Share, Star } from 'lucide-react';
-import axios from 'axios';
-import sampleProductImage from '../../../assets/sample-product.png';
+
+// Redux actions and selectors
+import {
+  fetchProductById,
+  selectSelectedProduct,
+  selectProductLoading,
+  selectProductError,
+  clearSelectedProduct
+} from '../../../store/slices/products';
+
+import { addToCart, selectAddingToCart } from '../../../store/slices/cartServer';
+
+// Remove debug components - API works fine
+
+// Helper function to handle product image URLs (same as Products.jsx)
+const getImageUrl = (imageData) => {
+  if (!imageData) return null;
+  
+  // Handle string URLs (direct image URLs from Google Images or retailer CDNs)
+  if (typeof imageData === 'string') {
+    // If it's already a full URL (Google Images, retailer CDNs, etc.)
+    if (imageData.startsWith('http://') || imageData.startsWith('https://')) {
+      return imageData;
+    }
+    // If it's just a filename, construct retailer CDN URL
+    if (imageData && !imageData.includes('/')) {
+      return `https://cdn.babycity.co.za/images/products/large/${imageData}`;
+    }
+    return null;
+  }
+  
+  // Handle object format with url property
+  if (imageData && typeof imageData === 'object') {
+    if (imageData.url) return imageData.url;
+    if (imageData.src) return imageData.src;
+    if (imageData.href) return imageData.href;
+  }
+  
+  return null;
+};
+
+// Default fallback image
+const defaultProductImage = "https://via.placeholder.com/280x320/f8f9fa/6b7280?text=No+Image";
 
 const PageContainer = styled.div`
-  width: calc(100% - 175px);
-  margin-left: 175px;
+  width: ${props => (props.$inline ? '100%' : 'calc(100% - 175px)')};
+  margin-left: ${props => (props.$inline ? '0' : '175px')};
   padding: 20px;
   background-color: #f8f9fa;
   min-height: calc(100vh - 60px);
@@ -363,37 +405,51 @@ const AddToFavoritesButton = styled.button`
   }
 `;
 
-const ProductDetail = () => {
+const ProductDetail = ({ product: productProp, onBack }) => {
+  // Redux setup
+  const dispatch = useDispatch();
   const { id } = useParams();
-  const [product, setProduct] = useState(null);
+  
+  // Use prop product if available, otherwise fall back to Redux (for direct URL access)
+  const productFromRedux = useSelector(selectSelectedProduct);
+  const loading = useSelector(selectProductLoading);
+  const error = useSelector(selectProductError);
+  const addingToCart = useSelector(selectAddingToCart);
+  
+  // Priority: prop product > redux product
+  const product = productProp || productFromRedux;
+  
+  // Clean logs removed after alignment
+  
+  // Local state
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('description');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   
   useEffect(() => {
-    const fetchProduct = async () => {
-      setLoading(true);
-      setError(null);
+    if (id) {
+      // Check if we already have the right product in Redux
+      const currentProductId = product?.id?.toString();
+      const currentProductSku = product?.sku?.toString();
+      const urlId = id.toString();
       
-      try {
-        const response = await axios.get(`https://nanacaring-backend.onrender.com/api/products/${id}`);
-        
-        if (response.data.success) {
-          setProduct(response.data.data);
-        }
-      } catch (err) {
-        console.error('Error fetching product:', err);
-        setError(err.response?.data?.message || 'Failed to load product');
-      } finally {
-        setLoading(false);
+      // Only fetch if we don't have the right product
+      const hasCorrectProduct = currentProductId === urlId || currentProductSku === urlId;
+      
+      if (!hasCorrectProduct) {
+        dispatch(fetchProductById(id));
+      }
+    }
+    
+    // Clear product when component unmounts (but only if navigating away from product pages)
+    return () => {
+      // Don't clear if we're just switching between product detail pages
+      const currentPath = window.location.pathname;
+      if (!currentPath.startsWith('/product')) {
+        dispatch(clearSelectedProduct());
+      } else {
       }
     };
-
-    if (id) {
-      fetchProduct();
-    }
-  }, [id]);
+  }, [id, dispatch]);
   
   const decreaseQuantity = () => {
     if (quantity > 1) {
@@ -404,10 +460,27 @@ const ProductDetail = () => {
   const increaseQuantity = () => {
     setQuantity(quantity + 1);
   };
+
+  const handleAddToCart = async () => {
+    if (!product) return;
+    
+    try {
+      // Use the server-based cart API (matches your POST /api/cart/add endpoint)
+      await dispatch(addToCart({
+        productId: product.id,
+        quantity
+      })).unwrap();
+      
+      // Could show success message or redirect to cart
+    } catch (error) {
+      console.error('Failed to add product to cart:', error);
+      alert(`Failed to add to cart: ${error}`);
+    }
+  };
   
   if (loading) {
     return (
-      <PageContainer>
+      <PageContainer $inline={!!onBack}>
         <div style={{ textAlign: 'center', padding: '60px', color: '#666' }}>
           Loading product details...
         </div>
@@ -417,7 +490,7 @@ const ProductDetail = () => {
   
   if (error) {
     return (
-      <PageContainer>
+      <PageContainer $inline={!!onBack}>
         <div style={{ textAlign: 'center', padding: '60px', color: '#e63946' }}>
           {error}
         </div>
@@ -427,25 +500,82 @@ const ProductDetail = () => {
   
   if (!product) {
     return (
-      <PageContainer>
+      <PageContainer $inline={!!onBack}>
         <div style={{ textAlign: 'center', padding: '60px', color: '#666' }}>
-          Product not found
+          <h3>Product not found</h3>
+          <div style={{ fontSize: '14px', marginTop: '20px', textAlign: 'left', maxWidth: '400px', margin: '20px auto' }}>
+            <strong>Debug Info:</strong><br/>
+            URL ID: {id || 'none'}<br/>
+            Loading: {String(loading)}<br/>
+            Error: {error || 'none'}<br/>
+            Product from props: {productProp ? 'Yes' : 'No'}<br/>
+            Product in Redux: {productFromRedux ? 'Yes' : 'No'}<br/>
+            {(productProp || productFromRedux) && (
+              <>
+                Product ID: {(productProp || productFromRedux).id}<br/>
+                Product SKU: {(productProp || productFromRedux).sku}<br/>
+                Product Name: {(productProp || productFromRedux).name}
+              </>
+            )}
+          </div>
+          {onBack && (
+            <button 
+              onClick={onBack}
+              style={{ 
+                marginTop: '20px', 
+                padding: '10px 20px', 
+                background: '#02542D', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              ← Back to Products
+            </button>
+          )}
         </div>
       </PageContainer>
     );
   }
   
   return (
-    <PageContainer>
-      <Breadcrumb>Healthcare products &gt; product &gt; Clicks</Breadcrumb>
+    <PageContainer $inline={!!onBack}>
+      {/* Back button when used as overlay */}
+      {onBack && (
+        <div style={{ marginBottom: '15px' }}>
+          <button 
+            onClick={onBack}
+            style={{ 
+              padding: '8px 16px', 
+              background: '#f8f9fa', 
+              color: '#02542D', 
+              border: '1px solid #02542D', 
+              borderRadius: '4px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            ← Back to Products
+          </button>
+        </div>
+      )}
+      
+      {!onBack && (
+        <Breadcrumb>Healthcare products &gt; product &gt; Clicks</Breadcrumb>
+      )}
       
       <ProductContainer>
         <ImageSection>
           <MainImageContainer>
             <ProductImage 
-              src={product.image || sampleProductImage} 
+              src={getImageUrl(product.image) || 
+                   (product.images && product.images.length > 0 ? getImageUrl(product.images[0]) : null) ||
+                   defaultProductImage} 
               alt={product.name}
-              onError={(e) => { e.target.src = sampleProductImage; }}
+              onError={(e) => { e.target.src = defaultProductImage; }}
             />
           </MainImageContainer>
           <ThumbnailContainer>
@@ -453,22 +583,22 @@ const ProductDetail = () => {
               product.images.slice(0, 2).map((img, index) => (
                 <ThumbnailImage 
                   key={index}
-                  src={img || sampleProductImage} 
+                  src={getImageUrl(img) || defaultProductImage} 
                   alt={`${product.name} view ${index + 1}`}
-                  onError={(e) => { e.target.src = sampleProductImage; }}
+                  onError={(e) => { e.target.src = defaultProductImage; }}
                 />
               ))
             ) : (
               <>
                 <ThumbnailImage 
-                  src={product.image || sampleProductImage} 
+                  src={getImageUrl(product.image) || defaultProductImage} 
                   alt={`${product.name} view 1`}
-                  onError={(e) => { e.target.src = sampleProductImage; }}
+                  onError={(e) => { e.target.src = defaultProductImage; }}
                 />
                 <ThumbnailImage 
-                  src={product.image || sampleProductImage} 
+                  src={getImageUrl(product.image) || defaultProductImage} 
                   alt={`${product.name} view 2`}
-                  onError={(e) => { e.target.src = sampleProductImage; }}
+                  onError={(e) => { e.target.src = defaultProductImage; }}
                 />
               </>
             )}
@@ -502,7 +632,12 @@ const ProductDetail = () => {
                   <QuantityButton onClick={increaseQuantity}>+</QuantityButton>
                 </QuantityControls>
               </QuantitySelector>
-               <AddToBasketButton>Add To Basket</AddToBasketButton>
+               <AddToBasketButton 
+                 onClick={handleAddToCart}
+                 disabled={!product?.inStock || addingToCart}
+               >
+                 {addingToCart ? 'Adding...' : 'Add To Basket'}
+               </AddToBasketButton>
             </div>
           </div>
           

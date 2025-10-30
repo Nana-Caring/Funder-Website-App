@@ -1,12 +1,34 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import { Grid, List, Heart, Baby, GraduationCap, Shirt, Gamepad2, Users } from "lucide-react";
+import { Grid, List, Heart, Baby, GraduationCap, Shirt, Gamepad2, Users, Car, ShoppingCart, Package } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import sampleProductImage from "../../../assets/sample-product.png";
+import { useDispatch, useSelector } from "react-redux";
 import chevronIcon from "../../../assets/icons/Chevron down.png";
-import axios from "axios";
 
-// Export sampleProducts to make it available for import in ProductDetail.jsx
+// Redux actions and selectors
+import {
+  fetchProducts,
+  fetchRecommendedProducts,
+  selectProducts,
+  selectProductsLoading,
+  selectProductsError,
+  selectPagination,
+  selectCurrentCategory,
+  selectCurrentSearch,
+  selectCurrentSort,
+  selectRecommendedProducts,
+  setCurrentCategory,
+  setCurrentSearch,
+  setCurrentSort,
+  setSelectedProduct,
+  clearProducts
+} from '../../../store/slices/products';
+
+import { addToCart, selectAddingToCart } from '../../../store/slices/cart';
+import ProductDetail from './ProductDetail';
+
+// Simple fallback for when no image is available
+const defaultProductImage = "https://via.placeholder.com/200x200/f8f9fa/6b7280?text=No+Image";
 
 const PageLayout = styled.div`
   display: flex;
@@ -291,21 +313,23 @@ const ProductImage = styled.img`
   background-color: #f8f9fa;
 `;
 
-// Enhanced image component with multiple source fallbacks
+// Enhanced image component with Google Images + retailer CDN support
 const SmartProductImage = ({ product, alt, ...props }) => {
   const [currentSrcIndex, setCurrentSrcIndex] = useState(0);
-  const [hasError, setHasError] = useState(false);
   
-  // Build array of possible image sources
+  // Build array of image sources from backend (Google Images + retailer CDNs)
   const imageSources = [];
   
-  // Primary image
+  // Primary image (usually Google Images URL)
   if (product.image) {
     const primaryUrl = getImageUrl(product.image);
-    if (primaryUrl) imageSources.push(primaryUrl);
+    if (primaryUrl) {
+      imageSources.push(primaryUrl);
+      console.log(`🖼️ Primary image for ${product.name}:`, primaryUrl);
+    }
   }
   
-  // Images array
+  // Images array (multiple Google Images or retailer sources)
   if (product.images && Array.isArray(product.images)) {
     product.images.forEach(img => {
       const url = getImageUrl(img);
@@ -313,33 +337,38 @@ const SmartProductImage = ({ product, alt, ...props }) => {
         imageSources.push(url);
       }
     });
+    if (product.images.length > 0) {
+      console.log(`🖼️ ${product.images.length} images available for ${product.name}`);
+    }
   }
   
-  // Add sample image as final fallback
-  imageSources.push(sampleProductImage);
+  // Add fallback only if no images found
+  if (imageSources.length === 0) {
+    imageSources.push(defaultProductImage);
+    console.log(`⚠️ No images found for ${product.name}, using placeholder`);
+  }
   
-  const handleImageError = () => {
-    console.log(`❌ Image ${currentSrcIndex + 1}/${imageSources.length} failed for ${product.name}:`, imageSources[currentSrcIndex]);
-    
+  const handleImageError = (e) => {
+    console.log(`❌ Image failed for ${product.name}:`, e.target.src);
     if (currentSrcIndex < imageSources.length - 1) {
       setCurrentSrcIndex(prev => prev + 1);
-      console.log(`🔄 Trying next image source ${currentSrcIndex + 2}/${imageSources.length}`);
+      console.log(`🔄 Trying next image source for ${product.name}`);
     } else {
-      console.log('❌ All image sources failed, using final fallback');
-      setHasError(true);
+      console.log(`❌ All images failed for ${product.name}, showing placeholder`);
     }
   };
   
-  const handleImageLoad = () => {
-    if (imageSources[currentSrcIndex] !== sampleProductImage) {
-      console.log(`✅ Image loaded for ${product.name}:`, imageSources[currentSrcIndex]);
+  const handleImageLoad = (e) => {
+    // Only log successful Google Images loads (not placeholder)
+    if (e.target.src !== defaultProductImage) {
+      console.log(`✅ Image loaded for ${product.name}:`, e.target.src.substring(0, 100) + '...');
     }
   };
   
   return (
     <ProductImage
       src={imageSources[currentSrcIndex]}
-      alt={alt}
+      alt={alt || product.name}
       onError={handleImageError}
       onLoad={handleImageLoad}
       {...props}
@@ -397,227 +426,142 @@ const PageButton = styled.button`
   font-weight: 500;
 `;
 
-// Helper function to handle product image URLs
+// Helper function to handle product image URLs from backend (Google Images + retailer CDNs)
 const getImageUrl = (imageData) => {
   if (!imageData) return null;
   
-  console.log('🔍 Processing image data:', imageData, 'Type:', typeof imageData);
-  
-  // If imageData is a string (direct URL)
+  // Handle string URLs (direct image URLs from Google Images or retailer CDNs)
   if (typeof imageData === 'string') {
-    // Check if it's a full URL
+    // If it's already a full URL (Google Images, retailer CDNs, etc.)
     if (imageData.startsWith('http://') || imageData.startsWith('https://')) {
-      console.log('✅ Valid image URL found:', imageData);
       return imageData;
     }
-    // If it's just a filename, try to construct a proper URL
+    // If it's just a filename, construct retailer CDN URL
     if (imageData && !imageData.includes('/')) {
-      console.log('⚠️ Filename only, attempting to construct URL:', imageData);
-      // Try common CDN patterns
-      const possibleUrls = [
-        `https://cdn.babycity.co.za/images/products/large/${imageData}`,
-        `https://nanacaring-backend.onrender.com/uploads/${imageData}`,
-        `https://nanacaring-backend.onrender.com/images/${imageData}`
-      ];
-      console.log('🔧 Trying constructed URLs:', possibleUrls);
-      return possibleUrls[0]; // Return the first attempt
+      return `https://cdn.babycity.co.za/images/products/large/${imageData}`;
     }
-    console.log('⚠️ Invalid image format:', imageData);
     return null;
   }
   
-  // If imageData is an object with url property
-  if (imageData && typeof imageData === 'object' && imageData.url) {
-    console.log('✅ Using image URL from object:', imageData.url);
-    return imageData.url;
+  // Handle object format with url property (enhanced image objects from backend)
+  if (imageData && typeof imageData === 'object') {
+    if (imageData.url) {
+      return imageData.url;
+    }
+    // Some image objects might have different property names
+    if (imageData.src) {
+      return imageData.src;
+    }
+    if (imageData.href) {
+      return imageData.href;
+    }
   }
   
-  console.log('❌ No valid image found in:', imageData);
   return null;
 };
 
 const Products = () => {
-  const [sortBy, setSortBy] = useState("relevance");
+  // Redux setup
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Local state for view management
+  const [currentView, setCurrentView] = useState('list'); // 'list' or 'detail'
+  const [selectedProductLocal, setSelectedProductLocal] = useState(null);
+  
+  // Redux selectors
+  const products = useSelector(selectProducts);
+  const loading = useSelector(selectProductsLoading);
+  const error = useSelector(selectProductsError);
+  const pagination = useSelector(selectPagination);
+  const currentCategory = useSelector(selectCurrentCategory);
+  const currentSearch = useSelector(selectCurrentSearch);
+  const currentSort = useSelector(selectCurrentSort);
+  const addingToCart = useSelector(selectAddingToCart);
+  
+  // Debug logging
+  console.log('🔍 Products Redux State:');
+  console.log('  - Products length:', products?.length || 0);
+  console.log('  - Products array:', products);
+  console.log('  - Loading:', loading);
+  console.log('  - Error:', error);
+  console.log('  - Current category:', currentCategory);
+  console.log('  - Current search:', currentSearch);
+  console.log('  - Current sort:', currentSort);
+  console.log('  - Pagination:', pagination);
+
+  // Additional debugging for rendering logic
+  console.log('🎭 Render conditions:');
+  console.log('  - Loading:', loading);
+  console.log('  - Error:', error);
+  console.log('  - Has products:', products && products.length > 0);
+  console.log('  - Products length:', products?.length);
+  console.log('  - Should show no products:', !loading && !error && products.length === 0);
+  console.log('  - Should show products:', !loading && !error && products.length > 0);
+
+  // Local state for UI components
   const [currentPage, setCurrentPage] = useState(1);
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [totalPages, setTotalPages] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [itemsPerPage, setItemsPerPage] = useState(50); // Increased from 20 to fetch more products
   const [brands, setBrands] = useState([]);
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [selectedFilters, setSelectedFilters] = useState({
     promotionType: [],
     inStock: true
   });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("relevance");
   const [openSections, setOpenSections] = useState({
     promotionType: false,
     category: false,
     shopByBrand: false
   });
-  const navigate = useNavigate();
-  const location = useLocation();
+  
   const selectedCategory = location.state?.category || 'Healthcare';
-
-  // Map frontend category names to backend category names
-  const categoryMapping = {
-    'Healthcare': 'Healthcare',
-    'Babycare': 'Groceries', // Map Babycare to Groceries or create a new category in backend
-    'School': 'Education',
-    'Clothing': 'Other',
-    'Entertainment': 'Entertainment',
-    'Pregnancy': 'Healthcare'
+  
+  // Function to return to product list
+  const backToProductList = () => {
+    setCurrentView('list');
+    setSelectedProductLocal(null);
   };
 
-  // Fetch products from backend
+  // Set initial category in Redux when component mounts
   useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const backendCategory = categoryMapping[selectedCategory] || selectedCategory;
-        
-        // Build query parameters
-        const params = new URLSearchParams({
-          category: backendCategory,
-          page: currentPage,
-          limit: itemsPerPage,
-          inStock: selectedFilters.inStock
-        });
+    dispatch(setCurrentCategory(selectedCategory));
+  }, [selectedCategory, dispatch]);
 
-        // Add brand filter if any selected
-        if (selectedBrands.length > 0) {
-          selectedBrands.forEach(brand => params.append('brand', brand));
-        }
-
-        // Add sorting
-        if (sortBy === 'price-low') {
-          params.append('sortBy', 'price');
-          params.append('sortOrder', 'ASC');
-        } else if (sortBy === 'price-high') {
-          params.append('sortBy', 'price');
-          params.append('sortOrder', 'DESC');
-        }
-
-        console.log('🔄 Fetching products from:', `https://nanacaring-backend.onrender.com/api/products?${params.toString()}`);
-        
-        // Try multiple API endpoints
-        const endpoints = [
-          `https://nanacaring-backend.onrender.com/api/products?${params.toString()}`,
-          `https://nanacaring-backend.onrender.com/api/dependent/products?${params.toString()}`,
-          `https://nanacaring-backend.onrender.com/api/products`
-        ];
-        
-        let response = null;
-        let lastError = null;
-        
-        for (const endpoint of endpoints) {
-          try {
-            console.log(`🔄 Trying endpoint: ${endpoint}`);
-            response = await axios.get(endpoint, {
-              timeout: 10000,
-              headers: {
-                'Content-Type': 'application/json'
-              }
-            });
-            
-            console.log('✅ API Response:', response.data);
-            break; // Success, exit loop
-          } catch (endpointError) {
-            console.warn(`❌ Failed endpoint ${endpoint}:`, endpointError.message);
-            lastError = endpointError;
-            continue; // Try next endpoint
-          }
-        }
-        
-        if (!response) {
-          throw lastError || new Error('All product endpoints failed');
-        }
-        
-        // Handle multiple possible response structures
-        let productsData = [];
-        
-        if (response.data.success) {
-          productsData = response.data.data?.products || 
-                        response.data.data || 
-                        response.data.products ||
-                        (Array.isArray(response.data.data) ? response.data.data : []);
-        } else if (Array.isArray(response.data)) {
-          productsData = response.data;
-        } else if (response.data.products) {
-          productsData = response.data.products;
-        } else {
-          // Try to extract products from any array in the response
-          const dataKeys = Object.keys(response.data);
-          for (const key of dataKeys) {
-            if (Array.isArray(response.data[key])) {
-              productsData = response.data[key];
-              break;
-            }
-          }
-        }
-        
-        const totalPagesData = response.data.pagination?.totalPages || 
-                             response.data.data?.totalPages || 
-                             response.data.totalPages ||
-                             Math.ceil(productsData.length / itemsPerPage);
-        
-        console.log('📦 Products data:', productsData);
-        console.log('📋 Sample product:', productsData[0]);
-        console.log('📊 Total pages:', totalPagesData);
-        
-        // Debug image URLs
-        if (productsData && productsData.length > 0) {
-          productsData.slice(0, 3).forEach((product, index) => {
-            console.log(`🖼️ Product ${index} image data:`, {
-              name: product.name,
-              image: product.image,
-              images: product.images,
-              processedUrl: getImageUrl(product.image)
-            });
-          });
-        }
-        
-        setProducts(productsData || []);
-        setTotalPages(totalPagesData);
-        
-        // Extract unique brands from products - handle your backend response structure
-        const uniqueBrands = [...new Set(productsData.map(p => p?.brand).filter(Boolean))];
-        setBrands(uniqueBrands);
-        
-        // Extract unique shops for potential filtering
-        const uniqueShops = [...new Set(productsData.map(p => p?.shop).filter(Boolean))];
-        console.log('🏪 Available shops:', uniqueShops);
-      } catch (err) {
-        console.error('❌ Error fetching products:', err);
-        console.error('❌ Error response:', err.response?.data);
-        console.error('❌ Error status:', err.response?.status);
-        console.error('❌ Error config:', err.config?.url);
-        
-        let errorMessage = 'Failed to load products. Please try again.';
-        
-        if (err.code === 'NETWORK_ERROR' || err.message.includes('Network')) {
-          errorMessage = 'Network connection failed. Please check your internet connection.';
-        } else if (err.response?.status === 404) {
-          errorMessage = 'Products endpoint not found. The API may be unavailable.';
-        } else if (err.response?.status === 500) {
-          errorMessage = 'Server error occurred. Please try again later.';
-        } else if (err.response?.data?.message) {
-          errorMessage = err.response.data.message;
-        } else if (err.message) {
-          errorMessage = `API Error: ${err.message}`;
-        }
-        
-        setError(errorMessage);
-        setProducts([]);
-      } finally {
-        setLoading(false);
-      }
+  // Effect to fetch products when parameters change
+  useEffect(() => {
+    console.log('🔄 Dispatching fetchProducts with params:', {
+      category: selectedCategory,
+      page: currentPage,
+      limit: itemsPerPage,
+      search: searchTerm,
+      sortBy: sortBy
+    });
+    
+    // Fetch products with proper parameters according to API docs
+    const fetchParams = {
+      category: selectedCategory,
+      page: currentPage,
+      limit: itemsPerPage,
+      search: searchTerm,
+      sortBy: sortBy
     };
+    
+    console.log('📋 Fetching products with params:', fetchParams);
+    console.log('📂 Selected category:', selectedCategory);
+    
+    dispatch(fetchProducts(fetchParams));
+  }, [dispatch, selectedCategory, currentPage, itemsPerPage, searchTerm, sortBy]);
 
-    fetchProducts();
-  }, [selectedCategory, currentPage, sortBy, itemsPerPage, selectedBrands, selectedFilters]);
+  // Extract brands from products for filtering
+  useEffect(() => {
+    if (products && products.length > 0) {
+      const uniqueBrands = [...new Set(products.map(p => p?.brand).filter(Boolean))];
+      setBrands(uniqueBrands);
+    }
+  }, [products]);
 
   const handleBrandToggle = (brand) => {
     setSelectedBrands(prev => 
@@ -634,13 +578,53 @@ const Products = () => {
     setCurrentPage(1);
   };
 
+  // Handle sort change
+  const handleSortChange = (newSort) => {
+    setSortBy(newSort);
+    setCurrentPage(1);
+  };
+
+  // Handle search
+  const handleSearch = (searchValue) => {
+    setSearchTerm(searchValue);
+    dispatch(setCurrentSearch(searchValue));
+    setCurrentPage(1);
+  };
+
+  // Handle add to cart
+  const handleAddToCart = async (product) => {
+    try {
+      await dispatch(addToCart({
+        productId: product.id,
+        quantity: 1,
+        accountType: 'Main'
+      })).unwrap();
+      
+      // Show success message or update UI
+      console.log('Product added to cart successfully');
+    } catch (error) {
+      console.error('Failed to add product to cart:', error);
+      // Handle error (show toast, etc.)
+    }
+  };
+
+  // Handle page change
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
   // Category icon mapping
   const categoryIcons = {
     Healthcare: <Heart size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
+    Education: <GraduationCap size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
+    Groceries: <ShoppingCart size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
+    Transport: <Car size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
+    Entertainment: <Gamepad2 size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
+    Other: <Package size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
+    // Frontend category mappings
     Babycare: <Baby size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
     School: <GraduationCap size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
     Clothing: <Shirt size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
-    Entertainment: <Gamepad2 size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
     Pregnancy: <Users size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />
   };
 
@@ -701,19 +685,31 @@ const Products = () => {
               <CheckboxGroup>
                 <Checkbox type="checkbox" /> Healthcare
               </CheckboxGroup>
-              <CountBadge>15</CountBadge>
             </CheckboxLabel>
             <CheckboxLabel>
               <CheckboxGroup>
-                <Checkbox type="checkbox" /> Babycare
+                <Checkbox type="checkbox" /> Education
               </CheckboxGroup>
-              <CountBadge>8</CountBadge>
             </CheckboxLabel>
             <CheckboxLabel>
               <CheckboxGroup>
-                <Checkbox type="checkbox" /> School
+                <Checkbox type="checkbox" /> Groceries
               </CheckboxGroup>
-              <CountBadge>12</CountBadge>
+            </CheckboxLabel>
+            <CheckboxLabel>
+              <CheckboxGroup>
+                <Checkbox type="checkbox" /> Transport
+              </CheckboxGroup>
+            </CheckboxLabel>
+            <CheckboxLabel>
+              <CheckboxGroup>
+                <Checkbox type="checkbox" /> Entertainment
+              </CheckboxGroup>
+            </CheckboxLabel>
+            <CheckboxLabel>
+              <CheckboxGroup>
+                <Checkbox type="checkbox" /> Other
+              </CheckboxGroup>
             </CheckboxLabel>
           </SectionContent>
         </SidebarSection>
@@ -748,14 +744,39 @@ const Products = () => {
 
         {/* RIGHT MAIN PRODUCT CATALOG */}
         <MainContent>
-          <Header>{categoryIcons[selectedCategory]}{selectedCategory} Products </Header>
+          {currentView === 'detail' && selectedProductLocal ? (
+            <ProductDetail 
+              product={selectedProductLocal} 
+              onBack={backToProductList}
+            />
+          ) : (
+            <>
+              <Header>{categoryIcons[selectedCategory]}{selectedCategory} Products </Header>
           
           <FiltersRow>
           <FilterGroup>
+            <Label>Search Products</Label>
+            <input
+              type="text"
+              placeholder="Search by name, brand, or description..."
+              value={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
+              style={{
+                padding: '6px 10px',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                width: '250px',
+                fontSize: '14px'
+              }}
+            />
+          </FilterGroup>
+
+          <FilterGroup>
             <Label>Sort By</Label>
             <SelectWrapper>
-              <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              <Select value={sortBy} onChange={(e) => handleSortChange(e.target.value)}>
                 <option value="relevance">Relevance</option>
+                <option value="name">Name A-Z</option>
                 <option value="price-low">Price: Low to High</option>
                 <option value="price-high">Price: High to Low</option>
               </Select>
@@ -805,7 +826,16 @@ const Products = () => {
             </div>
           )}
           {!loading && !error && products.map((p) => (
-            <ProductCard key={p.sku || p.id} onClick={() => navigate(`/product/${p.sku || p.id}`)}>
+            <ProductCard 
+              key={p.sku || p.id} 
+              onClick={() => {
+                // Store product data and switch to detail view
+                console.log('🎯 Setting selected product:', p);
+                setSelectedProductLocal(p);
+                dispatch(setSelectedProduct(p)); // Also store in Redux for ProductDetail component
+                setCurrentView('detail');
+              }}
+            >
               {p.onSale && <SaleTag>-10%</SaleTag>}
               <SmartProductImage 
                 product={p}
@@ -831,10 +861,9 @@ const Products = () => {
               <AddButton 
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Add to basket logic here
-                  alert(`Added ${p.name} to basket`);
+                  handleAddToCart(p);
                 }} 
-                disabled={!p.inStock}
+                disabled={!p.inStock || addingToCart}
                 style={{ 
                   opacity: p.inStock ? 1 : 0.6, 
                   cursor: p.inStock ? 'pointer' : 'not-allowed' 
@@ -848,24 +877,26 @@ const Products = () => {
 
         <Pagination>
           {currentPage > 1 && (
-            <PageButton onClick={() => setCurrentPage(1)}>First</PageButton>
+            <PageButton onClick={() => handlePageChange(1)}>First</PageButton>
           )}
-          {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+          {Array.from({ length: Math.min(pagination.totalPages || 1, 5) }, (_, i) => {
             const page = i + 1;
             return (
               <PageButton 
                 key={page} 
                 active={currentPage === page}
-                onClick={() => setCurrentPage(page)}
+                onClick={() => handlePageChange(page)}
               >
                 {page}
               </PageButton>
             );
           })}
-          {currentPage < totalPages && (
-            <PageButton onClick={() => setCurrentPage(totalPages)}>Last</PageButton>
+          {currentPage < (pagination.totalPages || 1) && (
+            <PageButton onClick={() => handlePageChange(pagination.totalPages || 1)}>Last</PageButton>
           )}
         </Pagination>
+            </>
+          )}
         </MainContent>
       </ContentWrapper>
     </PageLayout>

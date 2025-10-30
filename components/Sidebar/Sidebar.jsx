@@ -103,14 +103,16 @@ const Sidebar = () => {
         Home
       </MenuItem>
 
-      <MenuItem to="/messages" active={location.pathname === "/messages" ? 1 : 0}>
-        <img src={messagesIcon} alt="Messages" />
-        Messages 
-      </MenuItem>
+      
 
       <MenuItem to="/my-accounts" active={location.pathname === "/my-accounts" ? 1 : 0}>
         <img src={myAccountIcon} alt="My Card" />
         My Card
+      </MenuItem>
+
+      <MenuItem to="/messages" active={location.pathname === "/messages" ? 1 : 0}>
+        <img src={messagesIcon} alt="Messages" />
+        Messages 
       </MenuItem>
 
       <MenuItem to="/send-money" active={location.pathname === "/send-money" ? 1 : 0}>
