@@ -11,10 +11,10 @@ import axios from "axios";
 const PageLayout = styled.div`
   display: flex;
   flex-direction: column;
-  width: calc(100% - 175px);
+  width: 89%;
   margin-left: 175px; /* adjust based on your nav */
-  padding: 20px;
-  padding-top: 0;
+  
+ margin-top: -3%;
   gap: 20px;
   box-sizing: border-box;
   height: calc(100vh - 60px); /* fill viewport minus header */
@@ -287,7 +287,65 @@ const ProductImage = styled.img`
   height: 140px;
   object-fit: contain;
   margin-bottom: 10px;
+  border-radius: 8px;
+  background-color: #f8f9fa;
 `;
+
+// Enhanced image component with multiple source fallbacks
+const SmartProductImage = ({ product, alt, ...props }) => {
+  const [currentSrcIndex, setCurrentSrcIndex] = useState(0);
+  const [hasError, setHasError] = useState(false);
+  
+  // Build array of possible image sources
+  const imageSources = [];
+  
+  // Primary image
+  if (product.image) {
+    const primaryUrl = getImageUrl(product.image);
+    if (primaryUrl) imageSources.push(primaryUrl);
+  }
+  
+  // Images array
+  if (product.images && Array.isArray(product.images)) {
+    product.images.forEach(img => {
+      const url = getImageUrl(img);
+      if (url && !imageSources.includes(url)) {
+        imageSources.push(url);
+      }
+    });
+  }
+  
+  // Add sample image as final fallback
+  imageSources.push(sampleProductImage);
+  
+  const handleImageError = () => {
+    console.log(`❌ Image ${currentSrcIndex + 1}/${imageSources.length} failed for ${product.name}:`, imageSources[currentSrcIndex]);
+    
+    if (currentSrcIndex < imageSources.length - 1) {
+      setCurrentSrcIndex(prev => prev + 1);
+      console.log(`🔄 Trying next image source ${currentSrcIndex + 2}/${imageSources.length}`);
+    } else {
+      console.log('❌ All image sources failed, using final fallback');
+      setHasError(true);
+    }
+  };
+  
+  const handleImageLoad = () => {
+    if (imageSources[currentSrcIndex] !== sampleProductImage) {
+      console.log(`✅ Image loaded for ${product.name}:`, imageSources[currentSrcIndex]);
+    }
+  };
+  
+  return (
+    <ProductImage
+      src={imageSources[currentSrcIndex]}
+      alt={alt}
+      onError={handleImageError}
+      onLoad={handleImageLoad}
+      {...props}
+    />
+  );
+};
 
 const ProductName = styled.div`
   font-size: 14px;
@@ -339,6 +397,45 @@ const PageButton = styled.button`
   font-weight: 500;
 `;
 
+// Helper function to handle product image URLs
+const getImageUrl = (imageData) => {
+  if (!imageData) return null;
+  
+  console.log('🔍 Processing image data:', imageData, 'Type:', typeof imageData);
+  
+  // If imageData is a string (direct URL)
+  if (typeof imageData === 'string') {
+    // Check if it's a full URL
+    if (imageData.startsWith('http://') || imageData.startsWith('https://')) {
+      console.log('✅ Valid image URL found:', imageData);
+      return imageData;
+    }
+    // If it's just a filename, try to construct a proper URL
+    if (imageData && !imageData.includes('/')) {
+      console.log('⚠️ Filename only, attempting to construct URL:', imageData);
+      // Try common CDN patterns
+      const possibleUrls = [
+        `https://cdn.babycity.co.za/images/products/large/${imageData}`,
+        `https://nanacaring-backend.onrender.com/uploads/${imageData}`,
+        `https://nanacaring-backend.onrender.com/images/${imageData}`
+      ];
+      console.log('🔧 Trying constructed URLs:', possibleUrls);
+      return possibleUrls[0]; // Return the first attempt
+    }
+    console.log('⚠️ Invalid image format:', imageData);
+    return null;
+  }
+  
+  // If imageData is an object with url property
+  if (imageData && typeof imageData === 'object' && imageData.url) {
+    console.log('✅ Using image URL from object:', imageData.url);
+    return imageData.url;
+  }
+  
+  console.log('❌ No valid image found in:', imageData);
+  return null;
+};
+
 const Products = () => {
   const [sortBy, setSortBy] = useState("relevance");
   const [currentPage, setCurrentPage] = useState(1);
@@ -354,9 +451,9 @@ const Products = () => {
     inStock: true
   });
   const [openSections, setOpenSections] = useState({
-    promotionType: true,
-    category: true,
-    shopByBrand: true
+    promotionType: false,
+    category: false,
+    shopByBrand: false
   });
   const navigate = useNavigate();
   const location = useLocation();
@@ -403,26 +500,116 @@ const Products = () => {
           params.append('sortOrder', 'DESC');
         }
 
-        const response = await axios.get(`https://nanacaring-backend.onrender.com/api/products?${params.toString()}`);
+        console.log('🔄 Fetching products from:', `https://nanacaring-backend.onrender.com/api/products?${params.toString()}`);
         
-        console.log('API Response:', response.data); // Debug log
+        // Try multiple API endpoints
+        const endpoints = [
+          `https://nanacaring-backend.onrender.com/api/products?${params.toString()}`,
+          `https://nanacaring-backend.onrender.com/api/dependent/products?${params.toString()}`,
+          `https://nanacaring-backend.onrender.com/api/products`
+        ];
+        
+        let response = null;
+        let lastError = null;
+        
+        for (const endpoint of endpoints) {
+          try {
+            console.log(`🔄 Trying endpoint: ${endpoint}`);
+            response = await axios.get(endpoint, {
+              timeout: 10000,
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            console.log('✅ API Response:', response.data);
+            break; // Success, exit loop
+          } catch (endpointError) {
+            console.warn(`❌ Failed endpoint ${endpoint}:`, endpointError.message);
+            lastError = endpointError;
+            continue; // Try next endpoint
+          }
+        }
+        
+        if (!response) {
+          throw lastError || new Error('All product endpoints failed');
+        }
+        
+        // Handle multiple possible response structures
+        let productsData = [];
         
         if (response.data.success) {
-          // Handle both possible response structures
-          const productsData = response.data.data.products || response.data.data || [];
-          const totalPagesData = response.data.pagination?.totalPages || response.data.data?.totalPages || 1;
-          
-          setProducts(productsData);
-          setTotalPages(totalPagesData);
-          
-          // Extract unique brands from products
-          const uniqueBrands = [...new Set(productsData.map(p => p.brand).filter(Boolean))];
-          setBrands(uniqueBrands);
+          productsData = response.data.data?.products || 
+                        response.data.data || 
+                        response.data.products ||
+                        (Array.isArray(response.data.data) ? response.data.data : []);
+        } else if (Array.isArray(response.data)) {
+          productsData = response.data;
+        } else if (response.data.products) {
+          productsData = response.data.products;
+        } else {
+          // Try to extract products from any array in the response
+          const dataKeys = Object.keys(response.data);
+          for (const key of dataKeys) {
+            if (Array.isArray(response.data[key])) {
+              productsData = response.data[key];
+              break;
+            }
+          }
         }
+        
+        const totalPagesData = response.data.pagination?.totalPages || 
+                             response.data.data?.totalPages || 
+                             response.data.totalPages ||
+                             Math.ceil(productsData.length / itemsPerPage);
+        
+        console.log('📦 Products data:', productsData);
+        console.log('📋 Sample product:', productsData[0]);
+        console.log('📊 Total pages:', totalPagesData);
+        
+        // Debug image URLs
+        if (productsData && productsData.length > 0) {
+          productsData.slice(0, 3).forEach((product, index) => {
+            console.log(`🖼️ Product ${index} image data:`, {
+              name: product.name,
+              image: product.image,
+              images: product.images,
+              processedUrl: getImageUrl(product.image)
+            });
+          });
+        }
+        
+        setProducts(productsData || []);
+        setTotalPages(totalPagesData);
+        
+        // Extract unique brands from products - handle your backend response structure
+        const uniqueBrands = [...new Set(productsData.map(p => p?.brand).filter(Boolean))];
+        setBrands(uniqueBrands);
+        
+        // Extract unique shops for potential filtering
+        const uniqueShops = [...new Set(productsData.map(p => p?.shop).filter(Boolean))];
+        console.log('🏪 Available shops:', uniqueShops);
       } catch (err) {
-        console.error('Error fetching products:', err);
-        console.error('Error response:', err.response?.data);
-        setError(err.response?.data?.message || 'Failed to load products. Please try again.');
+        console.error('❌ Error fetching products:', err);
+        console.error('❌ Error response:', err.response?.data);
+        console.error('❌ Error status:', err.response?.status);
+        console.error('❌ Error config:', err.config?.url);
+        
+        let errorMessage = 'Failed to load products. Please try again.';
+        
+        if (err.code === 'NETWORK_ERROR' || err.message.includes('Network')) {
+          errorMessage = 'Network connection failed. Please check your internet connection.';
+        } else if (err.response?.status === 404) {
+          errorMessage = 'Products endpoint not found. The API may be unavailable.';
+        } else if (err.response?.status === 500) {
+          errorMessage = 'Server error occurred. Please try again later.';
+        } else if (err.response?.data?.message) {
+          errorMessage = err.response.data.message;
+        } else if (err.message) {
+          errorMessage = `API Error: ${err.message}`;
+        }
+        
+        setError(errorMessage);
         setProducts([]);
       } finally {
         setLoading(false);
@@ -618,20 +805,41 @@ const Products = () => {
             </div>
           )}
           {!loading && !error && products.map((p) => (
-            <ProductCard key={p.id} onClick={() => navigate(`/product/${p.id}`)}>
+            <ProductCard key={p.sku || p.id} onClick={() => navigate(`/product/${p.sku || p.id}`)}>
               {p.onSale && <SaleTag>-10%</SaleTag>}
-              <ProductImage 
-                src={p.image || sampleProductImage} 
+              <SmartProductImage 
+                product={p}
                 alt={p.name}
-                onError={(e) => { e.target.src = sampleProductImage; }}
               />
               <ProductName>{p.name}</ProductName>
-              <ProductPrice>R{parseFloat(p.price).toFixed(2)}</ProductPrice>
-              <AddButton onClick={(e) => {
-                e.stopPropagation();
-                // Add to basket logic here
-                alert(`Added ${p.name} to basket`);
-              }}>
+              {p.brand && (
+                <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+                  {p.brand}
+                </div>
+              )}
+              <ProductPrice>R{parseFloat(p.price || 0).toFixed(2)}</ProductPrice>
+              {p.shop && (
+                <div style={{ fontSize: '11px', color: '#185c37', marginBottom: '8px' }}>
+                  Available at {p.shop}
+                </div>
+              )}
+              {p.stockQuantity && (
+                <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px' }}>
+                  Stock: {p.stockQuantity} available
+                </div>
+              )}
+              <AddButton 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Add to basket logic here
+                  alert(`Added ${p.name} to basket`);
+                }} 
+                disabled={!p.inStock}
+                style={{ 
+                  opacity: p.inStock ? 1 : 0.6, 
+                  cursor: p.inStock ? 'pointer' : 'not-allowed' 
+                }}
+              >
                 {p.inStock ? 'Add To Basket' : 'Out of Stock'}
               </AddButton>
             </ProductCard>
