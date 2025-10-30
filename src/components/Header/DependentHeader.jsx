@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import personIcon from '../../assets/icons/person.png';
 import notificationIcon from '../../assets/icons/notifications.png';
 import notificationIndicatorIcon from '../../assets/icons/notification-icon.png';
 import settingsIcon from '../../assets/icons/settings.png';
 import cartIcon from '../../assets/icons/buy.png'; // Using buy.png as a temporary replacement for cart.png
+import { fetchCart, selectCartTotalItems } from '../../../store/slices/cartServer';
 
 const DependentHeaderContainer = styled.div`
   position: fixed;
@@ -76,6 +78,22 @@ const DependentHeaderContainer = styled.div`
         width: 8px;
         height: 8px;
       }
+      .cart-badge {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 999px;
+        background: #185c37; /* brand green */
+        color: #fff;
+        font-size: 11px;
+        line-height: 18px;
+        text-align: center;
+        pointer-events: none;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+      }
     }
   }
 
@@ -113,7 +131,17 @@ const DependentHeaderContainer = styled.div`
 
 const DependentHeader = ({ title }) => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const surname = localStorage.getItem('surname') || 'Dependent';
+  const totalItems = useSelector(selectCartTotalItems) || 0;
+
+  useEffect(() => {
+    // Fetch cart once to hydrate badge if authenticated
+    const hasToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+    if (hasToken) {
+      dispatch(fetchCart());
+    }
+  }, [dispatch]);
 
   return (
     <DependentHeaderContainer>
@@ -132,8 +160,11 @@ const DependentHeader = ({ title }) => {
           <img src={personIcon} alt="Profile" />
         </div>
 
-         <div className="icon-container" onClick={() => navigate('/cart')}>
+        <div className="icon-container" onClick={() => navigate('/cart')}>
           <img src={cartIcon} alt="Cart" />
+          {totalItems > 0 && (
+            <span className="cart-badge" aria-label={`${totalItems} items in cart`}>{totalItems}</span>
+          )}
         </div>
       
         <div className="icon-container" onClick={() => navigate('/settings')}>

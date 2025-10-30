@@ -13,7 +13,7 @@ import {
   clearSelectedProduct
 } from '../../../store/slices/products';
 
-import { addToCart, selectAddingToCart } from '../../../store/slices/cartServer';
+import { addToCart, fetchCart, selectAddingToCart, setCartOpen } from '../../../store/slices/cartServer';
 
 // Remove debug components - API works fine
 
@@ -470,11 +470,20 @@ const ProductDetail = ({ product: productProp, onBack }) => {
         productId: product.id,
         quantity
       })).unwrap();
+      // Refresh cart from server and optionally open cart panel
+      dispatch(fetchCart());
+      // If there's a cart UI that can open, this will surface the change immediately
+      dispatch(setCartOpen(true));
       
       // Could show success message or redirect to cart
     } catch (error) {
       console.error('Failed to add product to cart:', error);
-      alert(`Failed to add to cart: ${error}`);
+      const msg = (error && error.message) ? error.message : String(error);
+      if (msg && msg.toLowerCase().includes('authentication')) {
+        alert('Please sign in to add items to your cart.');
+      } else {
+        alert(`Failed to add to cart: ${msg}`);
+      }
     }
   };
   

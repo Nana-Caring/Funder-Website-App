@@ -8,25 +8,21 @@ import cartIcon from '../../../assets/icons/cart.png';
 import {
   addToCart,
   removeFromCart,
-  updateQuantity,
+  updateCartItem,
   clearCart,
   toggleCart,
   setCartOpen,
+  fetchCart,
   selectCartItems,
   selectCartLoading,
   selectCartError,
   selectCartTotalItems,
   selectCartTotalAmount,
-  selectCartFinalTotal,
-  selectShippingEstimate,
-  selectTaxEstimate
-} from '../../store/slices/cart';
+  selectCartSummary,
+  clearCartError
+} from '../../../store/slices/cartServer';
 
-import {
-  fetchProducts,
-  selectAllProducts,
-  selectProductsLoading
-} from '../../store/slices/products';
+// Note: product recommendations not wired yet; keeping imports minimal
 
 // Helper function to handle product image URLs (same as Products.jsx)
 const getImageUrl = (imageData) => {
@@ -670,11 +666,9 @@ const Cart = () => {
   const cartItems = useSelector(selectCartItems);
   const loading = useSelector(selectCartLoading);
   const error = useSelector(selectCartError);
-  const totalItems = useSelector(selectCartTotalItems);
-  const totalPrice = useSelector(selectCartTotalAmount); // Fixed: use selectCartTotalAmount instead
-  const finalTotal = useSelector(selectCartFinalTotal);
-  const shipping = useSelector(selectShippingEstimate);
-  const tax = useSelector(selectTaxEstimate);
+  const totalItems = useSelector(selectCartTotalItems) || 0;
+  const totalPrice = useSelector(selectCartTotalAmount) || 0;
+  const summary = useSelector(selectCartSummary);
   // Note: These selectors don't exist in the new cart slice - using defaults for now
   const updatingItem = false; // TODO: Add to new cart slice
   const removingItem = false; // TODO: Add to new cart slice  
@@ -689,10 +683,9 @@ const Cart = () => {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
 
-  // Load cart and recommendations on component mount
+  // Load cart from server on mount
   useEffect(() => {
-    // dispatch(fetchCartItems()); // TODO: Cart is client-side now, no need to fetch
-    // dispatch(fetchRecommendedProducts(6)); // TODO: Add recommended products
+    dispatch(fetchCart());
   }, [dispatch]);
 
   // Handle purchase success
@@ -777,10 +770,10 @@ const Cart = () => {
           <span className="item-count">{totalItems} items</span>
         </CartHeader>
 
-        {error && (
+            {error && (
           <ErrorMessage>
             {error}
-            <button onClick={() => dispatch(clearCartErrors())}>✕</button>
+                <button onClick={() => dispatch(clearCartError())}>✕</button>
           </ErrorMessage>
         )}
 
@@ -799,12 +792,29 @@ const Cart = () => {
             cartItems.map((item) => (
               <CartItem key={item.id}>
                 <ItemContent>
-                  <ProductImage src={item.image} alt={item.name} />
+                  <ProductImage 
+                    src={
+                      getImageUrl(item.image) ||
+                      getImageUrl(item.product?.image) ||
+                      (Array.isArray(item.product?.images) && getImageUrl(item.product.images[0])) ||
+                      defaultProductImage
+                    } 
+                    alt={item.name || item.product?.name || 'Product'} 
+                  />
                   <ProductInfo>
-                    <h4>{item.name}</h4>
-                    <p>{item.description}</p>
-                    <p className="price-text">R{item.price.toFixed(2)} each</p>
-                    <p className="account-type">Account: {item.accountType}</p>
+                    <h4>{item.name || item.product?.name || 'Unnamed item'}</h4>
+                    <p>{item.description || item.product?.description || ''}</p>
+                    <p className="price-text">{
+                      (() => {
+                        const unit = parseFloat(
+                          item.priceAtTime ?? item.price ?? item.product?.price ?? 0
+                        );
+                        return `R${Number.isFinite(unit) ? unit.toFixed(2) : '0.00'} each`;
+                      })()
+                    }</p>
+                    {item.accountType && (
+                      <p className="account-type">Account: {item.accountType}</p>
+                    )}
                   </ProductInfo>
                   <ControlsSection>
                     <QuantityControls>
@@ -824,8 +834,18 @@ const Cart = () => {
                     </RemoveButton>
                   </ControlsSection>
                   <PriceInfo>
-                    <p className="price">R{(item.price * item.quantity).toFixed(2)}</p>
-                    <p className="unit-price">R{item.price.toFixed(2)} each</p>
+                    {(() => {
+                      const unit = parseFloat(
+                        item.priceAtTime ?? item.price ?? item.product?.price ?? 0
+                      );
+                      const subtotal = Number.isFinite(unit) ? (unit * (item.quantity || 0)) : 0;
+                      return (
+                        <>
+                          <p className="price">R{subtotal.toFixed(2)}</p>
+                          <p className="unit-price">R{Number.isFinite(unit) ? unit.toFixed(2) : '0.00'} each</p>
+                        </>
+                      );
+                    })()}
                   </PriceInfo>
                 </ItemContent>
               </CartItem>
@@ -873,7 +893,7 @@ const Cart = () => {
           <TotalSection>
             <div className="total-row">
               <h3>Total</h3>
-              <span className="total-price">R{totalPrice.toFixed(2)}</span>
+              <span className="total-price">R{Number(totalPrice || 0).toFixed(2)}</span>
             </div>
             <button 
               className="checkout-btn" 
@@ -925,11 +945,11 @@ const Cart = () => {
                 <h4>Order Summary</h4>
                 <div className="summary-row">
                   <span>Items ({totalItems}):</span>
-                  <span>R{totalPrice.toFixed(2)}</span>
+                  <span>R{Number(totalPrice || 0).toFixed(2)}</span>
                 </div>
                 <div className="summary-row total">
                   <span>Total:</span>
-                  <span>R{totalPrice.toFixed(2)}</span>
+                  <span>R{Number(totalPrice || 0).toFixed(2)}</span>
                 </div>
               </div>
             </ModalBody>
@@ -946,7 +966,7 @@ const Cart = () => {
                 disabled={purchasing || !deliveryAddress.trim()}
                 className="confirm-btn"
               >
-                {purchasing ? 'Processing...' : `Pay R${totalPrice.toFixed(2)}`}
+                {purchasing ? 'Processing...' : `Pay R${Number(totalPrice || 0).toFixed(2)}`}
               </button>
             </ModalFooter>
           </ModalContent>

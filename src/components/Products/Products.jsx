@@ -9,6 +9,7 @@ import chevronIcon from "../../../assets/icons/Chevron down.png";
 import {
   fetchProducts,
   fetchRecommendedProducts,
+  fetchProductsForDependent,
   selectProducts,
   selectProductsLoading,
   selectProductsError,
@@ -24,8 +25,10 @@ import {
   clearProducts
 } from '../../../store/slices/products';
 
-import { addToCart, selectAddingToCart } from '../../../store/slices/cart';
+// Use the server-based cart slice
+import { addToCart, selectAddingToCart, fetchCart } from '../../../store/slices/cartServer';
 import ProductDetail from './ProductDetail';
+import { computeAgeFromSAId } from '../../utils/ageUtils';
 
 // Simple fallback for when no image is available
 const defaultProductImage = "https://via.placeholder.com/200x200/f8f9fa/6b7280?text=No+Image";
@@ -426,6 +429,46 @@ const PageButton = styled.button`
   font-weight: 500;
 `;
 
+// Lightweight Toast UI
+const ToastContainer = styled.div`
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 3000;
+`;
+
+const Toast = styled.div`
+  background: #1f2937; /* slate-800 */
+  color: #fff;
+  padding: 12px 14px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 360px;
+`;
+
+const ToastText = styled.div`
+  font-size: 13px;
+  line-height: 1.3;
+  flex: 1;
+`;
+
+const ToastAction = styled.button`
+  background: transparent;
+  color: #34d399; /* emerald-400 */
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  &:hover {
+    background: rgba(52, 211, 153, 0.12);
+  }
+`;
+
 // Helper function to handle product image URLs from backend (Google Images + retailer CDNs)
 const getImageUrl = (imageData) => {
   if (!imageData) return null;
@@ -471,6 +514,7 @@ const Products = () => {
   const [selectedProductLocal, setSelectedProductLocal] = useState(null);
   
   // Redux selectors
+  const authUser = useSelector(state => state.authentication?.user);
   const products = useSelector(selectProducts);
   const loading = useSelector(selectProductsLoading);
   const error = useSelector(selectProductsError);
@@ -479,6 +523,39 @@ const Products = () => {
   const currentSearch = useSelector(selectCurrentSearch);
   const currentSort = useSelector(selectCurrentSort);
   const addingToCart = useSelector(selectAddingToCart);
+
+  // Determine dependent age (if available) for product-level age filtering
+  const fallbackRole = (typeof localStorage !== 'undefined' && (localStorage.getItem('userRole') || localStorage.getItem('role') || '')).toLowerCase();
+  const isDependent = (authUser?.role?.toLowerCase() === 'dependent') || (fallbackRole === 'dependent');
+  let dependentAge = null;
+  if (isDependent) {
+    try {
+      const saId = authUser?.Idnumber || authUser?.idNumber || (typeof localStorage !== 'undefined' && (localStorage.getItem('Idnumber') || localStorage.getItem('idNumber')));
+      if (saId) {
+        dependentAge = computeAgeFromSAId(saId);
+      }
+    } catch (e) {
+      // If we cannot compute age, skip client-side age filtering and rely on backend
+      console.warn('Unable to compute dependent age from ID:', e?.message || e);
+    }
+  }
+
+  // Apply product-level age filtering on the client (in addition to backend), when age is known
+  const visibleProducts = React.useMemo(() => {
+    if (!Array.isArray(products)) return [];
+    if (!isDependent || dependentAge == null) return products;
+    const age = Number(dependentAge);
+    if (Number.isNaN(age)) return products;
+    return products.filter(p => {
+      const min = p?.minAge != null ? Number(p.minAge) : null;
+      const max = p?.maxAge != null ? Number(p.maxAge) : null;
+      // If product has no explicit bounds, allow it
+      if ((min == null || Number.isNaN(min)) && (max == null || Number.isNaN(max))) return true;
+      if (min != null && !Number.isNaN(min) && age < min) return false;
+      if (max != null && !Number.isNaN(max) && age > max) return false;
+      return true;
+    });
+  }, [products, isDependent, dependentAge]);
   
   // Debug logging
   console.log('🔍 Products Redux State:');
@@ -497,12 +574,12 @@ const Products = () => {
   console.log('  - Error:', error);
   console.log('  - Has products:', products && products.length > 0);
   console.log('  - Products length:', products?.length);
-  console.log('  - Should show no products:', !loading && !error && products.length === 0);
+  console.log('  - Should show no products:', !loading && !error && (Array.isArray(visibleProducts) ? visibleProducts.length === 0 : products.length === 0));
   console.log('  - Should show products:', !loading && !error && products.length > 0);
 
   // Local state for UI components
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(50); // Increased from 20 to fetch more products
+  const [itemsPerPage, setItemsPerPage] = useState(200); // Pull more items to align with backend pagination
   const [brands, setBrands] = useState([]);
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [selectedFilters, setSelectedFilters] = useState({
@@ -516,6 +593,35 @@ const Products = () => {
     category: false,
     shopByBrand: false
   });
+
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastActionLabel, setToastActionLabel] = useState('');
+  const toastTimerRef = React.useRef(null);
+
+  const showToast = (message, actionLabel = '', durationMs = 3500) => {
+    // Clear any existing timers
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    setToastMessage(message);
+    setToastActionLabel(actionLabel);
+    setToastVisible(true);
+    toastTimerRef.current = setTimeout(() => {
+      setToastVisible(false);
+      toastTimerRef.current = null;
+    }, durationMs);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
   
   const selectedCategory = location.state?.category || 'Healthcare';
   
@@ -551,17 +657,31 @@ const Products = () => {
     
     console.log('📋 Fetching products with params:', fetchParams);
     console.log('📂 Selected category:', selectedCategory);
-    
-    dispatch(fetchProducts(fetchParams));
-  }, [dispatch, selectedCategory, currentPage, itemsPerPage, searchTerm, sortBy]);
-
-  // Extract brands from products for filtering
-  useEffect(() => {
-    if (products && products.length > 0) {
-      const uniqueBrands = [...new Set(products.map(p => p?.brand).filter(Boolean))];
-      setBrands(uniqueBrands);
+    // Determine dependent role/id with localStorage fallbacks
+    const fallbackRole = (localStorage.getItem('userRole') || localStorage.getItem('role') || '').toLowerCase();
+    const isDependent = (authUser?.role?.toLowerCase() === 'dependent') || (fallbackRole === 'dependent');
+    const dependentId = authUser?.id || localStorage.getItem('userId');
+    if (isDependent && dependentId) {
+      console.log('🧒 Using age-filtered dependent endpoint with id:', dependentId);
+      dispatch(fetchProductsForDependent({
+        dependentId,
+        ...fetchParams
+      }));
+    } else {
+      console.log('👥 Using generic products endpoint');
+      dispatch(fetchProducts(fetchParams));
     }
-  }, [products]);
+  }, [dispatch, selectedCategory, currentPage, itemsPerPage, searchTerm, sortBy, authUser?.role, authUser?.id]);
+
+  // Extract brands from visible products for filtering
+  useEffect(() => {
+    if (visibleProducts && visibleProducts.length > 0) {
+      const uniqueBrands = [...new Set(visibleProducts.map(p => p?.brand).filter(Boolean))];
+      setBrands(uniqueBrands);
+    } else {
+      setBrands([]);
+    }
+  }, [visibleProducts]);
 
   const handleBrandToggle = (brand) => {
     setSelectedBrands(prev => 
@@ -580,7 +700,11 @@ const Products = () => {
 
   // Handle sort change
   const handleSortChange = (newSort) => {
-    setSortBy(newSort);
+    // Map UI values to thunk-friendly sort keys
+    const mapped = newSort === 'price-low' ? 'price_asc'
+                  : newSort === 'price-high' ? 'price_desc'
+                  : newSort;
+    setSortBy(mapped);
     setCurrentPage(1);
   };
 
@@ -596,15 +720,29 @@ const Products = () => {
     try {
       await dispatch(addToCart({
         productId: product.id,
-        quantity: 1,
-        accountType: 'Main'
+        quantity: 1
       })).unwrap();
       
       // Show success message or update UI
       console.log('Product added to cart successfully');
+      // Refresh cart so header badge reflects changes
+      dispatch(fetchCart());
+      // Show non-blocking toast with View cart action
+      showToast(`Added "${product.name}" to cart.`, 'View cart');
     } catch (error) {
       console.error('Failed to add product to cart:', error);
-      // Handle error (show toast, etc.)
+      // Friendly feedback for common cases (age-restriction/auth)
+      const message = typeof error === 'string' ? error : (error?.message || 'Failed to add to cart');
+      const lower = message.toLowerCase();
+      if (typeof window !== 'undefined') {
+        if (lower.includes('age') || lower.includes('not allowed') || lower.includes('not permitted')) {
+          window.alert('This item is not allowed for the dependent’s age.');
+        } else if (lower.includes('authentication') || lower.includes('unauthorized') || lower.includes('forbidden')) {
+          window.alert('Please sign in to add items to your cart.');
+        } else {
+          window.alert(message);
+        }
+      }
     }
   };
 
@@ -733,7 +871,7 @@ const Products = () => {
                   /> 
                   {brand}
                 </CheckboxGroup>
-                <CountBadge>{products.filter(p => p.brand === brand).length}</CountBadge>
+                <CountBadge>{visibleProducts.filter(p => p.brand === brand).length}</CountBadge>
               </CheckboxLabel>
             ))}
             {brands.length === 0 && <div style={{ fontSize: '12px', color: '#999' }}>No brands available</div>}
@@ -817,15 +955,21 @@ const Products = () => {
               {error}
             </div>
           )}
-          {!loading && !error && products.length === 0 && (
+          {!loading && !error && visibleProducts.length === 0 && (
             <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#666' }}>
-              <p style={{ fontSize: '16px', marginBottom: '10px' }}>No products found for this category.</p>
-              <p style={{ fontSize: '14px', color: '#999' }}>
-                The product database appears to be empty. Please contact the administrator to add products.
-              </p>
+              <p style={{ fontSize: '16px', marginBottom: '10px' }}>No products match your filters.</p>
+              {isDependent ? (
+                <p style={{ fontSize: '14px', color: '#999' }}>
+                  Nothing is available for this category given the dependent’s age. Try a different category or search.
+                </p>
+              ) : (
+                <p style={{ fontSize: '14px', color: '#999' }}>
+                  Try adjusting your filters or search.
+                </p>
+              )}
             </div>
           )}
-          {!loading && !error && products.map((p) => (
+          {!loading && !error && visibleProducts.map((p) => (
             <ProductCard 
               key={p.sku || p.id} 
               onClick={() => {
@@ -895,6 +1039,25 @@ const Products = () => {
             <PageButton onClick={() => handlePageChange(pagination.totalPages || 1)}>Last</PageButton>
           )}
         </Pagination>
+        {/* Toast Area */}
+        {toastVisible && (
+          <ToastContainer>
+            <Toast role="status" aria-live="polite">
+              <ToastText>{toastMessage}</ToastText>
+              {toastActionLabel && (
+                <ToastAction
+                  onClick={() => {
+                    setToastVisible(false);
+                    // Prefer opening the cart route for consistency with header UX
+                    navigate('/cart');
+                  }}
+                >
+                  {toastActionLabel}
+                </ToastAction>
+              )}
+            </Toast>
+          </ToastContainer>
+        )}
             </>
           )}
         </MainContent>

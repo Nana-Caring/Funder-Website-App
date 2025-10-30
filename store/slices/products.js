@@ -143,6 +143,167 @@ export const fetchProducts = createAsyncThunk(
   }
 );
 
+// Fetch age-restricted products for a specific dependent
+export const fetchProductsForDependent = createAsyncThunk(
+  'products/fetchProductsForDependent',
+  async ({ dependentId, category, page = 1, limit = 20, search = '', sortBy = 'relevance' }, { rejectWithValue }) => {
+    try {
+      if (!dependentId) {
+        throw new Error('Dependent ID is required');
+      }
+
+      // Build endpoint(s) and include token if available
+      const token = (typeof localStorage !== 'undefined' && (localStorage.getItem('token') || localStorage.getItem('accessToken'))) ||
+                    (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('token')) || null;
+
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString()
+      });
+      if (search) params.append('search', search);
+      if (sortBy && sortBy !== 'relevance') params.append('sortBy', sortBy);
+      if (category && category !== 'All') {
+        const categoryMapping = {
+          'Healthcare': 'Healthcare',
+          'Babycare': 'Groceries',
+          'School': 'Education',
+          'Clothing': 'Other',
+          'Entertainment': 'Entertainment',
+          'Pregnancy': 'Healthcare',
+          'Transport': 'Transport',
+          'Groceries': 'Groceries',
+          'Education': 'Education',
+          'Other': 'Other'
+        };
+        const mappedForParam = categoryMapping[category] || category;
+        params.append('category', mappedForParam);
+      }
+
+      const endpoints = [
+        `${BASE_URL}/products/dependent/${dependentId}?${params.toString()}`,
+        `${BASE_URL}/products/dependent/${dependentId}`
+      ];
+      console.log('🧒 Dependent fetch endpoints:', endpoints);
+
+      let response = null;
+      let lastError = null;
+      for (const endpoint of endpoints) {
+        try {
+          response = await axios.get(endpoint, { headers, timeout: 10000 });
+          break;
+        } catch (err) {
+          lastError = err;
+          continue;
+        }
+      }
+      if (!response) {
+        throw lastError || new Error('All dependent product endpoints failed');
+      }
+
+      if (!response.data?.success) {
+        return rejectWithValue(response.data?.message || 'Failed to fetch dependent products');
+      }
+
+      let productsData = Array.isArray(response.data.data) ? response.data.data : [];
+      console.log('🧒 Dependent API returned items:', productsData.length);
+
+      // Optional client-side filters to support category/search/sort
+      const mapCategory = (cat) => {
+        const categoryMapping = {
+          'Healthcare': 'Healthcare',
+          'Babycare': 'Groceries',
+          'School': 'Education',
+          'Clothing': 'Other',
+          'Entertainment': 'Entertainment',
+          'Pregnancy': 'Healthcare',
+          'Transport': 'Transport',
+          'Groceries': 'Groceries',
+          'Education': 'Education',
+          'Other': 'Other'
+        };
+        return categoryMapping[cat] || cat;
+      };
+
+      if (category && category !== 'All') {
+        const mapped = String(mapCategory(category)).toLowerCase();
+        const tryMatch = (p) => {
+          const vals = [
+            p.category,
+            p.categoryName,
+            p.category_label,
+            p.category?.name,
+            p.category?.label
+          ]
+            .filter(Boolean)
+            .map(v => String(v).toLowerCase());
+          return (
+            vals.includes(mapped) ||
+            vals.some(v => v.includes(mapped))
+          );
+        };
+        const filtered = productsData.filter(tryMatch);
+        console.log(`🧒 After category filter (${category}) count:`, filtered.length);
+        // Fallback: if filtering eliminated everything, keep original age-allowed set
+        productsData = filtered.length > 0 ? filtered : productsData;
+      }
+
+      if (search) {
+        const term = search.toLowerCase();
+        productsData = productsData.filter(p =>
+          (p.name || '').toLowerCase().includes(term) ||
+          (p.brand || '').toLowerCase().includes(term)
+        );
+      }
+
+      if (sortBy === 'price_asc') {
+        productsData = [...productsData].sort((a, b) => parseFloat(a.price || 0) - parseFloat(b.price || 0));
+      } else if (sortBy === 'price_desc') {
+        productsData = [...productsData].sort((a, b) => parseFloat(b.price || 0) - parseFloat(a.price || 0));
+      }
+
+      // Client-side pagination
+      const total = productsData.length;
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      const start = (page - 1) * limit;
+      const paged = productsData.slice(start, start + limit);
+
+      if (!paged || paged.length === 0) {
+        console.warn('🧒 Dependent fetch produced 0 after paging; returning empty set with pagination');
+        return {
+          products: [],
+          pagination: {
+            currentPage: page,
+            totalPages,
+            totalItems: total
+          },
+          category,
+          search,
+          sortBy
+        };
+      }
+
+      return {
+        products: paged,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems: total
+        },
+        category,
+        search,
+        sortBy
+      };
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch dependent products');
+    }
+  }
+);
+
 export const fetchProductById = createAsyncThunk(
   'products/fetchProductById',
   async (productId, { rejectWithValue, getState }) => {
@@ -222,6 +383,7 @@ export const fetchRecommendedProducts = createAsyncThunk(
 const initialState = {
   // Products list
   products: [],
+  items: [],
   currentCategory: 'Healthcare',
   currentSearch: '',
   currentSort: 'relevance',
@@ -258,6 +420,7 @@ const productsSlice = createSlice({
   reducers: {
     clearProducts: (state) => {
       state.products = [];
+      state.items = [];
       state.pagination = { currentPage: 1, totalPages: 1, totalItems: 0 };
     },
     clearSelectedProduct: (state) => {
@@ -301,8 +464,9 @@ const productsSlice = createSlice({
         console.log('🎯 action.payload.products length:', action.payload.products?.length);
         console.log('🎯 First product sample:', action.payload.products?.[0]);
         
-        state.loading = false;
-        state.products = action.payload.products;
+  state.loading = false;
+  state.products = action.payload.products;
+  state.items = action.payload.products || [];
         state.pagination = action.payload.pagination;
         state.currentCategory = action.payload.category;
         state.currentSearch = action.payload.search;
@@ -326,6 +490,33 @@ const productsSlice = createSlice({
         });
       })
       .addCase(fetchProducts.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // Fetch products for dependent (age-filtered)
+      .addCase(fetchProductsForDependent.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchProductsForDependent.fulfilled, (state, action) => {
+        state.loading = false;
+        state.products = action.payload.products;
+        state.items = action.payload.products || [];
+        state.pagination = action.payload.pagination;
+        state.currentCategory = action.payload.category;
+        state.currentSearch = action.payload.search;
+        state.currentSort = action.payload.sortBy;
+
+        // Cache similar to fetchProducts
+        const currentPage = action.payload.pagination?.currentPage || 1;
+        const cacheKey = `${action.payload.category}_${action.payload.search}_${action.payload.sortBy}_${currentPage}`;
+        state.cache[cacheKey] = {
+          data: action.payload,
+          timestamp: Date.now()
+        };
+      })
+      .addCase(fetchProductsForDependent.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
@@ -374,44 +565,10 @@ export const {
 export default productsSlice.reducer;
 
 // Selectors with safety checks
-export const selectProducts = (state) => {
-  console.log('🔍 DEBUG selectProducts - Full state structure:');
-  console.log('  - state:', state);
-  console.log('  - state.products:', state.products);
-  console.log('  - state.products type:', typeof state.products);
-  console.log('  - state.products keys:', state.products ? Object.keys(state.products) : 'null');
-  
-  // Try different possible structures
-  const option1 = state.products?.products || [];
-  const option2 = state.products || [];
-  const option3 = state.products?.items || [];
-  
-  console.log('  - Option 1 (state.products.products):', option1.length);
-  console.log('  - Option 2 (state.products):', Array.isArray(option2) ? option2.length : 'not array');
-  console.log('  - Option 3 (state.products.items):', option3.length);
-  
-  // Return the one that has data
-  if (Array.isArray(option1) && option1.length > 0) {
-    console.log('  ✅ Using option 1 (state.products.products)');
-    return option1;
-  } else if (Array.isArray(option2) && option2.length > 0) {
-    console.log('  ✅ Using option 2 (state.products)');
-    return option2;
-  } else if (Array.isArray(option3) && option3.length > 0) {
-    console.log('  ✅ Using option 3 (state.products.items)');
-    return option3;
-  } else {
-    console.log('  ❌ No products found in any structure, returning empty array');
-    return [];
-  }
-};
+export const selectProducts = (state) => state.products?.items || state.products?.products || [];
 export const selectSelectedProduct = (state) => state.products?.selectedProduct || null;
 export const selectRecommendedProducts = (state) => state.products?.recommendedProducts || [];
-export const selectProductsLoading = (state) => {
-  const loading = state.products?.loading || false;
-  console.log('🔄 selectProductsLoading called:', loading);
-  return loading;
-};
+export const selectProductsLoading = (state) => state.products?.loading || false;
 export const selectProductLoading = (state) => state.products?.productLoading || false;
 export const selectRecommendedLoading = (state) => state.products?.recommendedLoading || false;
 export const selectProductsError = (state) => state.products?.error || null;

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import healthcareIcon from '../../assets/icons/healthcare.png';
 import clothingIcon from '../../assets/icons/clothing.png';
 import schoolIcon from '../../assets/icons/school.png';
@@ -12,40 +13,21 @@ import buyIcon from '../../assets/icons/buy.png'; // For Groceries
 import trackIcon from '../../assets/icons/track.png'; // For Transport
 import setupIcon from '../../assets/icons/setup.png'; // For Other
 
-const categories = [
-  // Primary backend categories
-  { label: 'Healthcare', icon: (
-    <img src={healthcareIcon} alt="Healthcare" width={40} height={40} style={{borderRadius: '50%'}} />
-  ) },
-  { label: 'Education', icon: (
-    <img src={schoolIcon} alt="Education" width={40} height={40} style={{borderRadius: '50%'}} />
-  ) },
-  { label: 'Groceries', icon: (
-    <img src={buyIcon} alt="Groceries" width={40} height={40} style={{borderRadius: '50%'}} />
-  ) },
-  { label: 'Transport', icon: (
-    <img src={trackIcon} alt="Transport" width={40} height={40} style={{borderRadius: '50%'}} />
-  ) },
-  { label: 'Entertainment', icon: (
-    <img src={entertainmentIcon} alt="Entertainment" width={40} height={40} style={{borderRadius: '50%'}} />
-  ) },
-  { label: 'Other', icon: (
-    <img src={setupIcon} alt="Other" width={40} height={40} style={{borderRadius: '50%'}} />
-  ) },
-  // Frontend legacy categories (mapped to backend categories)
-  { label: 'Clothing', icon: (
-    <img src={clothingIcon} alt="Clothing" width={40} height={40} style={{borderRadius: '50%'}} />
-  ) },
-  { label: 'School', icon: (
-    <img src={schoolIcon} alt="School" width={40} height={40} style={{borderRadius: '50%'}} />
-  ) },
-  { label: 'Babycare', icon: (
-    <img src={babycareIcon} alt="Babycare" width={40} height={40} style={{borderRadius: '50%'}} />
-  ) },
-  { label: 'Pregnancy', icon: (
-    <img src={pregnancyIcon} alt="Pregnancy" width={40} height={40} style={{borderRadius: '50%'}} />
-  ) },
-];
+const BACKEND_CATEGORIES = ['Healthcare', 'Education', 'Groceries', 'Transport', 'Entertainment', 'Other'];
+
+const CATEGORY_ICONS = {
+  Healthcare: <img src={healthcareIcon} alt="Healthcare" width={40} height={40} style={{borderRadius: '50%'}} />,
+  Education: <img src={schoolIcon} alt="Education" width={40} height={40} style={{borderRadius: '50%'}} />,
+  Groceries: <img src={buyIcon} alt="Groceries" width={40} height={40} style={{borderRadius: '50%'}} />,
+  Transport: <img src={trackIcon} alt="Transport" width={40} height={40} style={{borderRadius: '50%'}} />,
+  Entertainment: <img src={entertainmentIcon} alt="Entertainment" width={40} height={40} style={{borderRadius: '50%'}} />,
+  Other: <img src={setupIcon} alt="Other" width={40} height={40} style={{borderRadius: '50%'}} />,
+  // Legacy frontend labels mapped for completeness (not shown unless desired)
+  Clothing: <img src={clothingIcon} alt="Clothing" width={40} height={40} style={{borderRadius: '50%'}} />,
+  School: <img src={schoolIcon} alt="School" width={40} height={40} style={{borderRadius: '50%'}} />,
+  Babycare: <img src={babycareIcon} alt="Babycare" width={40} height={40} style={{borderRadius: '50%'}} />,
+  Pregnancy: <img src={pregnancyIcon} alt="Pregnancy" width={40} height={40} style={{borderRadius: '50%'}} />,
+};
 
 const Container = styled.div`
  display: flex;
@@ -114,16 +96,65 @@ const Label = styled.div`
 
 const DependentBuy = () => {
   const navigate = useNavigate();
+  const authUser = useSelector(state => state.authentication?.user);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [allowedCategories, setAllowedCategories] = useState(BACKEND_CATEGORIES);
+
+  useEffect(() => {
+    const fetchAllowedCategories = async () => {
+      if (!authUser?.role || authUser.role.toLowerCase() !== 'dependent' || !authUser?.id) {
+        // Non-dependent: show full set
+        setAllowedCategories(BACKEND_CATEGORIES);
+        return;
+      }
+      try {
+        setLoading(true);
+        setError(null);
+        const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || sessionStorage.getItem('token');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const BASE_URL = 'https://nanacaring-backend.onrender.com/api';
+        // Pull enough items to sample all categories the backend allows for this dependent
+        const res = await fetch(`${BASE_URL}/products/dependent/${authUser.id}?limit=200`, { headers });
+        const data = await res.json();
+        if (!res.ok || !data?.success) {
+          throw new Error(data?.message || `HTTP ${res.status}`);
+        }
+        const items = Array.isArray(data.data) ? data.data : [];
+        const cats = Array.from(new Set(items.map(p => p.category).filter(Boolean)));
+        // Keep only known backend categories and preserve desired order
+        const filtered = BACKEND_CATEGORIES.filter(c => cats.includes(c));
+        setAllowedCategories(filtered.length > 0 ? filtered : BACKEND_CATEGORIES);
+      } catch (e) {
+        console.error('Failed to fetch age-allowed categories:', e);
+        setError(e.message);
+        setAllowedCategories(BACKEND_CATEGORIES);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAllowedCategories();
+  }, [authUser?.role, authUser?.id]);
   
   const handleCategoryClick = (category) => {
     navigate('/products', { state: { category } });
   };
   
+  const displayCategories = useMemo(() => {
+    return allowedCategories.map(label => ({ label, icon: CATEGORY_ICONS[label] }));
+  }, [allowedCategories]);
+
   return (
     <Container>
       <Title>Please Choose the products category</Title>
+      {loading && (
+        <div style={{ textAlign: 'center', marginBottom: '12px', color: '#666' }}>Loading age-allowed categories…</div>
+      )}
+      {error && (
+        <div style={{ textAlign: 'center', marginBottom: '12px', color: '#b00020' }}>Using default categories: {error}</div>
+      )}
       <Grid>
-        {categories.map((cat) => (
+        {displayCategories.map((cat) => (
           <Card key={cat.label} onClick={() => handleCategoryClick(cat.label)}>
             {cat.icon}
             <Label>{cat.label}</Label>
