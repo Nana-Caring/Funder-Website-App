@@ -29,12 +29,29 @@ const OrderHeader = styled.div`
 `;
 
 const Status = styled.span`
-  padding: 4px 10px;
+  padding: 6px 12px;
   border-radius: 20px;
   font-size: 12px;
-  color: #185c37;
-  background: #e6f4ef;
+  font-weight: 600;
   text-transform: capitalize;
+  display: inline-block;
+  
+  ${props => {
+    switch (props.status?.toLowerCase()) {
+      case 'processing':
+        return 'color: #b45309; background: #fef3c7;';
+      case 'confirmed':
+        return 'color: #0369a1; background: #cffafe;';
+      case 'shipped':
+        return 'color: #7c3aed; background: #ede9fe;';
+      case 'delivered':
+        return 'color: #15803d; background: #dcfce7;';
+      case 'cancelled':
+        return 'color: #b91c1c; background: #fee2e2;';
+      default:
+        return 'color: #6b7280; background: #f3f4f6;';
+    }
+  }}
 `;
 
 const ItemsList = styled.ul`
@@ -199,8 +216,8 @@ const DependentOrders = () => {
                       <div style={{ color: '#6b7280', fontSize: 12 }}>Placed {when}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Status>{String(statusText).toLowerCase()}</Status>
-                      <div style={{ fontWeight: 600 }}>₵{Number(total || 0).toFixed(2)}</div>
+                      <Status status={statusText}>{String(statusText).toLowerCase()}</Status>
+                      <div style={{ fontWeight: 600 }}>R{Number(total || 0).toFixed(2)}</div>
                     </div>
                   </OrderHeader>
 
@@ -208,13 +225,18 @@ const DependentOrders = () => {
                     <ItemsList>
                       {items.map((it, idx) => (
                         <li key={it?.id || it?._id || idx}>
-                          {(it?.product?.name || it?.name || it?.productName || 'Item')} x{it?.quantity || 1}
+                          {(it?.product?.name || it?.name || it?.productName || 'Item')} x{it?.quantity || 1} {it?.price && `— R${Number(it.price).toFixed(2)}`}
                         </li>
                       ))}
                     </ItemsList>
                   ) : (
                     <div style={{ color: '#6b7280' }}>No item details available.</div>
                   )}
+
+                  <div style={{ paddingTop: 8, borderTop: '1px solid #e5e7eb', marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <strong>Total Amount:</strong>
+                    <strong style={{ fontSize: 16, color: '#185c37' }}>R{Number(total || 0).toFixed(2)}</strong>
+                  </div>
 
                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                     <button onClick={() => openDetails(id)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}>View details</button>
@@ -252,7 +274,7 @@ const DependentOrders = () => {
                 <div>
                   <p><strong>Order #</strong> {String(detailOrder.id).slice(-6)}</p>
                   <p><strong>Status:</strong> {detailOrder.orderStatus}</p>
-                  <p><strong>Total:</strong> ₵{Number(detailOrder.totalAmount || 0).toFixed(2)}</p>
+                  <p><strong>Total:</strong> R{Number(detailOrder.totalAmount || 0).toFixed(2)}</p>
                   {(
                     detailOrder.storeInstructions?.code || detailOrder.storeCode
                   ) && (
@@ -260,11 +282,27 @@ const DependentOrders = () => {
                   )}
                   <h4>Items</h4>
                   <ul>
-                    {(detailOrder.orderItems || detailOrder.items || []).map((it) => (
-                      <li key={it.id}>
-                        {(it.displayProduct?.name || it.product?.name || 'Item')} ×{it.quantity} — ₵{Number(it.subtotal || 0).toFixed(2)}
-                      </li>
-                    ))}
+                    {(detailOrder.orderItems || detailOrder.items || []).map((it) => {
+                      // Try multiple price sources for persistence
+                      const price = it.price || it.subtotal / (it.quantity || 1) || 0;
+                      const subtotal = it.subtotal || (price * (it.quantity || 1)) || 0;
+                      return (
+                        <li key={it.id || it._id}>
+                          {(it.displayProduct?.name || it.product?.name || it.productName || 'Item')} ×{it.quantity || 1}
+                          {price > 0 && (
+                            <>
+                              {' — '}
+                              <strong>R{Number(price).toFixed(2)}</strong> each{' '}
+                              {subtotal > 0 && (
+                                <>
+                                  = <strong>R{Number(subtotal).toFixed(2)}</strong>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}

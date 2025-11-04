@@ -756,33 +756,24 @@ const Cart = () => {
       setPlacingOrder(true);
 
       // Build top-level fields expected by backend
+      // Focus: In-store pickup for dependent
       const payload = {
         paymentMethod: 'account_balance',
-        fulfillmentType: fulfillmentType || 'pickup'
+        fulfillmentType: 'pickup', // Always pickup for in-store collection
+        items: cartItems.map(item => ({
+          productId: item.id || item.productId,
+          product: {
+            id: item.id || item.productId,
+            name: item.name || item.productName,
+            price: item.price || 0
+          },
+          quantity: item.quantity || 1,
+          price: item.price || 0,
+          subtotal: (item.price || 0) * (item.quantity || 1)
+        }))
       };
 
-      // If user provided a quick single-line address, send as top-level 'address'
-      if (quickAddress && quickAddress.trim()) {
-        payload.address = quickAddress.trim();
-      }
-
-      // Optional structured shipping address (without fulfillmentType/address)
-      const addressObj = {
-        fullName: shipFullName?.trim() || undefined,
-        address1: shipAddress1?.trim() || undefined,
-        address2: shipAddress2?.trim() || undefined,
-        city: shipCity?.trim() || undefined,
-        province: shipProvince?.trim() || undefined,
-        postalCode: shipPostalCode?.trim() || undefined,
-        phone: shipPhone?.trim() || undefined
-      };
-      Object.keys(addressObj).forEach((k) => addressObj[k] === undefined && delete addressObj[k]);
-
-      if (Object.keys(addressObj).length > 0) {
-        payload.shippingAddress = addressObj;
-      }
-
-      console.log('🚀 Checkout payload:', payload);
+      console.log('🚀 Checkout payload (In-Store Pickup):', payload);
       const resp = await orderService.checkout(payload);
       console.log('✅ Checkout response:', resp);
 
@@ -791,13 +782,18 @@ const Cart = () => {
       setShowCheckoutModal(false);
 
       const storeCode = resp?.data?.order?.storeCode || resp?.data?.storeCode || '';
-      const pickupHint = resp?.data?.collection?.pickupHint || null;
+      const orderId = resp?.data?.order?.id || resp?.data?.id || resp?.data?.orderId || 'N/A';
+      const pickupInstructions = resp?.data?.collection?.pickupHint || resp?.data?.instructions || 'Present this code at checkout';
 
-      alert(
-        `${resp?.message || 'Order placed successfully'}`
-        + `${storeCode ? `\nYour in-store code: ${storeCode}` : ''}`
-        + `${pickupHint ? `\nPickup hint: ${pickupHint}` : ''}`
-      );
+      // Display comprehensive success message
+      const successMessage = [
+        '✅ Checkout successful',
+        `📋 Order Number: ${orderId}`,
+        `🏪 Store Code: ${storeCode}`,
+        `📝 Instructions: "${pickupInstructions}"`
+      ].join('\n');
+
+      alert(successMessage);
 
       navigate('/dependent-orders');
     } catch (err) {
@@ -805,15 +801,24 @@ const Cart = () => {
       console.error('Error details:', { status: err?.status, message: err?.message, data: err?.data });
       
       if (err?.status === 400 && String(err?.message || '').toLowerCase().includes('insufficient')) {
-        setOrderError(`Insufficient balance. ${err?.data ? `Shortfall: ₵${Number(err.data.shortfall || 0).toFixed(2)}` : ''}`);
+        const shortfall = Number(err?.data?.shortfall || 0);
+        const totalNeeded = Number(totalPrice) + shortfall;
+        setOrderError(
+          `❌ Insufficient Balance\n\n` +
+          `Your account balance is too low to complete this purchase.\n\n` +
+          `Order Total: R${Number(totalPrice || 0).toFixed(2)}\n` +
+          `You Need: R${totalNeeded.toFixed(2)}\n` +
+          `Add R${shortfall.toFixed(2)} to your account to proceed.\n\n` +
+          `Please cancel this order and top up your account, then try again.`
+        );
       } else if (err?.status === 403) {
-        setOrderError('Only active dependents can place orders');
+        setOrderError('❌ Access Denied\n\nOnly active dependents can place orders.\n\nPlease contact your account administrator if you believe this is an error.');
       } else if (err?.status === 404) {
-        setOrderError('Order endpoint not found. Please check your connection.');
+        setOrderError('❌ Connection Error\n\nWe\'re having trouble connecting to our servers.\n\nPlease check your internet connection and try again.');
       } else if (err?.message) {
-        setOrderError(`Failed to process order: ${err.message}`);
+        setOrderError(`❌ Order Failed\n\n${err.message}\n\nPlease try again or contact support if the problem persists.`);
       } else {
-        setOrderError('Failed to place order. Please try again.');
+        setOrderError('❌ Order Failed\n\nSomething went wrong while processing your order.\n\nPlease try again or contact support.');
       }
     } finally {
       setPlacingOrder(false);
@@ -988,114 +993,25 @@ const Cart = () => {
             
             <ModalBody>
               <div className="form-group">
-                <label>Account Type:</label>
-                <select 
-                  value={selectedAccountType} 
-                  onChange={(e) => setSelectedAccountType(e.target.value)}
-                >
-                  {accountTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
+                <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>💳 Payment Method</label>
+                <div style={{ padding: 12, background: '#f3f4f6', borderRadius: 8, border: '1px solid #e5e7eb' }}>
+                  <p style={{ margin: 0, fontWeight: 600, color: '#374151' }}>Account Balance</p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#666' }}>Payment will be deducted from your account balance</p>
+                </div>
               </div>
 
               <div className="form-group">
-                <label>Fulfilment Type</label>
-                <select 
-                  value={fulfillmentType} 
-                  onChange={(e) => setFulfillmentType(e.target.value)}
-                >
-                  <option value="pickup">Pickup (in-store)</option>
-                  <option value="delivery">Delivery</option>
-                </select>
+                <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>📍 Fulfillment</label>
+                <div style={{ padding: 12, background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                  <p style={{ margin: 0, fontWeight: 600, color: '#15803d' }}>In-Store Pickup</p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#65a30d' }}>Your order will be ready for pickup at the store</p>
+                </div>
               </div>
 
-              <div className="form-group">
-                <label>Quick Address (single line, optional)</label>
-                <input
-                  type="text"
-                  value={quickAddress}
-                  onChange={(e) => setQuickAddress(e.target.value)}
-                  placeholder="123 Main Street, Johannesburg, Gauteng, 2001"
-                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Full Name (optional)</label>
-                <input
-                  type="text"
-                  value={shipFullName}
-                  onChange={(e) => setShipFullName(e.target.value)}
-                  placeholder="Emma Johnson"
-                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Address Line 1 (optional)</label>
-                <input
-                  type="text"
-                  value={shipAddress1}
-                  onChange={(e) => setShipAddress1(e.target.value)}
-                  placeholder="123 Main Street"
-                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Address Line 2 (optional)</label>
-                <input
-                  type="text"
-                  value={shipAddress2}
-                  onChange={(e) => setShipAddress2(e.target.value)}
-                  placeholder="Apartment 4B"
-                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>City (optional)</label>
-                <input
-                  type="text"
-                  value={shipCity}
-                  onChange={(e) => setShipCity(e.target.value)}
-                  placeholder="Johannesburg"
-                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Province (optional)</label>
-                <input
-                  type="text"
-                  value={shipProvince}
-                  onChange={(e) => setShipProvince(e.target.value)}
-                  placeholder="Gauteng"
-                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Postal Code (optional)</label>
-                <input
-                  type="text"
-                  value={shipPostalCode}
-                  onChange={(e) => setShipPostalCode(e.target.value)}
-                  placeholder="2001"
-                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Phone (optional)</label>
-                <input
-                  type="tel"
-                  value={shipPhone}
-                  onChange={(e) => setShipPhone(e.target.value)}
-                  placeholder="+27812345678"
-                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
-                />
+              <div style={{ marginTop: 16, padding: 12, background: '#fef3c7', borderRadius: 8, border: '1px solid #fcd34d' }}>
+                <p style={{ margin: 0, fontSize: 13, color: '#92400e' }}>
+                  <strong>ℹ️ Pickup Instructions:</strong> You'll receive a unique store code after placing the order. Use this code to collect your items at the store.
+                </p>
               </div>
 
               <div className="order-summary">
