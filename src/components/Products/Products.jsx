@@ -524,6 +524,60 @@ const Products = () => {
   const currentSort = useSelector(selectCurrentSort);
   const addingToCart = useSelector(selectAddingToCart);
 
+  // Pregnancy visibility (only for eligible users per API spec)
+  const [canSeePregnancy, setCanSeePregnancy] = useState(false);
+
+  useEffect(() => {
+    const checkPregnancyVisibility = async () => {
+      try {
+        const token =
+          localStorage.getItem('token') ||
+          localStorage.getItem('accessToken') ||
+          sessionStorage.getItem('token');
+        if (!token) {
+          // Without an auth token, fall back to public view (no Pregnancy)
+          setCanSeePregnancy(false);
+          return;
+        }
+        const headers = token
+          ? { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+          : { Accept: 'application/json' };
+        const role = authUser?.role?.toLowerCase();
+        const userId = authUser?.id;
+        if (!userId || !role) {
+          setCanSeePregnancy(false);
+          return;
+        }
+        const BASE_URL = 'https://nanacaring-backend.onrender.com/api/products';
+        const url = role === 'dependent'
+          ? `${BASE_URL}/dependent/${userId}/categories`
+          : `${BASE_URL}/user/${userId}/categories`;
+
+        const res = await fetch(url, { headers });
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          console.warn('Unexpected content-type for categories');
+          setCanSeePregnancy(false);
+          return;
+        }
+        const data = await res.json();
+        if (!res.ok || !data?.success) {
+          console.warn('Failed to retrieve categories:', data?.message || res.status);
+          setCanSeePregnancy(false);
+          return;
+        }
+        const categories = Array.isArray(data.data)
+          ? data.data.map(c => (typeof c === 'string' ? c : c?.category)).filter(Boolean)
+          : [];
+        setCanSeePregnancy(categories.includes('Pregnancy'));
+      } catch (e) {
+        console.warn('Pregnancy category visibility check failed:', e?.message || e);
+        setCanSeePregnancy(false);
+      }
+    };
+    checkPregnancyVisibility();
+  }, [authUser?.id, authUser?.role]);
+
   // Determine dependent age (if available) for product-level age filtering
   const fallbackRole = (typeof localStorage !== 'undefined' && (localStorage.getItem('userRole') || localStorage.getItem('role') || '')).toLowerCase();
   const isDependent = (authUser?.role?.toLowerCase() === 'dependent') || (fallbackRole === 'dependent');
@@ -590,7 +644,7 @@ const Products = () => {
   const [sortBy, setSortBy] = useState("relevance");
   const [openSections, setOpenSections] = useState({
     promotionType: false,
-    category: false,
+    category: true, // Open category section by default
     shopByBrand: false
   });
 
@@ -623,7 +677,10 @@ const Products = () => {
     };
   }, []);
   
-  const selectedCategory = location.state?.category || 'Healthcare';
+  // Default category (avoid coming-soon categories like Healthcare/Education)
+  const getDefaultCategory = () => 'Groceries';
+  
+  const selectedCategory = location.state?.category || getDefaultCategory();
   
   // Function to return to product list
   const backToProductList = () => {
@@ -756,14 +813,15 @@ const Products = () => {
     Healthcare: <Heart size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
     Education: <GraduationCap size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
     Groceries: <ShoppingCart size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
-    Transport: <Car size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
     Entertainment: <Gamepad2 size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
     Other: <Package size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
     // Frontend category mappings
     Babycare: <Baby size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
     School: <GraduationCap size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
     Clothing: <Shirt size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
-    Pregnancy: <Users size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />
+    Pregnancy: <Users size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />,
+    // fallback icon if an old route still passes 'Transport'
+    Transport: <Users size={20} style={{marginRight: '8px', verticalAlign: 'middle'}} />
   };
 
   const toggleSection = (sectionKey) => {
@@ -834,11 +892,13 @@ const Products = () => {
                 <Checkbox type="checkbox" /> Groceries
               </CheckboxGroup>
             </CheckboxLabel>
-            <CheckboxLabel>
-              <CheckboxGroup>
-                <Checkbox type="checkbox" /> Transport
-              </CheckboxGroup>
-            </CheckboxLabel>
+            {canSeePregnancy && (
+              <CheckboxLabel>
+                <CheckboxGroup>
+                  <Checkbox type="checkbox" /> Pregnancy
+                </CheckboxGroup>
+              </CheckboxLabel>
+            )}
             <CheckboxLabel>
               <CheckboxGroup>
                 <Checkbox type="checkbox" /> Entertainment
@@ -849,6 +909,73 @@ const Products = () => {
                 <Checkbox type="checkbox" /> Other
               </CheckboxGroup>
             </CheckboxLabel>
+          </SectionContent>
+        </SidebarSection>
+
+        {/* Category Filter Section */}
+        <SidebarSection>
+          <SectionTitle 
+            isOpen={openSections.category}
+            onClick={() => toggleSection('category')}
+          >
+            Categories
+            <SectionTitleIcon src={chevronIcon} alt="dropdown" isOpen={openSections.category} />
+          </SectionTitle>
+          <SectionContent isOpen={openSections.category}>
+            {(() => {
+              // Show base categories to everyone; include Pregnancy only if eligible
+              const base = ['Healthcare', 'Education', 'Groceries', 'Entertainment', 'Other'];
+              const allCategories = canSeePregnancy
+                ? ['Healthcare', 'Education', 'Groceries', 'Pregnancy', 'Entertainment', 'Other']
+                : base;
+              return allCategories.map((category) => {
+                const isComingSoon = category === 'Healthcare' || category === 'Education';
+                return (
+                  <CheckboxLabel key={category}>
+                    <CheckboxGroup>
+                      <Checkbox 
+                        type="radio" 
+                        name="category"
+                        checked={selectedCategory === category}
+                        disabled={isComingSoon}
+                        onChange={() => {
+                          if (isComingSoon) return; // Don't allow selection of coming soon categories
+                          
+                          // Update selected category and refresh products for that category
+                          const params = {
+                            category: category,
+                            page: 1,
+                            limit: itemsPerPage,
+                            search: searchTerm,
+                            sortBy: sortBy
+                          };
+                          dispatch(setCurrentCategory(category));
+                          if (isDependent && authUser?.id) {
+                            dispatch(fetchProductsForDependent({ dependentId: authUser.id, ...params }));
+                          } else {
+                            dispatch(fetchProducts(params));
+                          }
+                        }}
+                      /> 
+                      {categoryIcons[category]} {category}
+                      {isComingSoon && (
+                        <span style={{ 
+                          fontSize: '10px', 
+                          color: '#666', 
+                          marginLeft: '8px',
+                          fontStyle: 'italic'
+                        }}>
+                          (Coming Soon)
+                        </span>
+                      )}
+                    </CheckboxGroup>
+                    <CountBadge>
+                      {isComingSoon ? 0 : visibleProducts.filter(p => p.category === category || p.Category === category).length}
+                    </CountBadge>
+                  </CheckboxLabel>
+                );
+              });
+            })()}
           </SectionContent>
         </SidebarSection>
 

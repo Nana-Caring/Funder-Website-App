@@ -605,40 +605,61 @@ const CareGiverBeneficiary = () => {
 
   // Update the validation function
   const validateStep1 = () => {
-    const { firstName, surname, email, idNumber } = formData;
-    
-    // Remove middleName from required fields check
-    if (!firstName || !surname || !email || !idNumber) {
-      dispatch(setFeedback({
-        success: false,
-        message: 'Please fill in all required fields before proceeding'
-      }));
+    const { firstName, surname, email, idNumber, isInfant, dateOfBirth, useMinimalInfant } = formData;
+
+    // Basic name checks
+    if (!firstName || !surname) {
+      dispatch(setFeedback({ success: false, message: 'First name and surname are required' }));
       return false;
     }
 
-    // Email validation
+    // Infant minimal path: require only DOB and validate age <= 1 year
+    if (isInfant && useMinimalInfant) {
+      if (!dateOfBirth) {
+        dispatch(setFeedback({ success: false, message: 'dateOfBirth is required for infant registration' }));
+        return false;
+      }
+      const dob = new Date(dateOfBirth);
+      if (isNaN(dob.getTime())) {
+        dispatch(setFeedback({ success: false, message: 'Please provide a valid date of birth' }));
+        return false;
+      }
+      const now = new Date();
+      const oneYearAgo = new Date(now);
+      oneYearAgo.setFullYear(now.getFullYear() - 1);
+      if (dob < new Date('1900-01-01') || dob > now) {
+        dispatch(setFeedback({ success: false, message: 'Date of birth cannot be in the future' }));
+        return false;
+      }
+      if (dob < oneYearAgo) {
+        dispatch(setFeedback({ success: false, message: 'Infant age must be 1 year or less' }));
+        return false;
+      }
+      return true;
+    }
+
+    // Non-minimal (regular or infant with full details): require email and 13-digit ID
+    if (!email || !idNumber) {
+      dispatch(setFeedback({ success: false, message: 'Please fill in all required fields before proceeding' }));
+      return false;
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      dispatch(setFeedback({
-        success: false,
-        message: 'Please enter a valid email address'
-      }));
+      dispatch(setFeedback({ success: false, message: 'Please enter a valid email address' }));
       return false;
     }
-
-    // ID validation
     if (idNumber.length !== 13 || !/^\d+$/.test(idNumber)) {
-      dispatch(setFeedback({
-        success: false,
-        message: 'ID Number must be exactly 13 digits'
-      }));
+      dispatch(setFeedback({ success: false, message: 'ID Number must be exactly 13 digits' }));
       return false;
     }
-
     return true;
   };
 
   const validateStep2 = () => {
+    // Skip step 2 for infant minimal path
+    if (formData.isInfant && formData.useMinimalInfant) {
+      return true;
+    }
     if (!relation) {
       dispatch(setFeedback({
         success: false,
@@ -702,16 +723,34 @@ const CareGiverBeneficiary = () => {
       dispatch(setSubmitting(true));
       dispatch(setLoading(true));
 
-      // Format data according to the expected API structure
-      const dependentData = {
+      // Build payload per enhanced API contract
+      const isInfant = !!formData.isInfant;
+      const useMinimal = !!formData.useMinimalInfant;
+      const base = {
         firstName: formData.firstName.trim(),
-        middleName: formData.middleName?.trim() || null, // Optional middle name
-        surname: formData.surname.trim(),
-        email: formData.email.trim().toLowerCase(),
-        password: password,
-        Idnumber: formData.idNumber.trim(),
-        relation: relation.trim()
+        middleName: formData.middleName?.trim() || undefined,
+        surname: formData.surname.trim()
       };
+      let dependentData = { ...base };
+      if (isInfant) {
+        dependentData.isInfant = true;
+        if (formData.dateOfBirth) {
+          const dob = new Date(formData.dateOfBirth);
+          dependentData.dateOfBirth = isNaN(dob.getTime()) ? formData.dateOfBirth : dob.toISOString().split('T')[0];
+        }
+        if (!useMinimal) {
+          dependentData.email = formData.email.trim().toLowerCase();
+          dependentData.password = password;
+          dependentData.Idnumber = formData.idNumber.trim();
+          dependentData.relation = relation.trim();
+        }
+      } else {
+        // Regular dependent registration
+        dependentData.email = formData.email.trim().toLowerCase();
+        dependentData.password = password;
+        dependentData.Idnumber = formData.idNumber.trim();
+        dependentData.relation = relation.trim();
+      }
 
       // Make API call with Redux action
       if (!token) {
@@ -719,7 +758,7 @@ const CareGiverBeneficiary = () => {
       }
 
       console.log('🚀 Starting dependent registration...', dependentData);
-      const result = await dispatch(registerDependent({ token, dependentData })).unwrap();
+  const result = await dispatch(registerDependent({ token, dependentData })).unwrap();
       console.log('✅ Registration result:', result);
       
       // Show immediate success feedback
@@ -996,28 +1035,70 @@ const CareGiverBeneficiary = () => {
                     placeholder="Enter surname"
                   />
                 </FormGroup>
+                {/* Infant registration options */}
                 <FormGroup>
-                  <Label>Email: <span style={{ color: '#ff4444', fontSize: 12 }}>*</span></Label>
-                  <Input 
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => dispatch(setFormData({email: e.target.value}))}
-                    required
-                    placeholder="Enter email address"
-                  />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={!!formData.isInfant}
+                      onChange={(e) => dispatch(setFormData({ isInfant: e.target.checked }))}
+                    />
+                    Register as infant (≤ 1 year old)
+                  </label>
                 </FormGroup>
-                <FormGroup>
-                  <Label>ID No: <span style={{ color: '#ff4444', fontSize: 12 }}>*</span></Label>
-                  <Input 
-                    type="text"
-                    value={formData.idNumber}
-                    onChange={(e) => dispatch(setFormData({idNumber: e.target.value}))}
-                    placeholder="Enter 13 digits"
-                    pattern="\d{13}"
-                    maxLength="13"
-                    required
-                  />
-                </FormGroup>
+                {formData.isInfant && (
+                  <>
+                    <FormGroup>
+                      <Label>Date of Birth: <span style={{ color: '#ff4444', fontSize: 12 }}>*</span></Label>
+                      <Input 
+                        type="date"
+                        value={formData.dateOfBirth || ''}
+                        onChange={(e) => dispatch(setFormData({ dateOfBirth: e.target.value }))}
+                        required
+                        max={new Date().toISOString().split('T')[0]}
+                      />
+                    </FormGroup>
+                    <FormGroup>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input
+                          type="checkbox"
+                          checked={!!formData.useMinimalInfant}
+                          onChange={(e) => dispatch(setFormData({ useMinimalInfant: e.target.checked }))}
+                        />
+                        Use minimal infant registration (auto-generate email/ID)
+                      </label>
+                      <small style={{ color: '#666' }}>
+                        If selected, only name and date of birth are required. No welcome emails will be sent to auto-generated addresses.
+                      </small>
+                    </FormGroup>
+                  </>
+                )}
+                {!(formData.isInfant && formData.useMinimalInfant) && (
+                  <>
+                    <FormGroup>
+                      <Label>Email: <span style={{ color: '#ff4444', fontSize: 12 }}>*</span></Label>
+                      <Input 
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => dispatch(setFormData({email: e.target.value}))}
+                        required
+                        placeholder="Enter email address"
+                      />
+                    </FormGroup>
+                    <FormGroup>
+                      <Label>ID No: <span style={{ color: '#ff4444', fontSize: 12 }}>*</span></Label>
+                      <Input 
+                        type="text"
+                        value={formData.idNumber}
+                        onChange={(e) => dispatch(setFormData({idNumber: e.target.value}))}
+                        placeholder="Enter 13 digits"
+                        pattern="\d{13}"
+                        maxLength="13"
+                        required
+                      />
+                    </FormGroup>
+                  </>
+                )}
                 <BottomRow>
                   <StepIndicator>
                     <Step $active={formStep === 1} />
@@ -1030,12 +1111,17 @@ const CareGiverBeneficiary = () => {
                     <NextButton 
                       onClick={() => {
                         if (validateStep1()) {
-                          dispatch(setFormStep(2));
-                          dispatch(clearFeedback()); // Clear any existing feedback
+                          dispatch(clearFeedback());
+                          if (formData.isInfant && formData.useMinimalInfant) {
+                            // Skip step 2 for minimal infant flow
+                            handleComplete();
+                          } else {
+                            dispatch(setFormStep(2));
+                          }
                         }
                       }}
                     >
-                      Next
+                      {formData.isInfant && formData.useMinimalInfant ? 'Complete' : 'Next'}
                     </NextButton>
                   </div>
                 </BottomRow>

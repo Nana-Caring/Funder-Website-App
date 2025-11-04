@@ -73,6 +73,32 @@ const authService = {
     } catch (error) {
       throw error.response?.data || error.message;
     }
+  },
+
+  // Register dependent (enhanced infant support)
+  registerDependent: async (payload) => {
+    try {
+      const body = { ...payload };
+      // Normalize dateOfBirth to ISO date string (YYYY-MM-DD) if Date object
+      if (body.dateOfBirth instanceof Date) {
+        body.dateOfBirth = body.dateOfBirth.toISOString().split('T')[0];
+      }
+
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+      const response = await axios.post(
+        `${API_URL}/register-dependent`,
+        body,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: error.message || 'Failed to register dependent' };
+    }
   }
 };
 

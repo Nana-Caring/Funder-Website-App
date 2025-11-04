@@ -834,16 +834,16 @@ const SendMoney = () => {
             <PopupMessage>{popupMessage}</PopupMessage>
 
             {/* Compact Success Details */}
-            {popupType === 'success' && transferResult && (
+            {popupType === 'success' && (
               <SuccessDetails>
                 <SuccessGrid>
                   <SuccessItem>
                     <SuccessLabel>Amount</SuccessLabel>
-                    <SuccessValue>R{Number(transferResult.amount || 0).toFixed(2)}</SuccessValue>
+                    <SuccessValue>R{Number(amount || 0).toFixed(2)}</SuccessValue>
                   </SuccessItem>
                   <SuccessItem>
                     <SuccessLabel>Target Account</SuccessLabel>
-                    <SuccessValue>{transferResult.targetAccount || selectedAccountType}</SuccessValue>
+                    <SuccessValue>{(transferResult && transferResult.targetAccount) || selectedAccountType}</SuccessValue>
                   </SuccessItem>
                 </SuccessGrid>
                 

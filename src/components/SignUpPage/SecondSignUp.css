@@ -184,6 +184,8 @@
   max-width: 400px;
   margin-top: 25px;
   margin-right: 120px;
+  position: relative;
+  z-index: 100;
 }
 
 .signup-form h2 {

@@ -5,6 +5,7 @@ import beneficiariesReducer from './slices/beneficiaries';
 // Use the consolidated slices defined at project root for products and cart (server-backed)
 import productsReducer from '../../store/slices/products';
 import cartReducer from '../../store/slices/cartServer';
+import uiReducer from './slices/ui';
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     beneficiaries: beneficiariesReducer,
     products: productsReducer,
     cart: cartReducer,
+    ui: uiReducer,
     // ...other reducers can be added here
   },
   middleware: (getDefaultMiddleware) =>

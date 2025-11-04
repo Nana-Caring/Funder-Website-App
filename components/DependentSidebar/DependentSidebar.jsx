@@ -7,6 +7,7 @@ import buyIcon from '../../assets/icons/buy.png';
 import myAccountIcon from '../../assets/icons/my-account-icon.png';
 import transferMoneyIcon from '../../assets/icons/send-money-icon.png'; // Reusing send-money for transfer
 import statementsIcon from '../../assets/icons/statements-icon.png';
+import trackIcon from '../../assets/icons/track.png';
 
 const SidebarContainer = styled.div`
   width: 235px;
@@ -101,6 +102,11 @@ const DependentSidebar = ({ isOpen = false, onClose }) => {
       <MenuItem to="/dependent-statements" active={location.pathname === "/dependent-statements" ? 1 : 0} onClick={onClose}>
         <img src={statementsIcon} alt="Statements" />
         Statements
+      </MenuItem>
+
+      <MenuItem to="/dependent-orders" active={location.pathname === "/dependent-orders" ? 1 : 0} onClick={onClose}>
+        <img src={trackIcon} alt="Orders" />
+        Orders
       </MenuItem>
     </SidebarContainer>
   );

@@ -30,6 +30,7 @@ import ProductDetail from './components/Products/ProductDetail';
 import Cart from './components/Cart/Cart';
 import DebugPage from './components/Debug/DebugPageFixed';
 import DependentStatements from './components/DependentStatements/DependentStatements';
+import DependentOrders from './components/DependentOrders/DependentOrders';
 import CareGiverStatements from './components/CareGiverStatements/CareGiverStatements';
 import CareGiverRequests from './components/CareGiverRequests/CareGiverRequests';
 import CareGiverHome from './components/CareGiverHome';
@@ -131,7 +132,15 @@ const DashboardLayout = () => {
 };
 
 function App() {
-  const { loading, user, isAuthenticated } = useSelector(state => state.authentication);
+  const { loading: authLoading, user, isAuthenticated } = useSelector(state => state.authentication);
+  const uiLoading = useSelector(state => state.ui?.globalLoading);
+  // Include major slice loading states to drive global overlay
+  const productsBusy = useSelector(state =>
+    state.products?.loading || state.products?.productLoading || state.products?.recommendedLoading
+  );
+  const cartBusy = useSelector(state =>
+    state.cart?.loading || state.cart?.addingToCart || state.cart?.updatingItem || state.cart?.removingItem
+  );
   const [showSplash, setShowSplash] = useState(true);
   const dispatch = useDispatch();
 
@@ -195,6 +204,7 @@ function App() {
         <Route path="dependent-myaccounts" element={<DependentMyAccounts />} />
         <Route path="dependent-transfer" element={<DependentTransfer />} />
         <Route path="dependent-statements" element={<DependentStatements />} />
+  <Route path="dependent-orders" element={<DependentOrders />} />
         <Route path="profile" element={<DependentProfile />} />
         <Route path="settings" element={<DependentSettings />} />
         <Route path="notifications" element={<Notifications />} />
@@ -287,7 +297,7 @@ function App() {
       <SplashScreen onFinish={() => setShowSplash(false)} />
       {!showSplash && (
         <>
-          {loading && <Loader />}
+          {(authLoading || uiLoading || productsBusy || cartBusy) && <Loader />}
           <Suspense fallback={<Loader />}>
             {renderRoutes()}
           </Suspense>

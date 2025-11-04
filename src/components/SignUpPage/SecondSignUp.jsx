@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { registerUser } from '../../store/slices/Authentication';
+import { showLoading, hideLoading } from '../../store/slices/ui';
 import './SecondSignUp.css';
 import landingCard from '../../assets/images/landingCard.png';
 import logo from '../../assets/logo.png';
@@ -16,7 +17,9 @@ const SecondSignUp = () => {
   const [formData, setFormData] = useState({
     accountType: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    isPregnant: false,
+    expectedDueDate: ''
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -50,19 +53,21 @@ const SecondSignUp = () => {
   };
 
   const handleInputChange = (e) => {
-    const { name, value, type } = e.target;
+    const { name, value, type, checked } = e.target;
     if (type === 'radio') {
-      setFormData({
-        ...formData,
-        accountType: value
-      });
-      console.log('Selected role:', value);
-    } else {
-      setFormData({
-        ...formData,
-        [name]: value
-      });
+      setFormData(prev => ({
+        ...prev,
+        accountType: value,
+        // Reset pregnancy fields when switching roles
+        ...(value !== 'caregiver' ? { isPregnant: false, expectedDueDate: '' } : {})
+      }));
+      return;
     }
+    if (type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [name]: checked }));
+      return;
+    }
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleBack = () => {
@@ -84,14 +89,33 @@ const SecondSignUp = () => {
     }
 
     try {
+      dispatch(showLoading({ message: 'Creating your account...' }));
       const firstStepData = JSON.parse(localStorage.getItem('registrationData'));
 
+      // Build request payload per enhanced API
       const userData = {
-        ...firstStepData,
+        firstName: firstStepData.firstName,
+        middleName: firstStepData.middleName || '',
+        surname: firstStepData.surname,
+        email: (firstStepData.email || '').toLowerCase().trim(),
         password: formData.password,
         role: formData.accountType,
-        Idnumber: firstStepData.idNumber || ''
+        // API expects capitalized Idnumber field
+        Idnumber: firstStepData.idNumber || firstStepData.Idnumber || ''
       };
+
+      // Caregiver pregnancy support
+      if (userData.role === 'caregiver' && formData.isPregnant) {
+        // Validate expectedDueDate is in the future
+        const due = new Date(formData.expectedDueDate);
+        const today = new Date();
+        if (!(due instanceof Date) || isNaN(due.getTime()) || due <= today) {
+          setMessage({ type: 'error', text: 'Expected due date must be in the future.' });
+          return;
+        }
+        userData.isPregnant = true;
+        userData.expectedDueDate = new Date(formData.expectedDueDate).toISOString();
+      }
 
       await dispatch(registerUser(userData)).unwrap();
       setMessage({
@@ -111,6 +135,8 @@ const SecondSignUp = () => {
         type: 'error',
         text: err.message || 'Registration failed. Please try again.'
       });
+    } finally {
+      dispatch(hideLoading());
     }
   };
 
@@ -184,6 +210,36 @@ const SecondSignUp = () => {
                   </label>
                 </div>
               </div>
+              {/* Caregiver pregnancy fields */}
+              {formData.accountType === 'caregiver' && (
+                <div className="form-group" style={{ marginTop: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="checkbox"
+                      name="isPregnant"
+                      checked={formData.isPregnant}
+                      onChange={handleInputChange}
+                    />
+                    I’m pregnant
+                  </label>
+                  {formData.isPregnant && (
+                    <div style={{ marginTop: '8px' }}>
+                      <label>Expected Due Date:</label>
+                      <input
+                        type="date"
+                        name="expectedDueDate"
+                        value={formData.expectedDueDate}
+                        onChange={handleInputChange}
+                        min={new Date(Date.now() + 24*60*60*1000).toISOString().split('T')[0]}
+                        required
+                      />
+                      <small style={{ display: 'block', color: '#666', marginTop: '4px' }}>
+                        Must be a future date.
+                      </small>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="password-section">
                 <p>Confirm Passwords:</p>
                 <div className="form-group">

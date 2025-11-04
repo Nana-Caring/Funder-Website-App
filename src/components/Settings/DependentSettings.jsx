@@ -86,6 +86,29 @@ const DependentSettings = () => {
       </S.SettingsCard>
 
       <S.SettingsCard>
+        <h3 style={{ marginBottom: '16px', color: '#185c37' }}>Orders</h3>
+        <S.SettingItem>
+          <div>
+            <h4>Track Your Orders</h4>
+            <p>View your order history and delivery status</p>
+          </div>
+          <button
+            onClick={() => navigate('/dependent-orders')}
+            style={{
+              padding: '8px 16px',
+              background: '#185c37',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            View Orders
+          </button>
+        </S.SettingItem>
+      </S.SettingsCard>
+
+      <S.SettingsCard>
         <h3 style={{ marginBottom: '16px', color: '#185c37' }}>Spending Controls</h3>
         <S.SettingItem>
           <div>

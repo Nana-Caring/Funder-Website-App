@@ -81,6 +81,43 @@ const TransferContainer = styled.div`
   margin-top: 20px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
+  position: relative;
+  opacity: 0.7;
+  pointer-events: none;
+`;
+
+const ComingSoonOverlay = styled.div`
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: linear-gradient(135deg, #ff4444, #cc0000);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(255, 68, 68, 0.3);
+`;
+
+const ComingSoonMessage = styled.div`
+  background: #fff3cd;
+  border: 1px solid #ffeeba;
+  color: #856404;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  
+  &::before {
+    content: "ℹ️";
+    font-size: 16px;
+  }
 `;
 
 const Title = styled.h2`
@@ -96,15 +133,16 @@ const Select = styled.div`
   background: #f8f8f8;
   border-radius: 10px;
   padding: 10px 14px;
-  cursor: pointer;
+  cursor: not-allowed;
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 14px;
   margin-bottom: 10px;
+  opacity: 0.6;
 
   &:hover {
-    background: #f0f0f0;
+    background: #f8f8f8;
   }
 `;
 
@@ -176,6 +214,7 @@ const AmountInputGroup = styled.div`
     color: #666;
     font-size: 14px;
     white-space: nowrap;
+    opacity: 0.6;
   }
 
   input {
@@ -185,10 +224,13 @@ const AmountInputGroup = styled.div`
     border-radius: 10px;
     font-size: 16px;
     box-sizing: border-box;
+    background-color: #f5f5f5;
+    opacity: 0.6;
+    cursor: not-allowed;
 
     &:focus {
       outline: none;
-      border-color: #000;
+      border-color: #ddd;
     }
   }
 `;
@@ -421,6 +463,7 @@ const DependentTransfer = () => {
   }
   return (
     <Container>
+      {/* Card temporarily hidden
       <Card>
         <CardDetails>
           <CardHolder>{getUserInitialsAndSurname()?.toUpperCase()}</CardHolder>
@@ -442,14 +485,21 @@ const DependentTransfer = () => {
           </div>
         </CardDetails>
       </Card>
+      */}
 
       <TransferContainer>
+        <ComingSoonOverlay>Coming Soon</ComingSoonOverlay>
         <Title>Choose Account</Title>
+        
+        <ComingSoonMessage>
+          Account-to-account transfers are currently being developed and will be available in a later phase. 
+          Stay tuned for updates!
+        </ComingSoonMessage>
 
         <div style={{ position: 'relative' }} data-dropdown>
-          <Select onClick={() => setShowFromDropdown(!showFromDropdown)}>
+          <Select onClick={() => {}} title="Feature coming soon">
             <span>
-              {selectedFromAccount ? formatAccountName(selectedFromAccount.accountType) : 'Select From Account'}
+              {selectedFromAccount ? formatAccountName(selectedFromAccount.accountType) : 'Select From Account (Coming Soon)'}
             </span>
             <KeyboardArrowDown fontSize="small" />
           </Select>
@@ -476,9 +526,9 @@ const DependentTransfer = () => {
         <ToLabel>To</ToLabel>
 
         <div style={{ position: 'relative' }} data-dropdown>
-          <Select onClick={() => setShowToDropdown(!showToDropdown)}>
+          <Select onClick={() => {}} title="Feature coming soon">
             <span>
-              {selectedToAccount ? formatAccountName(selectedToAccount.accountType) : 'Select To Account'}
+              {selectedToAccount ? formatAccountName(selectedToAccount.accountType) : 'Select To Account (Coming Soon)'}
             </span>
             <KeyboardArrowDown fontSize="small" />
           </Select>
@@ -513,20 +563,24 @@ const DependentTransfer = () => {
             <label>Amount</label>
             <input
               type="number"
-              placeholder="R 0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              placeholder="R 0.00 (Coming Soon)"
+              value=""
+              disabled={true}
+              onChange={() => {}}
+              title="Feature coming soon"
             />
           </AmountInputGroup>
 
           <TransferButton 
-            disabled={!selectedFromAccount || !selectedToAccount || !amount}
+            disabled={true}
             style={{
-              opacity: (!selectedFromAccount || !selectedToAccount || !amount) ? 0.5 : 1,
-              cursor: (!selectedFromAccount || !selectedToAccount || !amount) ? 'not-allowed' : 'pointer'
+              opacity: 0.4,
+              cursor: 'not-allowed',
+              textDecoration: 'line-through'
             }}
+            title="Feature coming soon - Account transfers will be available in a later phase"
           >
-            Transfer
+            Transfer (Coming Soon)
           </TransferButton>
         </AmountRow>
       </TransferContainer>

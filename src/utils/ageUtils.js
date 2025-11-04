@@ -59,3 +59,30 @@ export function summarizeAgeFromYYMMDD(yyMMdd, now = new Date()) {
   const category = getAgeCategory(age);
   return { age, category };
 }
+
+// Get age-appropriate categories based on user's age
+export function getAgeAppropriateCategories(age) {
+  const allCategories = ['Healthcare', 'Education', 'Groceries', 'Pregnancy', 'Entertainment', 'Other'];
+  
+  if (age == null || isNaN(age)) {
+    // If age is unknown, show all categories
+    return allCategories;
+  }
+  
+  const numericAge = Number(age);
+  
+  // Age-based category filtering
+  if (numericAge <= 2) {
+    // Infants/Toddlers: Healthcare, Groceries, Other (no Education, Entertainment, Pregnancy)
+    return ['Healthcare', 'Groceries', 'Other'];
+  } else if (numericAge <= 12) {
+    // Children: Healthcare, Education, Groceries, Entertainment, Other (no Pregnancy)
+    return ['Healthcare', 'Education', 'Groceries', 'Entertainment', 'Other'];
+  } else if (numericAge <= 17) {
+    // Teens: Healthcare, Education, Groceries, Entertainment, Other (no Pregnancy)
+    return ['Healthcare', 'Education', 'Groceries', 'Entertainment', 'Other'];
+  } else {
+    // Adults: All categories available
+    return allCategories;
+  }
+}

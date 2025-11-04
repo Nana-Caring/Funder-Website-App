@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { useSelector } from 'react-redux';
 import logo from '../../assets/logo.png';
 
 const LoaderOverlay = styled.div`
@@ -46,13 +47,22 @@ const Spinner = styled.div`
   }
 `;
 
+const Message = styled.div`
+  margin-top: 14px;
+  color: #185c37;
+  font-size: 14px;
+  text-align: center;
+`;
+
 const Loader = () => {
+  const message = useSelector((state) => state.ui?.message);
   return (
     <LoaderOverlay>
       <LogoContainer>
         <img src={logo} alt="Nana Logo" />
       </LogoContainer>
       <Spinner />
+      {message ? <Message>{message}</Message> : null}
     </LoaderOverlay>
   );
 };

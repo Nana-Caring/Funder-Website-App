@@ -3,8 +3,10 @@ import styled from 'styled-components';
 import axios from 'axios';
 import editIcon from '../../assets/icons/edit.png';
 import deleteIcon from '../../assets/icons/delete.png';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { showLoading, hideLoading } from '../../store/slices/ui';
 import { funderService } from '../../services/funderService';
+import authService from '../../services/authService';
 
 
 const BeneficiaryContainer = styled.div`
@@ -375,6 +377,141 @@ const getRandomPastelColor = () => {
   return `hsl(${hue}, 70%, 75%)`;
 };
 
+const DependentModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+`;
+
+const DependentForm = styled.div`
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+  max-width: 450px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+
+  h3 {
+    margin: 0 0 16px 0;
+    color: #185c37;
+    font-size: 18px;
+  }
+
+  .form-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .form-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    label {
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+    }
+
+    input, select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+
+      &:focus {
+        outline: none;
+        border-color: #185c37;
+        box-shadow: 0 0 0 2px rgba(24, 92, 55, 0.1);
+      }
+    }
+
+    small {
+      color: #666;
+      font-size: 12px;
+    }
+  }
+
+  .checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0;
+
+    input[type="checkbox"] {
+      width: auto;
+    }
+
+    label {
+      margin: 0;
+      font-size: 14px;
+    }
+  }
+
+  .button-group {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+
+    button {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &.cancel {
+        background: #f5f5f5;
+        color: #666;
+
+        &:hover {
+          background: #e5e5e5;
+        }
+      }
+
+      &.submit {
+        background: #185c37;
+        color: white;
+
+        &:hover {
+          background: #0f3d24;
+        }
+
+        &:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+
+  .error-message {
+    color: #dc3545;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  .success-message {
+    color: #28a745;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+`;
+
 // Safely format currency when API may return strings like "R 123" or null
 const safeParseAmount = (value) => {
   if (value === null || value === undefined) return 0;
@@ -408,6 +545,7 @@ const calculateEmergencyStats = (accounts) => {
 const BeneficiaryForm = () => {
   // Redux state
   const { user, token } = useSelector(state => state.auth || {});
+  const dispatch = useDispatch();
   
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [formData, setFormData] = useState({name: '', accountNumber: ''});
@@ -423,6 +561,22 @@ const BeneficiaryForm = () => {
   const [mainAccountNumber, setMainAccountNumber] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // Dependent registration modal state
+  const [showDependentModal, setShowDependentModal] = useState(false);
+  const [dependentForm, setDependentForm] = useState({
+    firstName: '',
+    middleName: '',
+    surname: '',
+    email: '',
+    password: '',
+    Idnumber: '',
+    relation: 'child',
+    isInfant: false,
+    dateOfBirth: ''
+  });
+  const [dependentErrors, setDependentErrors] = useState({});
+  const [dependentLoading, setDependentLoading] = useState(false);
 
   // Enhanced API base URL
   const API_BASE_URL = 'https://nanacaring-backend.onrender.com/api';
@@ -756,6 +910,135 @@ const BeneficiaryForm = () => {
     setDeleteTarget(null);
   };
 
+  // Dependent registration handlers
+  const handleDependentFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setDependentForm(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+      // Clear non-infant fields when switching to infant
+      ...(name === 'isInfant' && checked ? { 
+        email: '', 
+        password: '', 
+        Idnumber: '',
+        relation: 'child' 
+      } : {})
+    }));
+    // Clear error for this field
+    setDependentErrors(prev => ({ ...prev, [name]: '' }));
+  };
+
+  const validateDependentForm = () => {
+    const errors = {};
+    
+    if (!dependentForm.firstName.trim()) {
+      errors.firstName = 'First name is required';
+    }
+    if (!dependentForm.surname.trim()) {
+      errors.surname = 'Surname is required';
+    }
+    
+    if (dependentForm.isInfant) {
+      if (!dependentForm.dateOfBirth) {
+        errors.dateOfBirth = 'Date of birth is required for infants';
+      } else {
+        // Validate infant age (≤ 1 year)
+        const birthDate = new Date(dependentForm.dateOfBirth);
+        const today = new Date();
+        const ageInMonths = (today - birthDate) / (1000 * 60 * 60 * 24 * 30.44);
+        if (ageInMonths > 12) {
+          errors.dateOfBirth = 'Child must be 12 months or younger for infant registration';
+        }
+      }
+    } else {
+      // Regular dependent validation
+      if (!dependentForm.email.trim()) {
+        errors.email = 'Email is required';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dependentForm.email)) {
+        errors.email = 'Please enter a valid email';
+      }
+      if (!dependentForm.password) {
+        errors.password = 'Password is required';
+      } else if (dependentForm.password.length < 6) {
+        errors.password = 'Password must be at least 6 characters';
+      }
+      if (!dependentForm.Idnumber.trim()) {
+        errors.Idnumber = 'ID number is required';
+      }
+    }
+    
+    setDependentErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleDependentSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateDependentForm()) return;
+
+    try {
+      setDependentLoading(true);
+      dispatch(showLoading({ message: 'Registering dependent...' }));
+
+      // Build payload according to API spec
+      const payload = {
+        firstName: dependentForm.firstName.trim(),
+        surname: dependentForm.surname.trim(),
+        relation: dependentForm.relation || 'child'
+      };
+
+      // Add optional middle name
+      if (dependentForm.middleName.trim()) {
+        payload.middleName = dependentForm.middleName.trim();
+      }
+
+      if (dependentForm.isInfant) {
+        // Infant registration
+        payload.isInfant = true;
+        payload.dateOfBirth = dependentForm.dateOfBirth;
+        // For infants, email/password/ID can be auto-generated by backend
+      } else {
+        // Regular dependent registration
+        payload.email = dependentForm.email.toLowerCase().trim();
+        payload.password = dependentForm.password;
+        payload.Idnumber = dependentForm.Idnumber.trim();
+      }
+
+      console.log('Registering dependent with payload:', payload);
+      
+      const result = await authService.registerDependent(payload);
+      
+      if (result.message) {
+        setError(`✅ ${result.message}`);
+      }
+      
+      // Reset form and close modal
+      setDependentForm({
+        firstName: '',
+        middleName: '',
+        surname: '',
+        email: '',
+        password: '',
+        Idnumber: '',
+        relation: 'child',
+        isInfant: false,
+        dateOfBirth: ''
+      });
+      setDependentErrors({});
+      setShowDependentModal(false);
+      
+      // Refresh beneficiaries list
+      await fetchBeneficiaries();
+      
+    } catch (err) {
+      console.error('Dependent registration failed:', err);
+      setError(err.message || 'Failed to register dependent');
+    } finally {
+      setDependentLoading(false);
+      dispatch(hideLoading());
+    }
+  };
+
   const filteredBeneficiaries = beneficiaries.filter(beneficiary =>
     (beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '')
     .toLowerCase()
@@ -799,10 +1082,16 @@ const BeneficiaryForm = () => {
           }}>
             Beneficiaries ({beneficiaries.length})
           </h3>
-          <AddButton onClick={handleOpenModal}>
-            <span style={{ fontSize: '16px' }}>+</span>
-            Link Beneficiary
-          </AddButton>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <AddButton onClick={handleOpenModal}>
+              <span style={{ fontSize: '16px' }}>+</span>
+              Link Beneficiary
+            </AddButton>
+            <AddButton onClick={() => setShowDependentModal(true)}>
+              <span style={{ fontSize: '16px' }}>👶</span>
+              Register Dependent
+            </AddButton>
+          </div>
         </div>
         
         <SearchBox>
@@ -1300,6 +1589,180 @@ const BeneficiaryForm = () => {
             </button>
           </PopupMessage>
         </PopupOverlay>
+      )}
+
+      {/* Dependent Registration Modal */}
+      {showDependentModal && (
+        <DependentModal>
+          <DependentForm>
+            <h3>Register New Dependent</h3>
+            <form onSubmit={handleDependentSubmit}>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>First Name *</label>
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={dependentForm.firstName}
+                    onChange={handleDependentFormChange}
+                    required
+                  />
+                  {dependentErrors.firstName && (
+                    <div className="error-message">{dependentErrors.firstName}</div>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>Middle Name</label>
+                  <input
+                    type="text"
+                    name="middleName"
+                    value={dependentForm.middleName}
+                    onChange={handleDependentFormChange}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Surname *</label>
+                <input
+                  type="text"
+                  name="surname"
+                  value={dependentForm.surname}
+                  onChange={handleDependentFormChange}
+                  required
+                />
+                {dependentErrors.surname && (
+                  <div className="error-message">{dependentErrors.surname}</div>
+                )}
+              </div>
+
+              <div className="checkbox-group">
+                <input
+                  type="checkbox"
+                  name="isInfant"
+                  checked={dependentForm.isInfant}
+                  onChange={handleDependentFormChange}
+                />
+                <label>This is an infant (12 months or younger)</label>
+              </div>
+
+              {dependentForm.isInfant ? (
+                <div className="form-group">
+                  <label>Date of Birth *</label>
+                  <input
+                    type="date"
+                    name="dateOfBirth"
+                    value={dependentForm.dateOfBirth}
+                    onChange={handleDependentFormChange}
+                    max={new Date().toISOString().split('T')[0]}
+                    required
+                  />
+                  <small>For infants, email and ID will be auto-generated</small>
+                  {dependentErrors.dateOfBirth && (
+                    <div className="error-message">{dependentErrors.dateOfBirth}</div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="form-group">
+                    <label>Email *</label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={dependentForm.email}
+                      onChange={handleDependentFormChange}
+                      required
+                    />
+                    {dependentErrors.email && (
+                      <div className="error-message">{dependentErrors.email}</div>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label>Password *</label>
+                    <input
+                      type="password"
+                      name="password"
+                      value={dependentForm.password}
+                      onChange={handleDependentFormChange}
+                      required
+                      minLength={6}
+                    />
+                    {dependentErrors.password && (
+                      <div className="error-message">{dependentErrors.password}</div>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label>ID Number *</label>
+                    <input
+                      type="text"
+                      name="Idnumber"
+                      value={dependentForm.Idnumber}
+                      onChange={handleDependentFormChange}
+                      required
+                    />
+                    {dependentErrors.Idnumber && (
+                      <div className="error-message">{dependentErrors.Idnumber}</div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <div className="form-group">
+                <label>Relationship</label>
+                <select
+                  name="relation"
+                  value={dependentForm.relation}
+                  onChange={handleDependentFormChange}
+                >
+                  <option value="child">Child</option>
+                  <option value="son">Son</option>
+                  <option value="daughter">Daughter</option>
+                  <option value="ward">Ward</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              {error && (
+                <div className={error.startsWith('✅') ? 'success-message' : 'error-message'}>
+                  {error}
+                </div>
+              )}
+
+              <div className="button-group">
+                <button
+                  type="button"
+                  className="cancel"
+                  onClick={() => {
+                    setShowDependentModal(false);
+                    setDependentForm({
+                      firstName: '',
+                      middleName: '',
+                      surname: '',
+                      email: '',
+                      password: '',
+                      Idnumber: '',
+                      relation: 'child',
+                      isInfant: false,
+                      dateOfBirth: ''
+                    });
+                    setDependentErrors({});
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="submit"
+                  disabled={dependentLoading}
+                >
+                  {dependentLoading ? 'Registering...' : 'Register Dependent'}
+                </button>
+              </div>
+            </form>
+          </DependentForm>
+        </DependentModal>
       )}
     </BeneficiaryContainer>
   );

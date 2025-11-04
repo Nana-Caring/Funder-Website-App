@@ -3,6 +3,8 @@ import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import cartIcon from '../../../assets/icons/cart.png';
+import orderService from '../../services/orderService';
+import noImage from '../../assets/images/no-image.svg';
 
 // Redux actions and selectors
 import {
@@ -52,7 +54,7 @@ const getImageUrl = (imageData) => {
 };
 
 // Default fallback image for cart items
-const defaultProductImage = "https://via.placeholder.com/200x200/f8f9fa/6b7280?text=No+Image";
+const defaultProductImage = noImage;
 
 const PageContainer = styled.div`
   width: calc(100% - 175px);
@@ -680,8 +682,19 @@ const Cart = () => {
   // Local state for UI
   const [promoCode, setPromoCode] = useState('');
   const [selectedAccountType, setSelectedAccountType] = useState('Main');
-  const [deliveryAddress, setDeliveryAddress] = useState('');
+  // Shipping address (optional per API; supports in-store codes as well)
+  const [fulfillmentType, setFulfillmentType] = useState('pickup'); // 'pickup' | 'delivery'
+  const [quickAddress, setQuickAddress] = useState(''); // single-line quick address
+  const [shipFullName, setShipFullName] = useState('');
+  const [shipAddress1, setShipAddress1] = useState('');
+  const [shipAddress2, setShipAddress2] = useState('');
+  const [shipCity, setShipCity] = useState('');
+  const [shipProvince, setShipProvince] = useState('');
+  const [shipPostalCode, setShipPostalCode] = useState('');
+  const [shipPhone, setShipPhone] = useState('');
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [orderError, setOrderError] = useState('');
 
   // Load cart from server on mount
   useEffect(() => {
@@ -692,7 +705,16 @@ const Cart = () => {
   useEffect(() => {
     if (purchaseSuccess) {
       setShowCheckoutModal(false);
-      setDeliveryAddress('');
+      // Reset address fields and fulfillment fields
+      setFulfillmentType('pickup');
+      setQuickAddress('');
+  setShipFullName('');
+  setShipAddress1('');
+  setShipAddress2('');
+  setShipCity('');
+  setShipProvince('');
+  setShipPostalCode('');
+  setShipPhone('');
       // Show success message or redirect
       console.log('Purchase completed successfully!');
       // dispatch(resetPurchaseSuccess()); // TODO: Add to new cart slice
@@ -729,26 +751,72 @@ const Cart = () => {
       return;
     }
 
-    if (!deliveryAddress.trim()) {
-      return;
-    }
-
     try {
-      // TODO: Implement purchase functionality with new cart slice
-      console.log('Purchase cart:', {
-        accountType: selectedAccountType,
-        deliveryAddress: deliveryAddress.trim(),
-        items: cartItems,
-        total: totalPrice
-      });
-      
-      // Temporary: Just show success for now
-      alert('Purchase functionality coming soon!');
+      setOrderError('');
+      setPlacingOrder(true);
+
+      // Build top-level fields expected by backend
+      const payload = {
+        paymentMethod: 'account_balance',
+        fulfillmentType: fulfillmentType || 'pickup'
+      };
+
+      // If user provided a quick single-line address, send as top-level 'address'
+      if (quickAddress && quickAddress.trim()) {
+        payload.address = quickAddress.trim();
+      }
+
+      // Optional structured shipping address (without fulfillmentType/address)
+      const addressObj = {
+        fullName: shipFullName?.trim() || undefined,
+        address1: shipAddress1?.trim() || undefined,
+        address2: shipAddress2?.trim() || undefined,
+        city: shipCity?.trim() || undefined,
+        province: shipProvince?.trim() || undefined,
+        postalCode: shipPostalCode?.trim() || undefined,
+        phone: shipPhone?.trim() || undefined
+      };
+      Object.keys(addressObj).forEach((k) => addressObj[k] === undefined && delete addressObj[k]);
+
+      if (Object.keys(addressObj).length > 0) {
+        payload.shippingAddress = addressObj;
+      }
+
+      console.log('🚀 Checkout payload:', payload);
+      const resp = await orderService.checkout(payload);
+      console.log('✅ Checkout response:', resp);
+
+      // On success, clear cart and route to orders
+      dispatch(clearCart());
       setShowCheckoutModal(false);
-      
-      // Success handling is done in useEffect
+
+      const storeCode = resp?.data?.order?.storeCode || resp?.data?.storeCode || '';
+      const pickupHint = resp?.data?.collection?.pickupHint || null;
+
+      alert(
+        `${resp?.message || 'Order placed successfully'}`
+        + `${storeCode ? `\nYour in-store code: ${storeCode}` : ''}`
+        + `${pickupHint ? `\nPickup hint: ${pickupHint}` : ''}`
+      );
+
+      navigate('/dependent-orders');
     } catch (err) {
-      console.error('Error during checkout:', err);
+      console.error('❌ Error during checkout:', err);
+      console.error('Error details:', { status: err?.status, message: err?.message, data: err?.data });
+      
+      if (err?.status === 400 && String(err?.message || '').toLowerCase().includes('insufficient')) {
+        setOrderError(`Insufficient balance. ${err?.data ? `Shortfall: ₵${Number(err.data.shortfall || 0).toFixed(2)}` : ''}`);
+      } else if (err?.status === 403) {
+        setOrderError('Only active dependents can place orders');
+      } else if (err?.status === 404) {
+        setOrderError('Order endpoint not found. Please check your connection.');
+      } else if (err?.message) {
+        setOrderError(`Failed to process order: ${err.message}`);
+      } else {
+        setOrderError('Failed to place order. Please try again.');
+      }
+    } finally {
+      setPlacingOrder(false);
     }
   };
 
@@ -770,10 +838,10 @@ const Cart = () => {
           <span className="item-count">{totalItems} items</span>
         </CartHeader>
 
-            {error && (
+            {(error || orderError) && (
           <ErrorMessage>
-            {error}
-                <button onClick={() => dispatch(clearCartError())}>✕</button>
+            <span>{orderError || error}</span>
+                <button onClick={() => { setOrderError(''); dispatch(clearCartError()); }}>✕</button>
           </ErrorMessage>
         )}
 
@@ -932,12 +1000,101 @@ const Cart = () => {
               </div>
 
               <div className="form-group">
-                <label>Delivery Address:</label>
-                <textarea
-                  value={deliveryAddress}
-                  onChange={(e) => setDeliveryAddress(e.target.value)}
-                  placeholder="Enter your delivery address"
-                  rows={3}
+                <label>Fulfilment Type</label>
+                <select 
+                  value={fulfillmentType} 
+                  onChange={(e) => setFulfillmentType(e.target.value)}
+                >
+                  <option value="pickup">Pickup (in-store)</option>
+                  <option value="delivery">Delivery</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Quick Address (single line, optional)</label>
+                <input
+                  type="text"
+                  value={quickAddress}
+                  onChange={(e) => setQuickAddress(e.target.value)}
+                  placeholder="123 Main Street, Johannesburg, Gauteng, 2001"
+                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Full Name (optional)</label>
+                <input
+                  type="text"
+                  value={shipFullName}
+                  onChange={(e) => setShipFullName(e.target.value)}
+                  placeholder="Emma Johnson"
+                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Address Line 1 (optional)</label>
+                <input
+                  type="text"
+                  value={shipAddress1}
+                  onChange={(e) => setShipAddress1(e.target.value)}
+                  placeholder="123 Main Street"
+                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Address Line 2 (optional)</label>
+                <input
+                  type="text"
+                  value={shipAddress2}
+                  onChange={(e) => setShipAddress2(e.target.value)}
+                  placeholder="Apartment 4B"
+                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>City (optional)</label>
+                <input
+                  type="text"
+                  value={shipCity}
+                  onChange={(e) => setShipCity(e.target.value)}
+                  placeholder="Johannesburg"
+                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Province (optional)</label>
+                <input
+                  type="text"
+                  value={shipProvince}
+                  onChange={(e) => setShipProvince(e.target.value)}
+                  placeholder="Gauteng"
+                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Postal Code (optional)</label>
+                <input
+                  type="text"
+                  value={shipPostalCode}
+                  onChange={(e) => setShipPostalCode(e.target.value)}
+                  placeholder="2001"
+                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Phone (optional)</label>
+                <input
+                  type="tel"
+                  value={shipPhone}
+                  onChange={(e) => setShipPhone(e.target.value)}
+                  placeholder="+27812345678"
+                  style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 8 }}
                 />
               </div>
 
@@ -963,10 +1120,10 @@ const Cart = () => {
               </button>
               <button 
                 onClick={handleCheckout}
-                disabled={purchasing || !deliveryAddress.trim()}
+                disabled={placingOrder}
                 className="confirm-btn"
               >
-                {purchasing ? 'Processing...' : `Pay R${Number(totalPrice || 0).toFixed(2)}`}
+                {placingOrder ? 'Processing...' : `Pay R${Number(totalPrice || 0).toFixed(2)}`}
               </button>
             </ModalFooter>
           </ModalContent>

@@ -41,22 +41,35 @@ export const registerUser = createAsyncThunk(
   'authentication/registerUser',
   async (userData, { rejectWithValue }) => {
     try {
-      // Format user data with proper ID handling and optional middleName
-      const formattedData = {
-        ...userData,
-        middleName: userData.middleName?.trim() || '', // Make middleName optional
-        idNumber: userData.idNumber ? userData.idNumber.toString().trim() : null
+      // Normalize payload to new API contract
+      const payload = {
+        firstName: userData.firstName,
+        middleName: (userData.middleName || '').trim(),
+        surname: userData.surname,
+        email: (userData.email || '').toLowerCase().trim(),
+        password: userData.password,
+        role: userData.role,
+        // API expects 'Idnumber'
+        Idnumber: (userData.Idnumber || userData.idNumber || '').toString().trim()
       };
 
-      // Debug log
-      console.log('Formatted Registration Data:', formattedData);
+      if (userData.role === 'caregiver' && userData.isPregnant) {
+        payload.isPregnant = true;
+        // Ensure ISO string if date provided
+        if (userData.expectedDueDate) {
+          const due = new Date(userData.expectedDueDate);
+          payload.expectedDueDate = isNaN(due.getTime()) ? userData.expectedDueDate : due.toISOString();
+        }
+      }
+
+      console.log('Formatted Registration Data:', payload);
 
       const response = await fetch('https://nanacaring-backend.onrender.com/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formattedData)
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
@@ -71,13 +84,27 @@ export const registerUser = createAsyncThunk(
         });
       }
 
-      // Update localStorage to use middleName instead of lastName
-      if (data.user && data.token) {
-        localStorage.setItem('token', data.token);
+      // Store user if provided; token may or may not be returned by backend
+      if (data.user) {
+        try { localStorage.setItem('user', JSON.stringify(data.user)); } catch {}
         localStorage.setItem('userId', data.user.id);
-        localStorage.setItem('firstName', data.user.firstName);
-        localStorage.setItem('middleName', data.user.middleName || ''); // Store middleName
-        localStorage.setItem('role', data.user.role);
+        localStorage.setItem('firstName', data.user.firstName || '');
+        localStorage.setItem('middleName', data.user.middleName || '');
+        localStorage.setItem('surname', data.user.surname || '');
+        localStorage.setItem('email', data.user.email || '');
+        localStorage.setItem('role', data.user.role || '');
+        if (typeof data.user.isPregnant !== 'undefined') {
+          localStorage.setItem('isPregnant', String(!!data.user.isPregnant));
+        }
+        if (data.user.expectedDueDate) {
+          localStorage.setItem('expectedDueDate', data.user.expectedDueDate);
+        }
+      }
+
+      if (data.token || data.accessToken) {
+        const token = data.token || data.accessToken;
+        localStorage.setItem('token', token);
+        localStorage.setItem('accessToken', token);
       }
 
       return data;
