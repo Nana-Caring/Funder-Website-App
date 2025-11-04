@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { useDispatch } from 'react-redux';
+import { showLoading, hideLoading } from '../../store/slices/ui';
 
 // Safe localStorage wrapper
 const safeLocalStorage = {
@@ -289,6 +291,7 @@ const RefreshButton = styled.button`
 `;
 
 const Statements = () => {
+  const dispatch = useDispatch();
   const [search, setSearch] = useState('');
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
@@ -312,6 +315,7 @@ const Statements = () => {
     }
 
     try {
+      dispatch(showLoading({ message: 'Loading transaction statements...' }));
       setLoading(true);
       setError('');
       
@@ -450,6 +454,7 @@ const Statements = () => {
       });
     } finally {
       setLoading(false);
+      dispatch(hideLoading());
     }
   };
 

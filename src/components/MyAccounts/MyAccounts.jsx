@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
+import { useDispatch } from 'react-redux';
+import { showLoading, hideLoading } from '../../store/slices/ui';
 import Header from '../Header/Header';
 import accountService from '../../services/accountService';
 import cardBg from '../../assets/images/card-bg.png';
@@ -797,6 +799,7 @@ const ResponsiveWrapper = styled.div`
 const MyCards = () => {
   const stripe = useStripe();
   const elements = useElements();
+  const dispatch = useDispatch();
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -959,6 +962,7 @@ const MyCards = () => {
     
     try {
       isFetchingBalance.current = true;
+      dispatch(showLoading({ message: 'Updating account balance...' }));
       
       const token = localStorage.getItem('token');
       if (!token) {
@@ -1012,6 +1016,7 @@ const MyCards = () => {
       // Continue with cached balance if API fails
     } finally {
       isFetchingBalance.current = false;
+      dispatch(hideLoading());
     }
     return null;
   };
@@ -1026,6 +1031,7 @@ const MyCards = () => {
       
       const loadAccountData = async () => {
         try {
+          dispatch(showLoading({ message: 'Loading account data...' }));
           await fetchAccountBalance();
           console.log('✅ MyAccounts data loaded successfully');
         } catch (error) {
@@ -1034,12 +1040,13 @@ const MyCards = () => {
           hasLoadedData.current = false;
         } finally {
           setLoading(false);
+          dispatch(hideLoading());
         }
       };
 
       loadAccountData();
     }
-  }, [stripe]);
+  }, [stripe, dispatch]);
 
   // Effect to handle balance updates (optimized to prevent unnecessary re-renders)
   useEffect(() => {
@@ -1095,6 +1102,7 @@ const MyCards = () => {
     setLoading(true);
     setPaymentStatus('');
     setError('');
+    dispatch(showLoading({ message: 'Processing deposit...' }));
 
     try {
       const token = localStorage.getItem('token');
@@ -1241,6 +1249,7 @@ const MyCards = () => {
       setPaymentStatus('');
     } finally {
       setLoading(false);
+      dispatch(hideLoading());
     }
   };
 

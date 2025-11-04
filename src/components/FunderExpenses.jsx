@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { showLoading, hideLoading } from '../store/slices/ui';
 
 // Styled components (mirrors CareGiverExpenses for consistent UI)
 const Container = styled.div`
@@ -240,7 +241,8 @@ const getAvatarColor = (index) => {
 };
 
 const FunderExpenses = () => {
-  // Redux auth (optional)
+  // Redux setup
+  const dispatch = useDispatch();
   const { user, token: reduxToken } = useSelector(state => state.authentication || {});
 
   // Local state
@@ -266,6 +268,8 @@ const FunderExpenses = () => {
 
       try {
         setError('');
+        dispatch(showLoading({ message: 'Loading beneficiaries...' }));
+        
         // Try funder beneficiaries endpoint first (as used in SendMoney)
         let response = await fetch('https://nanacaring-backend.onrender.com/api/funder/beneficiaries', {
           method: 'GET',
@@ -306,17 +310,20 @@ const FunderExpenses = () => {
         setError(err.message || 'Failed to load dependents');
       } finally {
         setLoading(false);
+        dispatch(hideLoading());
       }
     };
 
     fetchDependents();
-  }, [token]);
+  }, [token, dispatch]);
 
   // Fetch funder transactions
   useEffect(() => {
     const fetchTransactions = async () => {
       if (!token) return;
       try {
+        dispatch(showLoading({ message: 'Loading transactions...' }));
+        
         // Try main transactions endpoint
         let response = await fetch('https://nanacaring-backend.onrender.com/api/funder/transactions', {
           method: 'GET',
@@ -365,11 +372,13 @@ const FunderExpenses = () => {
       } catch (err) {
         console.error('Failed to fetch funder transactions:', err);
         // Don't surface error loudly here; list will show empty state
+      } finally {
+        dispatch(hideLoading());
       }
     };
 
     fetchTransactions();
-  }, [token]);
+  }, [token, dispatch]);
 
   // Active dependent helpers
   const hasMultiple = dependents.length > 1;
