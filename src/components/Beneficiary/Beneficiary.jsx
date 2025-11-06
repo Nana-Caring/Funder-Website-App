@@ -7,6 +7,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { showLoading, hideLoading } from '../../store/slices/ui';
 import { funderService } from '../../services/funderService';
 import authService from '../../services/authService';
+import caregiverService from '../../services/caregiverService';
 
 
 const BeneficiaryContainer = styled.div`
@@ -907,7 +908,15 @@ const BeneficiaryForm = () => {
     try {
       console.log('🔄 Registering dependent:', registrationData);
       
-      const result = await authService.registerDependent(registrationData);
+      // Prefer caregiverService which has robust endpoint fallbacks
+      const authToken = token || localStorage.getItem('token') || localStorage.getItem('accessToken');
+      let result;
+      try {
+        result = await caregiverService.registerDependent(authToken, registrationData);
+      } catch (svcErr) {
+        console.warn('Primary caregiverService registration failed, attempting authService.registerDependent as fallback');
+        result = await authService.registerDependent(registrationData);
+      }
       
       console.log('✅ Registration success:', result);
       setError('✅ Dependent registered successfully! They can now be added as a beneficiary.');
@@ -930,7 +939,10 @@ const BeneficiaryForm = () => {
       
     } catch (err) {
       console.error('❌ Registration failed:', err);
-      setError(err.response?.data?.message || err.message || 'Registration failed');
+      const backendMessage = err?.response?.data?.message || err?.message || 'Registration failed';
+      setError(backendMessage.includes('Server error') 
+        ? 'Server error while registering dependent. Please try again shortly.' 
+        : backendMessage);
     } finally {
       setRegistrationLoading(false);
       dispatch(hideLoading());
