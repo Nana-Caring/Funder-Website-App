@@ -993,7 +993,7 @@ const Cart = () => {
             
             <ModalBody>
               <div className="form-group">
-                <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>💳 Payment Method</label>
+                <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>Payment Method</label>
                 <div style={{ padding: 12, background: '#f3f4f6', borderRadius: 8, border: '1px solid #e5e7eb' }}>
                   <p style={{ margin: 0, fontWeight: 600, color: '#374151' }}>Account Balance</p>
                   <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#666' }}>Payment will be deducted from your account balance</p>
@@ -1001,7 +1001,7 @@ const Cart = () => {
               </div>
 
               <div className="form-group">
-                <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>📍 Fulfillment</label>
+                <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>Fulfillment</label>
                 <div style={{ padding: 12, background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
                   <p style={{ margin: 0, fontWeight: 600, color: '#15803d' }}>In-Store Pickup</p>
                   <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#65a30d' }}>Your order will be ready for pickup at the store</p>

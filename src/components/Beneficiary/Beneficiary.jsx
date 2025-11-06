@@ -6,6 +6,7 @@ import deleteIcon from '../../assets/icons/delete.png';
 import { useSelector, useDispatch } from 'react-redux';
 import { showLoading, hideLoading } from '../../store/slices/ui';
 import { funderService } from '../../services/funderService';
+import authService from '../../services/authService';
 
 
 const BeneficiaryContainer = styled.div`
@@ -371,6 +372,87 @@ const EmergencyInfo = styled.div`
   }
 `;
 
+const LinkButton = styled.button`
+  background: none;
+  border: none;
+  color: #2196F3;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 16px 0;
+  padding: 8px 0;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #1976D2;
+  }
+`;
+
+const RegistrationFormGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+`;
+
+const FormField = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  
+  &.full-width {
+    grid-column: span 2;
+  }
+`;
+
+const FormLabel = styled.label`
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+`;
+
+const FormInput = styled.input`
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid ${props => props.hasError ? '#f44336' : '#e0e0e0'};
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  
+  &:focus {
+    border-color: ${props => props.hasError ? '#f44336' : '#2196F3'};
+  }
+  
+  &.monospace {
+    font-family: monospace;
+  }
+`;
+
+const FormSelect = styled.select`
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid ${props => props.hasError ? '#f44336' : '#e0e0e0'};
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  background: white;
+  
+  &:focus {
+    border-color: ${props => props.hasError ? '#f44336' : '#2196F3'};
+  }
+`;
+
+const FormError = styled.div`
+  color: #f44336;
+  font-size: 12px;
+  margin-top: 4px;
+`;
+
 const getRandomPastelColor = () => {
   const hue = Math.floor(Math.random() * 360);
   return `hsl(${hue}, 70%, 75%)`;
@@ -427,6 +509,20 @@ const BeneficiaryForm = () => {
   const [mainAccountNumber, setMainAccountNumber] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  
+  // Registration form states
+  const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+  const [registrationData, setRegistrationData] = useState({
+    firstName: '',
+    middleName: '',
+    surname: '',
+    email: '',
+    password: '',
+    Idnumber: '',
+    relation: ''
+  });
+  const [registrationErrors, setRegistrationErrors] = useState({});
+  const [registrationLoading, setRegistrationLoading] = useState(false);
 
 
 
@@ -640,6 +736,7 @@ const BeneficiaryForm = () => {
   const handleEdit = (beneficiary, index) => {
     setIsEditing(true);
     setEditingIndex(index);
+    setShowRegistrationForm(false);  // Ensure we're in linking mode
     setFormData({
       name: beneficiary.dependentName || beneficiary.name || beneficiary.firstName,
       accountNumber: beneficiary.accountNumber,
@@ -718,6 +815,17 @@ const BeneficiaryForm = () => {
     setEditingIndex(null);
     setFormData({ name: '', accountNumber: '' });
     setShowFormModal(false);
+    setShowRegistrationForm(false);
+    setRegistrationData({
+      firstName: '',
+      middleName: '',
+      surname: '',
+      email: '',
+      password: '',
+      Idnumber: '',
+      relation: ''
+    });
+    setRegistrationErrors({});
     setError('');
   };
 
@@ -726,7 +834,107 @@ const BeneficiaryForm = () => {
     setIsEditing(false);
     setEditingIndex(null);
     setFormData({ name: '', accountNumber: '' });
+    setShowRegistrationForm(false);
     setError('');
+  };
+
+  // Registration form handlers
+  const handleRegistrationFormChange = (e) => {
+    const { name, value } = e.target;
+    setRegistrationData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Clear specific error when user starts typing
+    if (registrationErrors[name]) {
+      setRegistrationErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  };
+
+  const validateRegistrationForm = () => {
+    const errors = {};
+    
+    if (!registrationData.firstName.trim()) {
+      errors.firstName = 'First name is required';
+    }
+    
+    if (!registrationData.surname.trim()) {
+      errors.surname = 'Surname is required';
+    }
+    
+    if (!registrationData.email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(registrationData.email)) {
+      errors.email = 'Valid email is required';
+    }
+    
+    if (!registrationData.password) {
+      errors.password = 'Password is required';
+    } else if (registrationData.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+    }
+    
+    if (!registrationData.Idnumber.trim()) {
+      errors.Idnumber = 'ID number is required';
+    } else if (!/^\d{13}$/.test(registrationData.Idnumber)) {
+      errors.Idnumber = 'Valid 13-digit numeric ID number required';
+    }
+    
+    if (!registrationData.relation.trim()) {
+      errors.relation = 'Relation is required';
+    }
+    
+    return errors;
+  };
+
+  const handleDependentSubmit = async (e) => {
+    e.preventDefault();
+    
+    const errors = validateRegistrationForm();
+    if (Object.keys(errors).length > 0) {
+      setRegistrationErrors(errors);
+      return;
+    }
+    
+    setRegistrationLoading(true);
+    setError('');
+    dispatch(showLoading({ message: 'Registering dependent...' }));
+    
+    try {
+      console.log('🔄 Registering dependent:', registrationData);
+      
+      const result = await authService.registerDependent(registrationData);
+      
+      console.log('✅ Registration success:', result);
+      setError('✅ Dependent registered successfully! They can now be added as a beneficiary.');
+      
+      // Clear form and refresh beneficiaries
+      setRegistrationData({
+        firstName: '',
+        middleName: '',
+        surname: '',
+        email: '',
+        password: '',
+        Idnumber: '',
+        relation: ''
+      });
+      setRegistrationErrors({});
+      setShowRegistrationForm(false);
+      
+      // Refresh beneficiaries list
+      fetchBeneficiaries();
+      
+    } catch (err) {
+      console.error('❌ Registration failed:', err);
+      setError(err.response?.data?.message || err.message || 'Registration failed');
+    } finally {
+      setRegistrationLoading(false);
+      dispatch(hideLoading());
+    }
   };
 
   const handleDeleteAttempt = (beneficiary, index) => {
@@ -1093,7 +1301,7 @@ const BeneficiaryForm = () => {
       {showFormModal && (
         <ModalOverlay onClick={() => setShowFormModal(false)}>
           <ModalContent onClick={(e) => e.stopPropagation()}>
-            <FormContainer onSubmit={isEditing ? handleUpdateBeneficiary : handleAddBeneficiary}>
+            <FormContainer onSubmit={showRegistrationForm ? handleDependentSubmit : (isEditing ? handleUpdateBeneficiary : handleAddBeneficiary)}>
               <h3 style={{ 
                 marginBottom: '20px', 
                 fontSize: '18px', 
@@ -1101,10 +1309,10 @@ const BeneficiaryForm = () => {
                 color: '#222',
                 textAlign: 'center'
               }}>
-                {isEditing ? 'Edit Beneficiary' : 'Link New Beneficiary'}
+                {showRegistrationForm ? 'Register New Dependent' : (isEditing ? 'Edit Beneficiary' : 'Link New Beneficiary')}
               </h3>
               
-              {!isEditing && (
+              {!isEditing && !showRegistrationForm && (
                 <div style={{
                   background: 'linear-gradient(135deg, #e3f2fd, #f0f8ff)',
                   border: '1px solid #2196F3',
@@ -1124,6 +1332,10 @@ const BeneficiaryForm = () => {
                     <li>Builds <strong>long-term financial discipline</strong></li>
                   </ul>
                 </div>
+              )}
+
+              {!isEditing && !showRegistrationForm && (
+                <></>
               )}
 
               {isEditing && mainAccountNumber && (
@@ -1157,66 +1369,207 @@ const BeneficiaryForm = () => {
                 </div>
               )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div>
-                  <label style={{ 
-                    display: 'block',
-                    color: '#333', 
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    marginBottom: '8px'
-                  }}>
-                    Beneficiary Name
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="Enter beneficiary full name"
-                    style={{ 
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: '2px solid #e0e0e0',
-                      borderRadius: '8px',
+              {!showRegistrationForm ? (
+                // Link existing beneficiary form
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label style={{ 
+                      display: 'block',
+                      color: '#333', 
                       fontSize: '14px',
-                      outline: 'none',
-                      transition: 'border-color 0.2s',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
+                      fontWeight: '600',
+                      marginBottom: '8px'
+                    }}>
+                      Beneficiary Name
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder="Enter beneficiary full name"
+                      style={{ 
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '2px solid #e0e0e0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        transition: 'border-color 0.2s',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
 
-                <div>
-                  <label style={{ 
-                    display: 'block',
-                    color: '#333', 
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    marginBottom: '8px'
-                  }}>
-                    Account Number
-                  </label>
-                  <input
-                    type="text"
-                    name="accountNumber"
-                    value={formData.accountNumber}
-                    onChange={handleInputChange}
-                    placeholder="Enter main account number"
-                    style={{ 
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: '2px solid #e0e0e0',
-                      borderRadius: '8px',
+                  <div>
+                    <label style={{ 
+                      display: 'block',
+                      color: '#333', 
                       fontSize: '14px',
-                      outline: 'none',
-                      transition: 'border-color 0.2s',
-                      boxSizing: 'border-box',
-                      fontFamily: 'monospace'
-                    }}
-                  />
+                      fontWeight: '600',
+                      marginBottom: '8px'
+                    }}>
+                      Account Number
+                    </label>
+                    <input
+                      type="text"
+                      name="accountNumber"
+                      value={formData.accountNumber}
+                      onChange={handleInputChange}
+                      placeholder="Enter main account number"
+                      style={{ 
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '2px solid #e0e0e0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        transition: 'border-color 0.2s',
+                        boxSizing: 'border-box',
+                        fontFamily: 'monospace'
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                // Register new dependent form
+                <div>
+                  <div style={{ 
+                    marginBottom: '20px',
+                    textAlign: 'center',
+                    padding: '12px',
+                    background: '#f0f8ff',
+                    borderRadius: '8px',
+                    border: '1px solid #e3f2fd'
+                  }}>
+                    <h4 style={{ margin: '0 0 8px 0', color: '#1976d2', fontSize: '16px' }}>
+                      Register New Dependent
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#666' }}>
+                      Create a new account for your dependent
+                    </p>
+                    <LinkButton 
+                      type="button"
+                      onClick={() => setShowRegistrationForm(false)}
+                      style={{ fontSize: '12px', margin: '8px 0 0 0' }}
+                    >
+                      ← Back to Link Existing
+                    </LinkButton>
+                  </div>
+
+                  <RegistrationFormGrid>
+                    <FormField>
+                      <FormLabel>First Name *</FormLabel>
+                      <FormInput
+                        type="text"
+                        name="firstName"
+                        value={registrationData.firstName}
+                        onChange={handleRegistrationFormChange}
+                        placeholder="Enter first name"
+                        hasError={registrationErrors.firstName}
+                      />
+                      {registrationErrors.firstName && (
+                        <FormError>{registrationErrors.firstName}</FormError>
+                      )}
+                    </FormField>
+
+                    <FormField>
+                      <FormLabel>Surname *</FormLabel>
+                      <FormInput
+                        type="text"
+                        name="surname"
+                        value={registrationData.surname}
+                        onChange={handleRegistrationFormChange}
+                        placeholder="Enter surname"
+                        hasError={registrationErrors.surname}
+                      />
+                      {registrationErrors.surname && (
+                        <FormError>{registrationErrors.surname}</FormError>
+                      )}
+                    </FormField>
+
+                    <FormField className="full-width">
+                      <FormLabel>Middle Name (Optional)</FormLabel>
+                      <FormInput
+                        type="text"
+                        name="middleName"
+                        value={registrationData.middleName}
+                        onChange={handleRegistrationFormChange}
+                        placeholder="Enter middle name (optional)"
+                      />
+                    </FormField>
+
+                    <FormField className="full-width">
+                      <FormLabel>Email Address *</FormLabel>
+                      <FormInput
+                        type="email"
+                        name="email"
+                        value={registrationData.email}
+                        onChange={handleRegistrationFormChange}
+                        placeholder="Enter email address"
+                        hasError={registrationErrors.email}
+                      />
+                      {registrationErrors.email && (
+                        <FormError>{registrationErrors.email}</FormError>
+                      )}
+                    </FormField>
+
+                    <FormField>
+                      <FormLabel>Password *</FormLabel>
+                      <FormInput
+                        type="password"
+                        name="password"
+                        value={registrationData.password}
+                        onChange={handleRegistrationFormChange}
+                        placeholder="Minimum 6 characters"
+                        hasError={registrationErrors.password}
+                      />
+                      {registrationErrors.password && (
+                        <FormError>{registrationErrors.password}</FormError>
+                      )}
+                    </FormField>
+
+                    <FormField>
+                      <FormLabel>ID Number *</FormLabel>
+                      <FormInput
+                        type="text"
+                        name="Idnumber"
+                        value={registrationData.Idnumber}
+                        onChange={handleRegistrationFormChange}
+                        placeholder="13-digit ID number"
+                        maxLength="13"
+                        className="monospace"
+                        hasError={registrationErrors.Idnumber}
+                      />
+                      {registrationErrors.Idnumber && (
+                        <FormError>{registrationErrors.Idnumber}</FormError>
+                      )}
+                    </FormField>
+
+                    <FormField className="full-width">
+                      <FormLabel>Relationship *</FormLabel>
+                      <FormSelect
+                        name="relation"
+                        value={registrationData.relation}
+                        onChange={handleRegistrationFormChange}
+                        hasError={registrationErrors.relation}
+                      >
+                        <option value="">Select relationship</option>
+                        <option value="child">Child</option>
+                        <option value="spouse">Spouse</option>
+                        <option value="parent">Parent</option>
+                        <option value="sibling">Sibling</option>
+                        <option value="grandparent">Grandparent</option>
+                        <option value="grandchild">Grandchild</option>
+                        <option value="other">Other</option>
+                      </FormSelect>
+                      {registrationErrors.relation && (
+                        <FormError>{registrationErrors.relation}</FormError>
+                      )}
+                    </FormField>
+                  </RegistrationFormGrid>
+                </div>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px', gap: '12px' }}>
                 <button
@@ -1238,22 +1591,41 @@ const BeneficiaryForm = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={showRegistrationForm && registrationLoading}
                   style={{
-                    background: isEditing ? 'linear-gradient(135deg, #4CAF50, #45a049)' : 'linear-gradient(135deg, #185c37, #1e6b42)',
+                    background: (isEditing 
+                      ? 'linear-gradient(135deg, #4CAF50, #45a049)' 
+                      : 'linear-gradient(135deg, #185c37, #1e6b42)'),
                     color: 'white',
                     padding: '12px 24px',
                     border: 'none',
                     borderRadius: '8px',
-                    cursor: 'pointer',
+                    cursor: (showRegistrationForm && registrationLoading) ? 'not-allowed' : 'pointer',
                     fontSize: '14px',
                     fontWeight: '600',
                     transition: 'all 0.2s',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                    boxShadow: '0 2px 8px rgba(24, 92, 55, 0.2)',
+                    opacity: (showRegistrationForm && registrationLoading) ? 0.7 : 1
                   }}
                 >
-                  {isEditing ? 'Update Beneficiary' : 'Link Beneficiary'}
+                  {showRegistrationForm 
+                    ? (registrationLoading ? 'Registering...' : 'Register Dependent')
+                    : (isEditing ? 'Update Beneficiary' : 'Link Beneficiary')
+                  }
                 </button>
               </div>
+
+              {/* Moved CTA under action buttons */}
+              {!isEditing && !showRegistrationForm && (
+                <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                  <LinkButton 
+                    type="button"
+                    onClick={() => setShowRegistrationForm(true)}
+                  >
+                    Register Dependent
+                  </LinkButton>
+                </div>
+              )}
             </FormContainer>
           </ModalContent>
         </ModalOverlay>
