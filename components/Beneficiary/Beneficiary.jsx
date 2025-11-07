@@ -298,6 +298,27 @@ const BeneficiaryForm = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Search by custom name function
+  const searchByCustomName = async (customName) => {
+    if (!customName.trim()) {
+      setError('Please enter a name to search');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const result = await funderService.searchByCustomName(customName, token);
+      
+      if (result.success) {
+        setError(`✅ Found: ${result.data.customName} (${result.data.dependent.firstName} ${result.data.dependent.surname})`);
+      } else {
+        setError('No dependent found with that custom name.');
+      }
+    } catch (error) {
+      setError(error.message || 'Failed to search by custom name');
+    }
+  };
+
   // Fetch beneficiaries from backend and persist to localStorage
   const fetchBeneficiaries = async () => {
     setLoading(true);
@@ -358,7 +379,7 @@ const BeneficiaryForm = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post('https://nanacaring-backend.onrender.com/api/funder/link-dependent', {
-        dependentName: formData.name,
+        customName: formData.name,
         accountNumber: formData.accountNumber
 
       },
@@ -420,7 +441,7 @@ const BeneficiaryForm = () => {
   };
 
   const filteredBeneficiaries = beneficiaries.filter(beneficiary =>
-    (beneficiary.name || beneficiary.firstName || '')
+    (beneficiary.displayName || beneficiary.customName || beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '')
     .toLowerCase()
     .includes(searchTerm.toLowerCase())
   );
@@ -450,6 +471,21 @@ const BeneficiaryForm = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          <button 
+            onClick={() => searchByCustomName(searchTerm)}
+            style={{
+              marginLeft: '10px',
+              padding: '8px 12px',
+              backgroundColor: '#185c37',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            Search Custom Name
+          </button>
         </SearchBox>
 
         <div className="table-wrapper">
@@ -488,10 +524,10 @@ const BeneficiaryForm = () => {
                     }}
                   >
                     <Avatar color={getRandomPastelColor()}>
-                      {(beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '?').charAt(0)}
+                      {(beneficiary.displayName || beneficiary.customName || beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '?').charAt(0)}
                     </Avatar>
                     <span style={{ fontWeight: 600, fontSize: '11.5px', color: '#222' }}>
-                      {beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '?'}
+                      {beneficiary.displayName || beneficiary.customName || beneficiary.dependentName || beneficiary.name || beneficiary.firstName || '?'}
                     </span>
                   </td>
                   <td>
@@ -551,7 +587,7 @@ const BeneficiaryForm = () => {
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
-                    placeholder="Enter beneficiary name"
+                    placeholder="Enter name"
                     style={{ 
                       width: '280px',
                       padding: '12px 16px',

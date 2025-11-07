@@ -84,6 +84,36 @@ export const funderService = {
     }
   },
 
+  // Search dependent by custom name
+  searchByCustomName: async (customName, token) => {
+    try {
+      console.log('🔍 Searching dependent by custom name:', customName);
+      
+      const response = await axios.get(
+        `${API_BASE_URL}/funder/search-dependent?customName=${encodeURIComponent(customName)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log('Search response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error searching by custom name:', error);
+      
+      if (error.response?.status === 404) {
+        throw new Error('No dependent found with that custom name.');
+      } else if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please log in again.');
+      } else {
+        throw error.response?.data?.message || error.message || 'Failed to search dependent';
+      }
+    }
+  },
+
   // DEPRECATED: Keep for backward compatibility but use getBeneficiaries instead
   getDependents: async (token) => {
     console.warn('⚠️ getDependents is deprecated. Use getBeneficiaries instead.');
