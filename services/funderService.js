@@ -267,5 +267,74 @@ export const funderService = {
       ? parseFloat(amount.replace(/[^\d.-]/g, '')) 
       : parseFloat(amount || 0);
     return `R ${num.toFixed(2)}`;
+  },
+
+  // Register dependent for funders
+  registerDependent: async (dependentData, token) => {
+    try {
+      console.log('🎯 Funder registering dependent via existing API:', { 
+        ...dependentData, 
+        password: '[HIDDEN]' 
+      });
+      
+      // Validate required fields
+      const requiredFields = ['firstName', 'surname', 'email', 'password', 'Idnumber'];
+      const missingFields = requiredFields.filter(field => !dependentData[field]);
+      
+      if (missingFields.length > 0) {
+        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+      }
+
+      // Prepare request data
+      const requestData = {
+        firstName: dependentData.firstName.trim(),
+        middleName: dependentData.middleName?.trim() || '',
+        surname: dependentData.surname.trim(),
+        email: dependentData.email.trim().toLowerCase(),
+        password: dependentData.password,
+        Idnumber: dependentData.Idnumber.trim(),
+        relation: dependentData.relation || 'beneficiary' // Default relation for funders
+      };
+
+      console.log('📡 Calling existing API endpoint: /api/auth/register-dependent');
+      
+      // Call the existing endpoint that already supports funders
+      const response = await axios.post(
+        `${API_BASE_URL}/auth/register-dependent`,
+        requestData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('✅ Funder dependent registration successful:', response.data);
+      return response.data;
+
+    } catch (error) {
+      console.error('❌ Error in funder dependent registration:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      // Enhanced error handling
+      if (error.response?.status === 400) {
+        throw new Error(error.response?.data?.message || 'Invalid registration data');
+      } else if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please log in again.');
+      } else if (error.response?.status === 403) {
+        throw new Error('Access denied. Only caregivers and funders can register dependents.');
+      } else if (error.response?.status === 409) {
+        throw new Error('Email or ID number already in use');
+      } else if (error.response?.status >= 500) {
+        throw new Error('Server error. Please try again later.');
+      } else {
+        throw new Error(error.response?.data?.message || error.message || 'Failed to register dependent');
+      }
+    }
   }
 };

@@ -908,18 +908,27 @@ const BeneficiaryForm = () => {
     try {
       console.log('🔄 Registering dependent:', registrationData);
       
-      // Prefer caregiverService which has robust endpoint fallbacks
+      // Use role-based service selection to support both caregivers and funders
       const authToken = token || localStorage.getItem('token') || localStorage.getItem('accessToken');
       let result;
       try {
-        result = await caregiverService.registerDependent(authToken, registrationData);
+        if (user?.role === 'funder') {
+          console.log('🎯 Using funder service for registration');
+          result = await funderService.registerDependent(registrationData, authToken);
+        } else {
+          console.log('👩‍⚕️ Using caregiver service for registration');
+          result = await caregiverService.registerDependent(authToken, registrationData);
+        }
       } catch (svcErr) {
-        console.warn('Primary caregiverService registration failed, attempting authService.registerDependent as fallback');
+        console.warn(`Primary ${user?.role || 'unknown'} service registration failed, attempting authService.registerDependent as fallback`);
         result = await authService.registerDependent(registrationData);
       }
       
       console.log('✅ Registration success:', result);
-      setError('✅ Dependent registered successfully! They can now be added as a beneficiary.');
+      const successMessage = user?.role === 'funder' 
+        ? '✅ Dependent registered successfully! They are now automatically linked as a beneficiary and ready for transfers.'
+        : '✅ Dependent registered successfully! They can now be added as a beneficiary.';
+      setError(successMessage);
       
       // Clear form and refresh beneficiaries
       setRegistrationData({
